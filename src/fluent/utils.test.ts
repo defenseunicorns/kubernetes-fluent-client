@@ -7,7 +7,7 @@ import { fetch } from "../fetch";
 import { GenericClass } from "../types";
 import { ClusterRole, Ingress, Pod } from "../upstream";
 import { Filters } from "./types";
-import { kubeExec, pathBuilder } from "./utils";
+import { k8sExec, pathBuilder } from "./utils";
 
 jest.mock("https");
 jest.mock("../fetch");
@@ -83,7 +83,7 @@ describe("kubeExec Function", () => {
       statusText: "OK",
     });
 
-    const result = await kubeExec(Pod, fakeFilters, fakeMethod, fakePayload);
+    const result = await k8sExec(Pod, fakeFilters, fakeMethod, fakePayload);
 
     expect(result).toEqual(fakePayload);
     expect(mockedFetch).toHaveBeenCalledWith(fakeUrl, expect.objectContaining(fakeOpts));
@@ -100,7 +100,7 @@ describe("kubeExec Function", () => {
       statusText: fakeStatusText,
     });
 
-    await expect(kubeExec(Pod, fakeFilters, fakeMethod, fakePayload)).rejects.toEqual(
+    await expect(k8sExec(Pod, fakeFilters, fakeMethod, fakePayload)).rejects.toEqual(
       expect.objectContaining({
         status: fakeStatus,
         statusText: fakeStatusText,

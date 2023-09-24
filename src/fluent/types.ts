@@ -31,7 +31,7 @@ export type GetFunction<K extends KubernetesObject> = {
   (name: string): Promise<K>;
 };
 
-export type KubeFilteredActions<K extends KubernetesObject> = {
+export type K8sFilteredActions<K extends KubernetesObject> = {
   /**
    * Get the resource or resources matching the filters.
    * If no filters are specified, all resources will be returned.
@@ -54,7 +54,7 @@ export type KubeFilteredActions<K extends KubernetesObject> = {
   Watch: (callback: (payload: K, phase: WatchPhase) => void) => Promise<void>;
 };
 
-export type KubeUnfilteredActions<K extends KubernetesObject> = {
+export type K8sUnfilteredActions<K extends KubernetesObject> = {
   /**
    * Perform a server-side apply of the provided K8s resource.
    *
@@ -82,7 +82,7 @@ export type KubeUnfilteredActions<K extends KubernetesObject> = {
   Patch: (payload: Operation[]) => Promise<K>;
 };
 
-export type KubeWithFilters<K extends KubernetesObject> = KubeFilteredActions<K> & {
+export type K8sWithFilters<K extends KubernetesObject> = K8sFilteredActions<K> & {
   /**
    * Filter the query by the given field.
    * Note multiple calls to this method will result in an AND condition. e.g.
@@ -100,7 +100,7 @@ export type KubeWithFilters<K extends KubernetesObject> = KubeFilteredActions<K>
    * @param value The field value
    * @returns
    */
-  WithField: <P extends Paths<K>>(key: P, value?: string) => KubeWithFilters<K>;
+  WithField: <P extends Paths<K>>(key: P, value?: string) => K8sWithFilters<K>;
 
   /**
    * Filter the query by the given label. If no value is specified, the label simply must exist.
@@ -118,18 +118,18 @@ export type KubeWithFilters<K extends KubernetesObject> = KubeFilteredActions<K>
    * @param key The label key
    * @param value (optional) The label value
    */
-  WithLabel: (key: string, value?: string) => KubeWithFilters<K>;
+  WithLabel: (key: string, value?: string) => K8sWithFilters<K>;
 };
 
-export type KubeInit<K extends KubernetesObject> = KubeWithFilters<K> &
-  KubeUnfilteredActions<K> & {
+export type K8sInit<K extends KubernetesObject> = K8sWithFilters<K> &
+  K8sUnfilteredActions<K> & {
     /**
      * Filter the query by the given namespace.
      *
      * @param namespace
      * @returns
      */
-    InNamespace: (namespace: string) => KubeWithFilters<K>;
+    InNamespace: (namespace: string) => K8sWithFilters<K>;
   };
 
 export type WatchAction<T extends GenericClass, K extends KubernetesObject = InstanceType<T>> = (

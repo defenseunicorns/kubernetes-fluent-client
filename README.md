@@ -6,10 +6,10 @@
 [![Npm package total downloads](https://badgen.net/npm/dt/kubernetes-fluent-client)](https://npmjs.com/package/kubernetes-fluent-client)
 
 ```typescript
-import { Kube } from "kubernetes-fluent-client";
+import { K8s, kind } from "kubernetes-fluent-client";
 
 async function main() {
-  const pods = await Kube(kind.Pod).Get();
+  const pods = await K8s(kind.Pod).Get();
   console.log(pods);
 }
 ```

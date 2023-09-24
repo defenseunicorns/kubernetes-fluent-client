@@ -7,8 +7,8 @@ import { StatusCodes } from "http-status-codes";
 
 import { modelToGroupVersionKind } from "../kinds";
 import { GenericClass } from "../types";
-import { Filters, KubeInit, Paths, WatchAction } from "./types";
-import { kubeExec } from "./utils";
+import { Filters, K8sInit, Paths, WatchAction } from "./types";
+import { k8sExec } from "./utils";
 import { ExecWatch } from "./watch";
 
 /**
@@ -17,10 +17,10 @@ import { ExecWatch } from "./watch";
  * @param model - the model to use for the API
  * @param filters - (optional) filter overrides, can also be chained
  */
-export function Kube<T extends GenericClass, K extends KubernetesObject = InstanceType<T>>(
+export function K8s<T extends GenericClass, K extends KubernetesObject = InstanceType<T>>(
   model: T,
   filters: Filters = {},
-): KubeInit<K> {
+): K8sInit<K> {
   const withFilters = { WithField, WithLabel, Get, Delete, Watch };
   const matchedKind = filters.kindOverride || modelToGroupVersionKind(model.name);
 
@@ -76,7 +76,7 @@ export function Kube<T extends GenericClass, K extends KubernetesObject = Instan
       filters.name = name;
     }
 
-    return kubeExec<T, K | KubernetesListObject<K>>(model, filters, "GET");
+    return k8sExec<T, K | KubernetesListObject<K>>(model, filters, "GET");
   }
 
   async function Delete(filter?: K | string): Promise<void> {
@@ -88,7 +88,7 @@ export function Kube<T extends GenericClass, K extends KubernetesObject = Instan
 
     try {
       // Try to delete the resource
-      await kubeExec<T, void>(model, filters, "DELETE");
+      await k8sExec<T, void>(model, filters, "DELETE");
     } catch (e) {
       // If the resource doesn't exist, ignore the error
       if (e.status === StatusCodes.NOT_FOUND) {
@@ -101,12 +101,12 @@ export function Kube<T extends GenericClass, K extends KubernetesObject = Instan
 
   async function Apply(resource: K): Promise<K> {
     syncFilters(resource);
-    return kubeExec(model, filters, "APPLY", resource);
+    return k8sExec(model, filters, "APPLY", resource);
   }
 
   async function Create(resource: K): Promise<K> {
     syncFilters(resource);
-    return kubeExec(model, filters, "POST", resource);
+    return k8sExec(model, filters, "POST", resource);
   }
 
   async function Patch(payload: Operation[]): Promise<K> {
@@ -115,7 +115,7 @@ export function Kube<T extends GenericClass, K extends KubernetesObject = Instan
       throw new Error("No operations specified");
     }
 
-    return kubeExec<T, K>(model, filters, "PATCH", payload);
+    return k8sExec<T, K>(model, filters, "PATCH", payload);
   }
 
   async function Watch(callback: WatchAction<T>): Promise<void> {

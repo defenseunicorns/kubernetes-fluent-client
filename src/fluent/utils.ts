@@ -92,7 +92,7 @@ export function pathBuilder<T extends GenericClass>(
  * @param method
  * @returns
  */
-export async function kubeCfg(method: FetchMethods) {
+export async function k8sCfg(method: FetchMethods) {
   const kubeConfig = new KubeConfig();
   kubeConfig.loadFromDefault();
 
@@ -115,13 +115,13 @@ export async function kubeCfg(method: FetchMethods) {
   return { opts, serverUrl: cluster.server };
 }
 
-export async function kubeExec<T extends GenericClass, K>(
+export async function k8sExec<T extends GenericClass, K>(
   model: T,
   filters: Filters,
   method: FetchMethods,
   payload?: K | unknown,
 ) {
-  const { opts, serverUrl } = await kubeCfg(method);
+  const { opts, serverUrl } = await k8sCfg(method);
   const url = pathBuilder(serverUrl, model, filters, method === "POST");
 
   switch (opts.method) {

@@ -4,16 +4,16 @@
 // Export kinds as a single object
 import * as kind from "./upstream";
 
-/** given is a collection of K8s types to be used within a Kube call: `Kube(kind.Secret).Apply({})`. `a` may also be used in it's place */
+/** kind is a collection of K8s types to be used within a K8s call: `K8s(kind.Secret).Apply({})`. */
 export { kind };
 
 // Export the node-fetch wrapper
 export { fetch } from "./fetch";
 
 // Export the fluent API entrypoint
-export { Kube } from "./fluent/kube";
+export { K8s } from "./fluent";
 
 // Export helpers for working with K8s types
-export { modelToGroupVersionKind, RegisterKind } from "./kinds";
+export { RegisterKind, modelToGroupVersionKind } from "./kinds";
 
 export * from "./types";

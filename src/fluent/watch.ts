@@ -6,7 +6,7 @@ import readline from "readline";
 import fetch from "node-fetch";
 import { GenericClass } from "../types";
 import { Filters, WatchAction, WatchPhase } from "./types";
-import { kubeCfg, pathBuilder } from "./utils";
+import { k8sCfg, pathBuilder } from "./utils";
 
 /**
  * Execute a watch on the specified resource.
@@ -17,7 +17,7 @@ export async function ExecWatch<T extends GenericClass>(
   callback: WatchAction<T>,
 ) {
   // Build the path and query params for the resource, excluding the name
-  const { opts, serverUrl } = await kubeCfg("GET");
+  const { opts, serverUrl } = await k8sCfg("GET");
   const url = pathBuilder(serverUrl, model, filters, true);
 
   // Enable the watch query param
