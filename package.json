@@ -10,10 +10,10 @@
     "semantic-release": "semantic-release",
     "test": "jest src --coverage"
   },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/defenseunicorns/kubernetes-fluent-client.git"
+  "engines": {
+    "node": ">=18.0.0"
   },
+  "repository": "defenseunicorns/kubernetes-fluent-client",
   "keywords": [
     "kubernetes",
     "k8s",
