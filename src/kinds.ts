@@ -3,7 +3,7 @@
 
 import { GenericClass, GroupVersionKind } from "./types";
 
-export const gvkMap: Record<string, GroupVersionKind> = {
+const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s ClusterRole resource.
    * ClusterRole is a set of permissions that can be bound to a user or group in a cluster-wide scope.
