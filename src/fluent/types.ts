@@ -3,7 +3,6 @@
 
 import { KubernetesListObject, KubernetesObject } from "@kubernetes/client-node";
 import { Operation } from "fast-json-patch";
-import { Agent } from "http";
 
 import { GenericClass, GroupVersionKind } from "../types";
 
