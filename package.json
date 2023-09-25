@@ -9,8 +9,8 @@
     "build": "tsc",
     "semantic-release": "semantic-release",
     "test": "jest src --coverage",
-    "format:check": "eslint src && prettier src --check",
-    "format:fix": "eslint src --fix && prettier src --write"
+    "format:check": "eslint && prettier . --check",
+    "format:fix": "eslint --fix && prettier . --write"
   },
   "engines": {
     "node": ">=18.0.0"
