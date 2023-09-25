@@ -16,11 +16,6 @@
     "@typescript-eslint/no-floating-promises": ["warn"]
   },
   "plugins": ["@typescript-eslint"],
-  "ignorePatterns": [
-    "journey",
-    "node_modules",
-    "dist",
-    "__mocks__"
-  ],
+  "ignorePatterns": ["node_modules", "dist", "__mocks__"],
   "root": true
 }

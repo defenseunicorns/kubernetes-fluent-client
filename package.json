@@ -8,7 +8,9 @@
     "prebuild": "rm -rf dist",
     "build": "tsc",
     "semantic-release": "semantic-release",
-    "test": "jest src --coverage"
+    "test": "jest src --coverage",
+    "format:check": "eslint && prettier . --check",
+    "format:fix": "eslint --fix && prettier . --write"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -38,6 +40,8 @@
     "node-fetch": "2.7.0"
   },
   "devDependencies": {
+    "@commitlint/cli": "17.7.1",
+    "@commitlint/config-conventional": "17.7.0",
     "@jest/globals": "29.7.0",
     "@typescript-eslint/eslint-plugin": "6.7.2",
     "@typescript-eslint/parser": "6.7.2",

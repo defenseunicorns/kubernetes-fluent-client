@@ -3,6 +3,8 @@
 
 import { KubernetesObject, V1ObjectMeta } from "@kubernetes/client-node";
 
+export { KubernetesObject, KubernetesListObject } from "@kubernetes/client-node";
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type GenericClass = abstract new () => any;
 
