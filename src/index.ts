@@ -10,6 +10,9 @@ export { kind };
 // Export the node-fetch wrapper
 export { fetch } from "./fetch";
 
+// Export the HTTP status codes
+export { StatusCodes as fetchStatus } from "http-status-codes";
+
 // Export the fluent API entrypoint
 export { K8s } from "./fluent";
 
