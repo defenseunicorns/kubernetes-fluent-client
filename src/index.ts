@@ -20,3 +20,5 @@ export { K8s } from "./fluent";
 export { RegisterKind, modelToGroupVersionKind } from "./kinds";
 
 export * from "./types";
+
+export * as K8sClientNode from "@kubernetes/client-node";
