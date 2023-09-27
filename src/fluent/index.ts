@@ -4,6 +4,7 @@
 import { KubernetesListObject, KubernetesObject } from "@kubernetes/client-node";
 import { Operation } from "fast-json-patch";
 import { StatusCodes } from "http-status-codes";
+import type { PartialDeep } from "type-fest";
 
 import { modelToGroupVersionKind } from "../kinds";
 import { GenericClass } from "../types";
@@ -99,8 +100,8 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
     }
   }
 
-  async function Apply(resource: K): Promise<K> {
-    syncFilters(resource);
+  async function Apply(resource: PartialDeep<K>): Promise<K> {
+    syncFilters(resource as K);
     return k8sExec(model, filters, "APPLY", resource);
   }
 
@@ -118,8 +119,8 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
     return k8sExec<T, K>(model, filters, "PATCH", payload);
   }
 
-  async function Watch(callback: WatchAction<T>): Promise<void> {
-    await ExecWatch(model, filters, callback);
+  async function Watch(callback: WatchAction<T>): Promise<AbortController> {
+    return ExecWatch(model, filters, callback);
   }
 
   return { InNamespace, Apply, Create, Patch, ...withFilters };
