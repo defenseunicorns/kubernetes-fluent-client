@@ -33,14 +33,12 @@ export async function fetch<T>(
     const resp = await fetchRaw(url, init);
     const contentType = resp.headers.get("content-type") || "";
 
-    if (resp.ok) {
-      // Parse the response as JSON if the content type is JSON
-      if (contentType.includes("application/json")) {
-        data = await resp.json();
-      } else {
-        // Otherwise, return however the response was read
-        data = (await resp.text()) as unknown as T;
-      }
+    // Parse the response as JSON if the content type is JSON
+    if (contentType.includes("application/json")) {
+      data = await resp.json();
+    } else {
+      // Otherwise, return however the response was read
+      data = (await resp.text()) as unknown as T;
     }
 
     return {
