@@ -133,4 +133,18 @@ describe("Kube", () => {
     const kube = K8s(Pod);
     await expect(kube.Patch([])).rejects.toThrow("No operations specified");
   });
+
+  it("should allow Apply of deep partials", async () => {
+    const kube = K8s(Pod);
+    const result = await kube.Apply({ metadata: { name: "fake" }, spec: { priority: 3 } });
+    expect(result).toEqual(fakeResource);
+  });
+
+  it("should throw an error if a Delete failed for a reason other than Not Found", async () => {
+    mockedKubeExec.mockRejectedValueOnce({ status: 500 }); // Internal Server Error on first call
+    const kube = K8s(Pod);
+    await expect(kube.Delete("fakeResource")).rejects.toEqual(
+      expect.objectContaining({ status: 500 }),
+    );
+  });
 });

@@ -3,6 +3,7 @@
 
 import { KubernetesListObject, KubernetesObject } from "@kubernetes/client-node";
 import { Operation } from "fast-json-patch";
+import type { PartialDeep } from "type-fest";
 
 import { GenericClass, GroupVersionKind } from "../types";
 
@@ -50,7 +51,7 @@ export type K8sFilteredActions<K extends KubernetesObject> = {
    * @param callback
    * @returns
    */
-  Watch: (callback: (payload: K, phase: WatchPhase) => void) => Promise<void>;
+  Watch: (callback: (payload: K, phase: WatchPhase) => void) => Promise<AbortController>;
 };
 
 export type K8sUnfilteredActions<K extends KubernetesObject> = {
@@ -60,7 +61,7 @@ export type K8sUnfilteredActions<K extends KubernetesObject> = {
    * @param resource
    * @returns
    */
-  Apply: (resource: K) => Promise<K>;
+  Apply: (resource: PartialDeep<K>) => Promise<K>;
 
   /**
    * Create the provided K8s resource or throw an error if it already exists.
@@ -71,7 +72,7 @@ export type K8sUnfilteredActions<K extends KubernetesObject> = {
   Create: (resource: K) => Promise<K>;
 
   /**
-   * Advanced JSON Patch operations for when Server Side Apply, Kube().Apply(), is insufficient.
+   * Advanced JSON Patch operations for when Server Side Apply, K8s().Apply(), is insufficient.
    *
    * Note: Throws an error on an empty list of patch operations.
    *
@@ -87,7 +88,7 @@ export type K8sWithFilters<K extends KubernetesObject> = K8sFilteredActions<K> &
    * Note multiple calls to this method will result in an AND condition. e.g.
    *
    * ```ts
-   * Kube(given.Deployment)
+   * K8s(kind.Deployment)
    *  .WithField("metadata.name", "bar")
    *  .WithField("metadata.namespace", "qux")
    *  .Delete(...)
@@ -106,7 +107,7 @@ export type K8sWithFilters<K extends KubernetesObject> = K8sFilteredActions<K> &
    * Note multiple calls to this method will result in an AND condition. e.g.
    *
    * ```ts
-   * Kube(given.Deployment)
+   * K8s(kind.Deployment)
    *   .WithLabel("foo", "bar")
    *   .WithLabel("baz", "qux")
    *   .Delete(...)
