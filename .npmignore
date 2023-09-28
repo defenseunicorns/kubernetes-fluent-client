@@ -4,4 +4,6 @@ coverage
 .prettierrc
 jest.config.json
 tsconfig.json
+__mocks__
+*.config.js
 
