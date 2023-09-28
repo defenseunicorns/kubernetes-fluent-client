@@ -1,12 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2023-Present The Pepr Authors
 
+import fetch from "node-fetch";
 import readline from "readline";
 
-import fetch from "node-fetch";
-import { GenericClass } from "../types";
+import { GenericClass, LogFn } from "../types";
 import { Filters, WatchAction, WatchPhase } from "./types";
 import { k8sCfg, pathBuilder } from "./utils";
+
+export type RetryCfg = {
+  attempts: number;
+  delaySeconds?: number;
+  logFn?: LogFn;
+  finally?: (e: Error) => void;
+};
 
 /**
  * Execute a watch on the specified resource.
@@ -15,7 +22,10 @@ export async function ExecWatch<T extends GenericClass>(
   model: T,
   filters: Filters,
   callback: WatchAction<T>,
+  retryCfg: RetryCfg = { attempts: 5 },
 ) {
+  retryCfg.logFn?.({ model, filters, retryCfg }, "ExecWatch");
+
   // Build the path and query params for the resource, excluding the name
   const { opts, serverUrl } = await k8sCfg("GET");
   const url = pathBuilder(serverUrl, model, filters, true);
@@ -31,19 +41,6 @@ export async function ExecWatch<T extends GenericClass>(
     url.searchParams.set("fieldSelector", `metadata.name=${filters.name}`);
   }
 
-  // Add abort controller to the long-running request
-  const controller = new AbortController();
-  opts.signal = controller.signal;
-
-  // Close the connection and make the callback function no-op
-  let close = (err?: Error) => {
-    controller.abort();
-    close = () => {};
-    if (err) {
-      throw err;
-    }
-  };
-
   try {
     // Make the actual request
     const response = await fetch(url, opts);
@@ -52,15 +49,16 @@ export async function ExecWatch<T extends GenericClass>(
     if (response.ok) {
       const { body } = response;
 
-      // Bind connection events to the close function
-      body.on("error", close);
-      body.on("close", close);
-      body.on("finish", close);
-
       // Create a readline interface to parse the stream
       const rl = readline.createInterface({
         input: response.body!,
         terminal: false,
+      });
+
+      rl.on("error", e => {
+        retryCfg.logFn?.(e, "read error");
+        body.removeAllListeners();
+        void reload(e);
       });
 
       // Listen for events and call the callback function
@@ -87,8 +85,29 @@ export async function ExecWatch<T extends GenericClass>(
       throw error;
     }
   } catch (e) {
-    close(e);
+    void reload(e);
   }
 
-  return controller;
+  // On unhandled errors, retry the watch
+  async function reload(e: Error) {
+    // If there are more attempts, retry the watch
+    if (retryCfg.attempts > 0) {
+      retryCfg.logFn?.(e, "retrying watch");
+
+      retryCfg.attempts--;
+
+      // Sleep for the specified delay or 5 seconds
+      await new Promise(r => setTimeout(r, (retryCfg.delaySeconds ?? 5) * 1000));
+
+      // Retry the watch after the delay
+      await ExecWatch(model, filters, callback, { ...retryCfg });
+    } else {
+      // Otherwise, call the finally function if it exists
+      if (retryCfg.finally) {
+        retryCfg.finally(e);
+      }
+    }
+  }
+
+  return retryCfg;
 }
