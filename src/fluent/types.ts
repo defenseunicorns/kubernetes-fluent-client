@@ -16,7 +16,15 @@ export enum WatchPhase {
   Deleted = "DELETED",
 }
 
-export type FetchMethods = "GET" | "APPLY" | "POST" | "PUT" | "DELETE" | "PATCH" | "WATCH";
+export type FetchMethods =
+  | "GET"
+  | "APPLY"
+  | "FORCEAPPLY"
+  | "POST"
+  | "PUT"
+  | "DELETE"
+  | "PATCH"
+  | "WATCH";
 
 export interface Filters {
   kindOverride?: GroupVersionKind;
@@ -62,6 +70,14 @@ export type K8sUnfilteredActions<K extends KubernetesObject> = {
    * @returns
    */
   Apply: (resource: PartialDeep<K>) => Promise<K>;
+
+  /**
+   * Perform a server-side apply of the provided K8s resource (wtth Force flag set to true)
+   *
+   * @param resource
+   * @returns
+   */
+  ForceApply: (resource: PartialDeep<K>) => Promise<K>;
 
   /**
    * Create the provided K8s resource or throw an error if it already exists.

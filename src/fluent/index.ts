@@ -105,6 +105,11 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
     return k8sExec(model, filters, "APPLY", resource);
   }
 
+  async function ForceApply(resource: PartialDeep<K>): Promise<K> {
+    syncFilters(resource as K);
+    return k8sExec(model, filters, "FORCEAPPLY", resource);
+  }
+
   async function Create(resource: K): Promise<K> {
     syncFilters(resource);
     return k8sExec(model, filters, "POST", resource);
@@ -123,5 +128,5 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
     return ExecWatch(model, filters, callback);
   }
 
-  return { InNamespace, Apply, Create, Patch, ...withFilters };
+  return { InNamespace, ForceApply, Apply, Create, Patch, ...withFilters };
 }

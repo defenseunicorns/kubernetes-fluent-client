@@ -140,6 +140,13 @@ describe("Kube", () => {
     expect(result).toEqual(fakeResource);
   });
 
+  it("should allow ForceApply of deep partials", async () => {
+    const kube = K8s(Pod);
+    let result = await kube.ForceApply({ metadata: { name: "fake" }, spec: { priority: 3 } });
+    result = await kube.ForceApply({ metadata: { name: "fake" }, spec: { priority: 3 } });
+    expect(result).toEqual(fakeResource);
+  });
+
   it("should throw an error if a Delete failed for a reason other than Not Found", async () => {
     mockedKubeExec.mockRejectedValueOnce({ status: 500 }); // Internal Server Error on first call
     const kube = K8s(Pod);

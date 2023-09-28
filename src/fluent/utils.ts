@@ -129,12 +129,13 @@ export async function k8sExec<T extends GenericClass, K>(
       (opts.headers as Headers).set("Content-Type", PatchStrategy.JsonPatch);
       break;
 
+    case "FORCEAPPLY":
     case "APPLY":
       (opts.headers as Headers).set("Content-Type", SSA_CONTENT_TYPE);
+      url.searchParams.set("force", opts.method === "FORCEAPPLY" ? "true" : "false");
       opts.method = "PATCH";
       url.searchParams.set("fieldManager", "pepr");
       url.searchParams.set("fieldValidation", "Strict");
-      url.searchParams.set("force", "false");
       break;
   }
 
