@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2023-Present The Pepr Authors
 
-import readline from "readline";
-
+import byline from "byline";
 import fetch from "node-fetch";
 import { GenericClass } from "../types";
 import { Filters, WatchAction, WatchPhase } from "./types";
@@ -31,64 +30,49 @@ export async function ExecWatch<T extends GenericClass>(
     url.searchParams.set("fieldSelector", `metadata.name=${filters.name}`);
   }
 
-  // Add abort controller to the long-running request
   const controller = new AbortController();
-  opts.signal = controller.signal;
+  opts.signal = controller.signal as AbortSignal;
 
-  // Close the connection and make the callback function no-op
-  let close = (err?: Error) => {
-    controller.abort();
-    close = () => {};
-    if (err) {
-      throw err;
+  let doneCalled: boolean = false;
+  const doneCallOnce = (err: any) => {
+    if (!doneCalled) {
+      controller.abort();
+      doneCalled = true;
     }
   };
 
-  try {
-    // Make the actual request
-    const response = await fetch(url, opts);
-
-    // If the request is successful, start listening for events
-    if (response.ok) {
-      const { body } = response;
-
-      // Bind connection events to the close function
-      body.on("error", close);
-      body.on("close", close);
-      body.on("finish", close);
-
-      // Create a readline interface to parse the stream
-      const rl = readline.createInterface({
-        input: response.body!,
-        terminal: false,
-      });
-
-      // Listen for events and call the callback function
-      rl.on("line", line => {
-        try {
-          // Parse the event payload
-          const { object: payload, type: phase } = JSON.parse(line) as {
-            type: WatchPhase;
-            object: InstanceType<T>;
-          };
-
-          // Call the callback function with the parsed payload
-          void callback(payload, phase as WatchPhase);
-        } catch (ignore) {
-          // ignore parse errors
-        }
-      });
-    } else {
-      // If the request fails, throw an error
-      const error = new Error(response.statusText) as Error & {
-        statusCode: number | undefined;
+  const stream = byline.createStream();
+  stream.on("error", doneCallOnce);
+  stream.on("close", () => doneCallOnce(null));
+  stream.on("finish", () => doneCallOnce(null));
+  stream.on("data", line => {
+    try {
+      const { object: payload, type: phase } = JSON.parse(line) as {
+        type: WatchPhase;
+        object: InstanceType<T>;
       };
-      error.statusCode = response.status;
-      throw error;
+      void callback(payload, phase as WatchPhase);
+    } catch (ignore) {
+      // ignore parse errors
     }
-  } catch (e) {
-    close(e);
-  }
+  });
+
+  await fetch(url, opts)
+    .then(response => {
+      if (response.status === 200) {
+        response.body.on("error", doneCallOnce);
+        response.body.on("close", () => doneCallOnce(null));
+        response.body.on("finish", () => doneCallOnce(null));
+        response.body.pipe(stream);
+      } else {
+        const error = new Error(response.statusText) as Error & {
+          statusCode: number | undefined;
+        };
+        error.statusCode = response.status;
+        throw error;
+      }
+    })
+    .catch(doneCallOnce);
 
   return controller;
 }

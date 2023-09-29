@@ -142,8 +142,7 @@ describe("Kube", () => {
 
   it("should allow ForceApply of deep partials", async () => {
     const kube = K8s(Pod);
-    let result = await kube.ForceApply({ metadata: { name: "fake" }, spec: { priority: 3 } });
-    result = await kube.ForceApply({ metadata: { name: "fake" }, spec: { priority: 3 } });
+    const result = await kube.ForceApply({ metadata: { name: "fake" }, spec: { priority: 3 } });
     expect(result).toEqual(fakeResource);
   });
 
