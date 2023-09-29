@@ -1,9 +1,7 @@
-import { describe, it, expect, afterAll, beforeEach, afterEach, jest } from "@jest/globals";
+import { describe, it, expect, afterAll } from "@jest/globals";
 import { Pod } from "../src/upstream";
 import { K8s, RegisterKind } from "../src/index";
 import { V1ObjectMeta } from "@kubernetes/client-node";
-import { EventEmitter } from "stream";
-import { watch } from "fs";
 
 const poddy = {
   apiVersion: "v1",
@@ -52,8 +50,10 @@ export function stuff() {
     });
 
     it("ForceApply", async () => {
-      const updated = { ...poddy };
-      (updated.metadata.labels as any)["hithere"] = "meow";
+      const updated: Pod = { ...poddy };
+      updated.metadata = updated.metadata || {};
+      updated.metadata.labels = updated.metadata.labels || {};
+      updated.metadata.labels.hithere = "meow";
 
       await K8s(Pod).ForceApply(updated);
       const whoami = await K8s(Pod).InNamespace("default").Get(poddy.metadata.name);
@@ -98,9 +98,9 @@ export function stuff() {
         });
       }
 
-      var w: Pod = new Pod();
+      let w: Pod = new Pod();
 
-      const watchy = await K8s(Pod, poddyFilter).Watch((event, phase) => {
+      const watchy = await K8s(Pod, poddyFilter).Watch(event => {
         w = { ...event };
       });
       await sleepy();

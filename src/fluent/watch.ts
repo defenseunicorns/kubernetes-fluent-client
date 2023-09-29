@@ -34,17 +34,21 @@ export async function ExecWatch<T extends GenericClass>(
   opts.signal = controller.signal as AbortSignal;
 
   let doneCalled: boolean = false;
-  const doneCallOnce = (err: any) => {
+  const doneCallOnce = (err: Error | undefined) => {
     if (!doneCalled) {
       controller.abort();
       doneCalled = true;
+      // TODO: the watcher could pass in another callback to handle the error
+      if (err && err.name !== "AbortError") {
+        throw err;
+      }
     }
   };
 
   const stream = byline.createStream();
   stream.on("error", doneCallOnce);
-  stream.on("close", () => doneCallOnce(null));
-  stream.on("finish", () => doneCallOnce(null));
+  stream.on("close", () => doneCallOnce(undefined));
+  stream.on("finish", () => doneCallOnce(undefined));
   stream.on("data", line => {
     try {
       const { object: payload, type: phase } = JSON.parse(line) as {
@@ -61,8 +65,8 @@ export async function ExecWatch<T extends GenericClass>(
     .then(response => {
       if (response.status === 200) {
         response.body.on("error", doneCallOnce);
-        response.body.on("close", () => doneCallOnce(null));
-        response.body.on("finish", () => doneCallOnce(null));
+        response.body.on("close", () => doneCallOnce(undefined));
+        response.body.on("finish", () => doneCallOnce(undefined));
         response.body.pipe(stream);
       } else {
         const error = new Error(response.statusText) as Error & {

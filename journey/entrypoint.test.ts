@@ -9,7 +9,5 @@ jest.deepUnmock("node-fetch");
 jest.deepUnmock("../src/fetch.ts");
 jest.deepUnmock("../src/fluent/watch");
 
-
 // Configure the test environment before running the tests
 describe("Journey: Stuff", stuff);
-
