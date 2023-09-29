@@ -6,7 +6,6 @@ import fetch from "node-fetch";
 import { GenericClass } from "../types";
 import { Filters, WatchAction, WatchPhase } from "./types";
 import { k8sCfg, pathBuilder } from "./utils";
-
 /**
  * Execute a watch on the specified resource.
  */
@@ -33,50 +32,72 @@ export async function ExecWatch<T extends GenericClass>(
   const controller = new AbortController();
   opts.signal = controller.signal as AbortSignal;
 
-  let doneCalled: boolean = false;
-  const doneCallOnce = (err: Error | undefined) => {
-    if (!doneCalled) {
-      controller.abort();
+  async function runner() {
+    let doneCalled: boolean = false;
+    const stream = byline.createStream();
+
+    const errorCalled = (err: Error) => {
+      if (!doneCalled) {
+        doneCalled = true;
+        const remoteClosedTheConnection = err?.message === "Premature close";
+        const abortError = err?.name === "AbortError";
+        if (remoteClosedTheConnection) {
+          stream.removeAllListeners();
+          void runner();
+        } else if (abortError) {
+          // do nothing, this is expected
+        } else if (err) {
+          // not expected
+          throw err;
+        }
+        // do nothing if err is empty
+      }
+    };
+    const closeCalled = () => {
+      if (!doneCalled) {
+        doneCalled = true;
+        stream.removeAllListeners();
+        void runner();
+      }
+    };
+
+    const finishCalled = () => {
       doneCalled = true;
-      // TODO: the watcher could pass in another callback to handle the error
-      if (err && err.name !== "AbortError") {
-        throw err;
-      }
-    }
-  };
-
-  const stream = byline.createStream();
-  stream.on("error", doneCallOnce);
-  stream.on("close", () => doneCallOnce(undefined));
-  stream.on("finish", () => doneCallOnce(undefined));
-  stream.on("data", line => {
-    try {
-      const { object: payload, type: phase } = JSON.parse(line) as {
-        type: WatchPhase;
-        object: InstanceType<T>;
-      };
-      void callback(payload, phase as WatchPhase);
-    } catch (ignore) {
-      // ignore parse errors
-    }
-  });
-
-  await fetch(url, opts)
-    .then(response => {
-      if (response.status === 200) {
-        response.body.on("error", doneCallOnce);
-        response.body.on("close", () => doneCallOnce(undefined));
-        response.body.on("finish", () => doneCallOnce(undefined));
-        response.body.pipe(stream);
-      } else {
-        const error = new Error(response.statusText) as Error & {
-          statusCode: number | undefined;
+      stream.removeAllListeners();
+    };
+    stream.on("error", errorCalled);
+    stream.on("close", closeCalled);
+    stream.on("finish", finishCalled);
+    stream.on("data", line => {
+      try {
+        const { object: payload, type: phase } = JSON.parse(line) as {
+          type: WatchPhase;
+          object: InstanceType<T>;
         };
-        error.statusCode = response.status;
-        throw error;
+        void callback(payload, phase as WatchPhase);
+      } catch (ignore) {
+        // ignore parse errors
       }
-    })
-    .catch(doneCallOnce);
+    });
 
+    await fetch(url, opts)
+      .then(response => {
+        if (response.status === 200) {
+          response.body.on("error", errorCalled);
+          response.body.on("close", closeCalled);
+          response.body.on("finish", finishCalled);
+          response.body.pipe(stream);
+        } else {
+          const error = new Error(response.statusText) as Error & {
+            statusCode: number | undefined;
+          };
+          error.statusCode = response.status;
+          throw error;
+        }
+      })
+      .catch(errorCalled);
+  }
+
+  await runner();
   return controller;
 }
