@@ -85,6 +85,9 @@ export async function ExecWatch<T extends GenericClass>(
   // Set the maximum number of retries to 5 if not specified
   watchCfg.retryMax ??= 5;
 
+  // Set the retry delay to 5 seconds if not specified
+  watchCfg.retryDelaySec ??= 5;
+
   // Create a throwaway AbortController to setup the wrapped AbortController
   let abortController: AbortController;
 
@@ -187,7 +190,7 @@ export async function ExecWatch<T extends GenericClass>(
         watchCfg.logFn?.(`retrying watch ${retryCount}/${watchCfg.retryMax}`);
 
         // Sleep for the specified delay or 5 seconds
-        await new Promise(r => setTimeout(r, (watchCfg.retryDelaySec ?? 5) * 1000));
+        await new Promise(r => setTimeout(r, watchCfg.retryDelaySec! * 1000));
 
         // Retry the watch after the delay
         await runner();
