@@ -4,15 +4,46 @@
 import byline from "byline";
 import fetch from "node-fetch";
 
-import { Writable } from "type-fest";
 import { GenericClass, LogFn } from "../types";
 import { Filters, WatchAction, WatchPhase } from "./types";
 import { k8sCfg, pathBuilder } from "./utils";
 
+/**
+ * Wrapper for the AbortController to allow the watch to be aborted externally.
+ */
+export type WatchController = {
+  /**
+   * Abort the watch.
+   * @param reason optional reason for aborting the watch
+   * @returns
+   */
+  abort: (reason?: string) => void;
+  /**
+   * Get the AbortSignal for the watch.
+   * @returns
+   */
+  signal: () => AbortSignal;
+};
+
+/**
+ * Configuration for the watch function.
+ */
 export type WatchCfg = {
-  retryMax: number;
+  /**
+   * The maximum number of times to retry the watch, the retry count is reset on success.
+   */
+  retryMax?: number;
+  /**
+   * The delay between retries in seconds.
+   */
   retryDelaySec?: number;
+  /**
+   * A function to log errors.
+   */
   logFn?: LogFn;
+  /**
+   * A function to call when the watch fails after the maximum number of retries.
+   */
   retryFail?: (e: Error) => void;
 };
 
@@ -23,7 +54,7 @@ export async function ExecWatch<T extends GenericClass>(
   model: T,
   filters: Filters,
   callback: WatchAction<T>,
-  watchCfg: WatchCfg = { retryMax: 5 },
+  watchCfg: WatchCfg = {},
 ) {
   watchCfg.logFn?.({ model, filters, watchCfg }, "ExecWatch");
 
@@ -51,19 +82,22 @@ export async function ExecWatch<T extends GenericClass>(
   // Track the number of retries
   let retryCount = 0;
 
+  // Set the maximum number of retries to 5 if not specified
+  watchCfg.retryMax ??= 5;
+
   // Create a throwaway AbortController to setup the wrapped AbortController
   let abortController: AbortController;
 
   // Create a wrapped AbortController to allow the watch to be aborted externally
-  const abortWrapper = {} as Writable<AbortController>;
+  const abortWrapper = {} as WatchController;
 
   function bindAbortController() {
     // Create a new AbortController
     abortController = new AbortController();
 
     // Update the abort wrapper
-    abortWrapper.abort = abortController.abort;
-    abortWrapper.signal = abortController.signal;
+    abortWrapper.abort = reason => abortController.abort(reason);
+    abortWrapper.signal = () => abortController.signal;
 
     // Add the abort signal to the request options
     opts.signal = abortController.signal;
@@ -78,15 +112,17 @@ export async function ExecWatch<T extends GenericClass>(
     const stream = byline.createStream();
 
     const onError = (err: Error) => {
-      watchCfg.logFn?.(err, "stream error");
+      stream.removeAllListeners();
 
       if (!doneCalled) {
         doneCalled = true;
 
         // If the error is not an AbortError, reload the watch
         if (err.name !== "AbortError") {
-          stream.removeAllListeners();
+          watchCfg.logFn?.(err, "stream error");
           void reload(err);
+        } else {
+          watchCfg.logFn?.("watch aborted via WatchController.abort()");
         }
       }
     };
@@ -145,10 +181,10 @@ export async function ExecWatch<T extends GenericClass>(
     // On unhandled errors, retry the watch
     async function reload(e: Error) {
       // If there are more attempts, retry the watch
-      if (watchCfg.retryMax > retryCount) {
+      if (watchCfg.retryMax! > retryCount) {
         retryCount++;
 
-        watchCfg.logFn?.(e, `retrying watch ${retryCount}/${watchCfg.retryMax}`);
+        watchCfg.logFn?.(`retrying watch ${retryCount}/${watchCfg.retryMax}`);
 
         // Sleep for the specified delay or 5 seconds
         await new Promise(r => setTimeout(r, (watchCfg.retryDelaySec ?? 5) * 1000));
