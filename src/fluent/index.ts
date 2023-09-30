@@ -119,8 +119,8 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
     return k8sExec<T, K>(model, filters, "PATCH", payload);
   }
 
-  async function Watch(callback: WatchAction<T>, retryCfg?: WatchCfg) {
-    return ExecWatch(model, filters, callback, retryCfg);
+  async function Watch(callback: WatchAction<T>, watchCfg?: WatchCfg) {
+    return ExecWatch(model, filters, callback, watchCfg);
   }
 
   return { InNamespace, Apply, Create, Patch, ...withFilters };

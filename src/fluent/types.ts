@@ -54,7 +54,7 @@ export type K8sFilteredActions<K extends KubernetesObject> = {
    */
   Watch: (
     callback: (payload: K, phase: WatchPhase) => void,
-    retryCfg?: WatchCfg,
+    watchCfg?: WatchCfg,
   ) => Promise<WatchController>;
 };
 
