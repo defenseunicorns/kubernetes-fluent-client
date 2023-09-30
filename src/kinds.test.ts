@@ -9,6 +9,10 @@ import { GroupVersionKind } from "./types";
 
 const testCases = [
   {
+    name: kind.Event,
+    expected: { group: "events.k8s.io", version: "v1", kind: "Event" },
+  },
+  {
     name: kind.ClusterRole,
     expected: { group: "rbac.authorization.k8s.io", version: "v1", kind: "ClusterRole" },
   },

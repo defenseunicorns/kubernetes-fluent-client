@@ -112,6 +112,9 @@ export async function k8sCfg(method: FetchMethods) {
     },
   });
 
+  // Enable compression
+  opts.compress = true;
+
   return { opts, serverUrl: cluster.server };
 }
 
