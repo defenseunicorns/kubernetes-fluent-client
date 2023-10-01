@@ -5,11 +5,90 @@
 [![Npm package version](https://badgen.net/npm/v/kubernetes-fluent-client)](https://npmjs.com/package/kubernetes-fluent-client)
 [![Npm package total downloads](https://badgen.net/npm/dt/kubernetes-fluent-client)](https://npmjs.com/package/kubernetes-fluent-client)
 
+The Kubernetes Fluent Client for Node is a fluent API for the [Kubernetes JavaScript Client](https://github.com/kubernetes-client/javascript) with some additional logic for [Server Side Apply](https://kubernetes.io/docs/reference/using-api/server-side-apply/), [Watch](https://kubernetes.io/docs/reference/using-api/api-concepts/#efficient-detection-of-changes) with retry/signal control, and [Field Selectors](https://kubernetes.io/docs/concepts/overview/working-with-objects/field-selectors/). In addition to providing a human-friendly API, it also provides a simple way to create and manage resources in the cluster and integrate with K8s in a type-safe way.
+
+See below for some example uses of the library.
+
 ```typescript
 import { K8s, kind } from "kubernetes-fluent-client";
 
-async function main() {
-  const pods = await K8s(kind.Pod).Get();
+// Let's create a random namespace to work in
+const namespace = "my-namespace" + Math.floor(Math.random() * 1000);
+
+// This will be called after the resources are created in the cluster
+async function demo() {
+  // Now, we can use the fluent API to query for the resources we just created
+
+  // You can use watch to monitor resources in the cluster and react to changes
+  // This will run until the process is terminated or the watch is aborted
+  const ctrl = await K8s(kind.Pod).Watch((pod, phase) => {
+    console.log(`Pod ${pod.metadata?.name} is ${phase}`);
+  });
+
+  // Let's abort the watch after 5 seconds
+  setTimeout(ctrl.abort, 5 * 1000);
+
+  // Passing the name to Get() will return a single resource
+  const ns = await K8s(kind.Namespace).Get(namespace);
+  console.log(ns);
+
+  // This time we'll use the InNamespace() method to filter the results by namespace and name
+  const cm = await K8s(kind.ConfigMap).InNamespace(namespace).Get("my-configmap");
+  console.log(cm);
+
+  // If we don't pass a name to Get(), we'll get a list of resources as KubernetesListObject
+  // The matching resources will be in the items property
+  const pods = await K8s(kind.Pod).InNamespace(namespace).Get();
   console.log(pods);
+
+  // Now let's delete the resources we created, you can pass the name to Delete() or the resource itself
+  await K8s(kind.Namespace).Delete(namespace);
+
+  // Let's use the field selector to find all the running pods in the cluster
+  const runningPods = await K8s(kind.Pod).WithField("status.phase", "Running").Get();
+  runningPods.items.forEach(pod => {
+    console.log(`${pod.metadata?.namespace}/${pod.metadata?.name} is running`);
+  });
 }
+
+// Create a few resources to work with: Namespace, ConfigMap, and Pod
+Promise.all([
+  // Create the namespace
+  K8s(kind.Namespace).Apply({
+    metadata: {
+      name: namespace,
+    },
+  }),
+
+  // Create the ConfigMap in the namespace
+  K8s(kind.ConfigMap).Apply({
+    metadata: {
+      name: "my-configmap",
+      namespace,
+    },
+    data: {
+      "my-key": "my-value",
+    },
+  }),
+
+  // Create the Pod in the namespace
+  K8s(kind.Pod).Apply({
+    metadata: {
+      name: "my-pod",
+      namespace,
+    },
+    spec: {
+      containers: [
+        {
+          name: "my-container",
+          image: "nginx",
+        },
+      ],
+    },
+  }),
+])
+  .then(demo)
+  .catch(err => {
+    console.error(err);
+  });
 ```
