@@ -1,12 +1,51 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2023-Present The Pepr Authors
 
-import readline from "readline";
-
+import byline from "byline";
 import fetch from "node-fetch";
-import { GenericClass } from "../types";
+
+import { GenericClass, LogFn } from "../types";
 import { Filters, WatchAction, WatchPhase } from "./types";
 import { k8sCfg, pathBuilder } from "./utils";
+
+/**
+ * Wrapper for the AbortController to allow the watch to be aborted externally.
+ */
+export type WatchController = {
+  /**
+   * Abort the watch.
+   * @param reason optional reason for aborting the watch
+   * @returns
+   */
+  abort: (reason?: string) => void;
+  /**
+   * Get the AbortSignal for the watch.
+   * @returns
+   */
+  signal: () => AbortSignal;
+};
+
+/**
+ * Configuration for the watch function.
+ */
+export type WatchCfg = {
+  /**
+   * The maximum number of times to retry the watch, the retry count is reset on success.
+   */
+  retryMax?: number;
+  /**
+   * The delay between retries in seconds.
+   */
+  retryDelaySec?: number;
+  /**
+   * A function to log errors.
+   */
+  logFn?: LogFn;
+  /**
+   * A function to call when the watch fails after the maximum number of retries.
+   */
+  retryFail?: (e: Error) => void;
+};
 
 /**
  * Execute a watch on the specified resource.
@@ -15,7 +54,10 @@ export async function ExecWatch<T extends GenericClass>(
   model: T,
   filters: Filters,
   callback: WatchAction<T>,
+  watchCfg: WatchCfg = {},
 ) {
+  watchCfg.logFn?.({ model, filters, watchCfg }, "ExecWatch");
+
   // Build the path and query params for the resource, excluding the name
   const { opts, serverUrl } = await k8sCfg("GET");
   const url = pathBuilder(serverUrl, model, filters, true);
@@ -31,64 +73,137 @@ export async function ExecWatch<T extends GenericClass>(
     url.searchParams.set("fieldSelector", `metadata.name=${filters.name}`);
   }
 
-  // Add abort controller to the long-running request
-  const controller = new AbortController();
-  opts.signal = controller.signal;
+  // Set the initial timeout to 15 seconds
+  opts.timeout = 15 * 1000;
 
-  // Close the connection and make the callback function no-op
-  let close = (err?: Error) => {
-    controller.abort();
-    close = () => {};
-    if (err) {
-      throw err;
-    }
-  };
+  // Enable keep alive
+  (opts.agent as unknown as { keepAlive: boolean }).keepAlive = true;
 
-  try {
-    // Make the actual request
-    const response = await fetch(url, opts);
+  // Track the number of retries
+  let retryCount = 0;
 
-    // If the request is successful, start listening for events
-    if (response.ok) {
-      const { body } = response;
+  // Set the maximum number of retries to 5 if not specified
+  watchCfg.retryMax ??= 5;
 
-      // Bind connection events to the close function
-      body.on("error", close);
-      body.on("close", close);
-      body.on("finish", close);
+  // Set the retry delay to 5 seconds if not specified
+  watchCfg.retryDelaySec ??= 5;
 
-      // Create a readline interface to parse the stream
-      const rl = readline.createInterface({
-        input: response.body!,
-        terminal: false,
-      });
+  // Create a throwaway AbortController to setup the wrapped AbortController
+  let abortController: AbortController;
 
-      // Listen for events and call the callback function
-      rl.on("line", line => {
-        try {
-          // Parse the event payload
-          const { object: payload, type: phase } = JSON.parse(line) as {
-            type: WatchPhase;
-            object: InstanceType<T>;
-          };
+  // Create a wrapped AbortController to allow the watch to be aborted externally
+  const abortWrapper = {} as WatchController;
 
-          // Call the callback function with the parsed payload
-          void callback(payload, phase as WatchPhase);
-        } catch (ignore) {
-          // ignore parse errors
-        }
-      });
-    } else {
-      // If the request fails, throw an error
-      const error = new Error(response.statusText) as Error & {
-        statusCode: number | undefined;
-      };
-      error.statusCode = response.status;
-      throw error;
-    }
-  } catch (e) {
-    close(e);
+  function bindAbortController() {
+    // Create a new AbortController
+    abortController = new AbortController();
+
+    // Update the abort wrapper
+    abortWrapper.abort = reason => abortController.abort(reason);
+    abortWrapper.signal = () => abortController.signal;
+
+    // Add the abort signal to the request options
+    opts.signal = abortController.signal;
   }
 
-  return controller;
+  async function runner() {
+    let doneCalled = false;
+
+    bindAbortController();
+
+    // Create a stream to read the response body
+    const stream = byline.createStream();
+
+    const onError = (err: Error) => {
+      stream.removeAllListeners();
+
+      if (!doneCalled) {
+        doneCalled = true;
+
+        // If the error is not an AbortError, reload the watch
+        if (err.name !== "AbortError") {
+          watchCfg.logFn?.(err, "stream error");
+          void reload(err);
+        } else {
+          watchCfg.logFn?.("watch aborted via WatchController.abort()");
+        }
+      }
+    };
+
+    const cleanup = () => {
+      if (!doneCalled) {
+        doneCalled = true;
+        stream.removeAllListeners();
+      }
+    };
+
+    try {
+      // Make the actual request
+      const response = await fetch(url, { ...opts });
+
+      // If the request is successful, start listening for events
+      if (response.ok) {
+        const { body } = response;
+
+        // Reset the retry count
+        retryCount = 0;
+
+        stream.on("error", onError);
+        stream.on("close", cleanup);
+        stream.on("finish", cleanup);
+
+        // Listen for events and call the callback function
+        stream.on("data", line => {
+          try {
+            // Parse the event payload
+            const { object: payload, type: phase } = JSON.parse(line) as {
+              type: WatchPhase;
+              object: InstanceType<T>;
+            };
+
+            // Call the callback function with the parsed payload
+            void callback(payload, phase as WatchPhase);
+          } catch (err) {
+            watchCfg.logFn?.(err, "watch callback error");
+          }
+        });
+
+        body.on("error", onError);
+        body.on("close", cleanup);
+        body.on("finish", cleanup);
+
+        // Pipe the response body to the stream
+        body.pipe(stream);
+      } else {
+        throw new Error(`watch failed: ${response.status} ${response.statusText}`);
+      }
+    } catch (e) {
+      onError(e);
+    }
+
+    // On unhandled errors, retry the watch
+    async function reload(e: Error) {
+      // If there are more attempts, retry the watch
+      if (watchCfg.retryMax! > retryCount) {
+        retryCount++;
+
+        watchCfg.logFn?.(`retrying watch ${retryCount}/${watchCfg.retryMax}`);
+
+        // Sleep for the specified delay or 5 seconds
+        await new Promise(r => setTimeout(r, watchCfg.retryDelaySec! * 1000));
+
+        // Retry the watch after the delay
+        await runner();
+      } else {
+        // Otherwise, call the finally function if it exists
+        if (watchCfg.retryFail) {
+          watchCfg.retryFail(e);
+        }
+      }
+    }
+  }
+
+  await runner();
+
+  return abortWrapper;
 }

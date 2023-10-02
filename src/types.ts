@@ -33,3 +33,10 @@ export interface GroupVersionKind {
   /** Optional, override the plural name for use in Webhook rules generation */
   readonly plural?: string;
 }
+
+export interface LogFn {
+  /* tslint:disable:no-unnecessary-generics */
+  <T extends object>(obj: T, msg?: string, ...args: never[]): void;
+  (obj: unknown, msg?: string, ...args: never[]): void;
+  (msg: string, ...args: never[]): void;
+}
