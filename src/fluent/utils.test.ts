@@ -8,6 +8,7 @@ import { GenericClass } from "../types";
 import { ClusterRole, Ingress, Pod } from "../upstream";
 import { Filters } from "./types";
 import { k8sExec, pathBuilder } from "./utils";
+import { RegisterKind } from "../kinds";
 
 jest.mock("https");
 jest.mock("../fetch");
@@ -18,6 +19,44 @@ describe("pathBuilder Function", () => {
     const model = { name: "Unknown" } as unknown as GenericClass;
     const filters: Filters = {};
     expect(() => pathBuilder("", model, filters)).toThrow("Kind not specified for Unknown");
+  });
+
+  it("should generate a path for core group kinds (with custom filters)", () => {
+    const filters: Filters = {
+      namespace: "default",
+      name: "mypod",
+      fields: { iamafield: "iamavalue" },
+      labels: { iamalabel: "iamalabelvalue" },
+    };
+    const result = pathBuilder(serverUrl, Pod, filters);
+    const expected = new URL(
+      "/api/v1/namespaces/default/pods/mypod?fieldSelector=iamafield%3Diamavalue&labelSelector=iamalabel%3Diamalabelvalue",
+      serverUrl,
+    );
+    expect(result).toEqual(expected);
+  });
+
+  it("Version not specified in a Kind", () => {
+    const filters: Filters = {
+      namespace: "default",
+      name: "mypod",
+    };
+    class Fake {
+      name: string;
+      constructor() {
+        this.name = "Fake";
+      }
+    }
+    RegisterKind(Fake, {
+      kind: "Fake",
+      version: "",
+      group: "fake",
+    });
+    try {
+      pathBuilder(serverUrl, Fake, filters);
+    } catch (e) {
+      expect(e.message).toEqual(`Version not specified for Fake`);
+    }
   });
 
   it("should generate a path for core group kinds", () => {
