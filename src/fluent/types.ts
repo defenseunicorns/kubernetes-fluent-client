@@ -99,12 +99,14 @@ export type K8sWithFilters<K extends KubernetesObject> = K8sFilteredActions<K> &
    * ```
    *
    * Will only delete the Deployment if it has the `metadata.name=bar` and `metadata.namespace=qux` fields.
+   * Not all fields are supported, see https://kubernetes.io/docs/concepts/overview/working-with-objects/field-selectors/#supported-fields,
+   * but Typescript will limit to only fields that exist on the resource.
    *
    * @param key  The field key
    * @param value The field value
    * @returns
    */
-  WithField: <P extends Paths<K>>(key: P, value?: string) => K8sWithFilters<K>;
+  WithField: <P extends Paths<K>>(key: P, value: string) => K8sWithFilters<K>;
 
   /**
    * Filter the query by the given label. If no value is specified, the label simply must exist.
@@ -122,7 +124,7 @@ export type K8sWithFilters<K extends KubernetesObject> = K8sFilteredActions<K> &
    * @param key The label key
    * @param value (optional) The label value
    */
-  WithLabel: (key: string, value?: string) => K8sWithFilters<K>;
+  WithLabel: (key: string, value: string) => K8sWithFilters<K>;
 };
 
 export type K8sInit<K extends KubernetesObject> = K8sWithFilters<K> &
@@ -144,8 +146,8 @@ export type WatchAction<T extends GenericClass, K extends KubernetesObject = Ins
 // Special types to handle the recursive keyof typescript lookup
 type Join<K, P> = K extends string | number
   ? P extends string | number
-    ? `${K}${"" extends P ? "" : "."}${P}`
-    : never
+  ? `${K}${"" extends P ? "" : "."}${P}`
+  : never
   : never;
 
 export type Paths<T, D extends number = 10> = [D] extends [never]

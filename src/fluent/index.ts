@@ -34,13 +34,13 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
     return withFilters;
   }
 
-  function WithField<P extends Paths<K>>(key: P, value = "") {
+  function WithField<P extends Paths<K>>(key: P, value: string) {
     filters.fields = filters.fields || {};
     filters.fields[key] = value;
     return withFilters;
   }
 
-  function WithLabel(key: string, value = "") {
+  function WithLabel(key: string, value: string) {
     filters.labels = filters.labels || {};
     filters.labels[key] = value;
     return withFilters;
