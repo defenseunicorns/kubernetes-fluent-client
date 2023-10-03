@@ -146,8 +146,8 @@ export type WatchAction<T extends GenericClass, K extends KubernetesObject = Ins
 // Special types to handle the recursive keyof typescript lookup
 type Join<K, P> = K extends string | number
   ? P extends string | number
-  ? `${K}${"" extends P ? "" : "."}${P}`
-  : never
+    ? `${K}${"" extends P ? "" : "."}${P}`
+    : never
   : never;
 
 export type Paths<T, D extends number = 10> = [D] extends [never]
