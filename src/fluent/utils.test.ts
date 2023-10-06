@@ -33,7 +33,8 @@ describe("pathBuilder Function", () => {
       "/api/v1/namespaces/default/pods/mypod?fieldSelector=iamafield%3Diamavalue&labelSelector=iamalabel%3Diamalabelvalue",
       serverUrl,
     );
-    expect(result).toEqual(expected);
+
+    expect(result.toString()).toEqual(expected.toString());
   });
 
   it("Version not specified in a Kind", () => {

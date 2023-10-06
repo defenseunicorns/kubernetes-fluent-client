@@ -9,6 +9,7 @@ import { fetch } from "../fetch";
 import { modelToGroupVersionKind } from "../kinds";
 import { GenericClass } from "../types";
 import { FetchMethods, Filters } from "./types";
+import { ApplyCfg } from "./apply";
 
 const SSA_CONTENT_TYPE = "application/apply-patch+yaml";
 
@@ -123,6 +124,7 @@ export async function k8sExec<T extends GenericClass, K>(
   filters: Filters,
   method: FetchMethods,
   payload?: K | unknown,
+  applyCfg: ApplyCfg = { force: false },
 ) {
   const { opts, serverUrl } = await k8sCfg(method);
   const url = pathBuilder(serverUrl, model, filters, method === "POST");
@@ -137,7 +139,7 @@ export async function k8sExec<T extends GenericClass, K>(
       opts.method = "PATCH";
       url.searchParams.set("fieldManager", "pepr");
       url.searchParams.set("fieldValidation", "Strict");
-      url.searchParams.set("force", "false");
+      url.searchParams.set("force", applyCfg.force ? "true" : "false");
       break;
   }
 
