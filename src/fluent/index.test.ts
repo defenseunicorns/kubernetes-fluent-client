@@ -48,7 +48,7 @@ describe("Kube", () => {
     metadata: {
       name: "fake",
       namespace: "default",
-      managedFields: generateFakePodManagedFields("kubectl"),
+      managedFields: generateFakePodManagedFields("pepr"),
     },
   };
 
@@ -186,7 +186,7 @@ describe("Kube", () => {
     const kube = K8s(Pod);
     const result = await kube.Apply(
       {
-        metadata: { name: "fake", managedFields: generateFakePodManagedFields("pepr") },
+        metadata: { name: "fake", managedFields: generateFakePodManagedFields("kubectl") },
         spec: { priority: 3 },
       },
       { force: true },
