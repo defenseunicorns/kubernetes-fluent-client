@@ -7,6 +7,7 @@ import type { PartialDeep } from "type-fest";
 
 import { GenericClass, GroupVersionKind } from "../types";
 import { WatchCfg, WatchController } from "./watch";
+import { ApplyCfg } from "./apply";
 
 /**
  * The Phase matched when using the K8s Watch API.
@@ -65,7 +66,7 @@ export type K8sUnfilteredActions<K extends KubernetesObject> = {
    * @param resource
    * @returns
    */
-  Apply: (resource: PartialDeep<K>) => Promise<K>;
+  Apply: (resource: PartialDeep<K>, applyCfg?: ApplyCfg) => Promise<K>;
 
   /**
    * Create the provided K8s resource or throw an error if it already exists.

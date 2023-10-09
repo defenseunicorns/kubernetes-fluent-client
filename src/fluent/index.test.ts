@@ -8,8 +8,50 @@ import { k8sExec } from "./utils";
 // Setup mocks
 jest.mock("./utils");
 
+const generateFakePodManagedFields = (manager: string) => {
+  return [
+    {
+      apiVersion: "v1",
+      fieldsType: "FieldsV1",
+      fieldsV1: {
+        "f:metadata": {
+          "f:labels": {
+            "f:fake": {},
+          },
+          "f:spec": {
+            "f:containers": {
+              'k:{"name":"fake"}': {
+                "f:image": {},
+                "f:name": {},
+                "f:resources": {
+                  "f:limits": {
+                    "f:cpu": {},
+                    "f:memory": {},
+                  },
+                  "f:requests": {
+                    "f:cpu": {},
+                    "f:memory": {},
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      manager: manager,
+      operation: "Apply",
+    },
+  ];
+};
 describe("Kube", () => {
-  const fakeResource = { metadata: { name: "fake", namespace: "default" } };
+  const fakeResource = {
+    metadata: {
+      name: "fake",
+      namespace: "default",
+      managedFields: generateFakePodManagedFields("pepr"),
+    },
+  };
+
   const mockedKubeExec = jest.mocked(k8sExec).mockResolvedValue(fakeResource);
 
   beforeEach(() => {
@@ -137,6 +179,18 @@ describe("Kube", () => {
   it("should allow Apply of deep partials", async () => {
     const kube = K8s(Pod);
     const result = await kube.Apply({ metadata: { name: "fake" }, spec: { priority: 3 } });
+    expect(result).toEqual(fakeResource);
+  });
+
+  it("should allow force apply to resolve FieldManagerConflict", async () => {
+    const kube = K8s(Pod);
+    const result = await kube.Apply(
+      {
+        metadata: { name: "fake", managedFields: generateFakePodManagedFields("kubectl") },
+        spec: { priority: 3 },
+      },
+      { force: true },
+    );
     expect(result).toEqual(fakeResource);
   });
 

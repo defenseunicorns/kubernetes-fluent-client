@@ -11,6 +11,7 @@ import { GenericClass } from "../types";
 import { Filters, K8sInit, Paths, WatchAction } from "./types";
 import { k8sExec } from "./utils";
 import { ExecWatch, WatchCfg } from "./watch";
+import { ApplyCfg } from "./apply";
 
 /**
  * Kubernetes fluent API inspired by Kubectl. Pass in a model, then call filters and actions on it.
@@ -100,9 +101,12 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
     }
   }
 
-  async function Apply(resource: PartialDeep<K>): Promise<K> {
+  async function Apply(
+    resource: PartialDeep<K>,
+    applyCfg: ApplyCfg = { force: false },
+  ): Promise<K> {
     syncFilters(resource as K);
-    return k8sExec(model, filters, "APPLY", resource);
+    return k8sExec(model, filters, "APPLY", resource, applyCfg);
   }
 
   async function Create(resource: K): Promise<K> {
