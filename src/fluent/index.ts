@@ -8,16 +8,17 @@ import type { PartialDeep } from "type-fest";
 
 import { modelToGroupVersionKind } from "../kinds";
 import { GenericClass } from "../types";
+import { ApplyCfg } from "./apply";
 import { Filters, K8sInit, Paths, WatchAction } from "./types";
 import { k8sExec } from "./utils";
 import { ExecWatch, WatchCfg } from "./watch";
-import { ApplyCfg } from "./apply";
 
 /**
  * Kubernetes fluent API inspired by Kubectl. Pass in a model, then call filters and actions on it.
  *
  * @param model - the model to use for the API
  * @param filters - (optional) filter overrides, can also be chained
+ * @returns a fluent API for the model
  */
 export function K8s<T extends GenericClass, K extends KubernetesObject = InstanceType<T>>(
   model: T,
@@ -26,27 +27,44 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
   const withFilters = { WithField, WithLabel, Get, Delete, Watch };
   const matchedKind = filters.kindOverride || modelToGroupVersionKind(model.name);
 
-  function InNamespace(namespaces: string) {
+  /**
+   * @inheritdoc
+   * @see {@link K8sInit.InNamespace}
+   */
+  function InNamespace(namespace: string) {
     if (filters.namespace) {
       throw new Error(`Namespace already specified: ${filters.namespace}`);
     }
 
-    filters.namespace = namespaces;
+    filters.namespace = namespace;
     return withFilters;
   }
 
+  /**
+   * @inheritdoc
+   * @see {@link K8sInit.WithField}
+   */
   function WithField<P extends Paths<K>>(key: P, value: string) {
     filters.fields = filters.fields || {};
     filters.fields[key] = value;
     return withFilters;
   }
 
+  /**
+   * @inheritdoc
+   * @see {@link K8sInit.WithLabel}
+   */
   function WithLabel(key: string, value: string) {
     filters.labels = filters.labels || {};
     filters.labels[key] = value;
     return withFilters;
   }
 
+  /**
+   * Sync the filters with the provided payload.
+   *
+   * @param payload - the payload to sync with
+   */
   function syncFilters(payload: K) {
     // Ensure the payload has metadata
     payload.metadata = payload.metadata || {};
@@ -70,6 +88,10 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
 
   async function Get(): Promise<KubernetesListObject<K>>;
   async function Get(name: string): Promise<K>;
+  /**
+   * @inheritdoc
+   * @see {@link K8sInit.Get}
+   */
   async function Get(name?: string) {
     if (name) {
       if (filters.name) {
@@ -81,6 +103,10 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
     return k8sExec<T, K | KubernetesListObject<K>>(model, filters, "GET");
   }
 
+  /**
+   * @inheritdoc
+   * @see {@link K8sInit.Delete}
+   */
   async function Delete(filter?: K | string): Promise<void> {
     if (typeof filter === "string") {
       filters.name = filter;
@@ -101,6 +127,10 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
     }
   }
 
+  /**
+   * @inheritdoc
+   * @see {@link K8sInit.Apply}
+   */
   async function Apply(
     resource: PartialDeep<K>,
     applyCfg: ApplyCfg = { force: false },
@@ -109,11 +139,19 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
     return k8sExec(model, filters, "APPLY", resource, applyCfg);
   }
 
+  /**
+   * @inheritdoc
+   * @see {@link K8sInit.Create}
+   */
   async function Create(resource: K): Promise<K> {
     syncFilters(resource);
     return k8sExec(model, filters, "POST", resource);
   }
 
+  /**
+   * @inheritdoc
+   * @see {@link K8sInit.Patch}
+   */
   async function Patch(payload: Operation[]): Promise<K> {
     // If there are no operations, throw an error
     if (payload.length < 1) {
@@ -123,6 +161,10 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
     return k8sExec<T, K>(model, filters, "PATCH", payload);
   }
 
+  /**
+   * @inheritdoc
+   * @see {@link K8sInit.Watch}
+   */
   async function Watch(callback: WatchAction<T>, watchCfg?: WatchCfg) {
     return ExecWatch(model, filters, callback, watchCfg);
   }

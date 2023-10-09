@@ -24,7 +24,7 @@ export class GenericKind implements KubernetesObject {
 /**
  * GroupVersionKind unambiguously identifies a kind. It doesn't anonymously include GroupVersion
  * to avoid automatic coercion. It doesn't use a GroupVersion to avoid custom marshalling
- **/
+ */
 export interface GroupVersionKind {
   /** The K8s resource kind, e..g "Pod". */
   readonly kind: string;
