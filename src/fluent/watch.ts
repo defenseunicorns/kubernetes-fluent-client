@@ -102,7 +102,7 @@ export async function ExecWatch<T extends GenericClass>(
   const abortWrapper = {} as WatchController;
 
   /**
-   *
+   * Bind the abort controller to the wrapper.
    */
   function bindAbortController() {
     // Create a new AbortController
@@ -117,7 +117,7 @@ export async function ExecWatch<T extends GenericClass>(
   }
 
   /**
-   *
+   * The main watch runner. This will run until the process is terminated or the watch is aborted.
    */
   async function runner() {
     let doneCalled = false;
@@ -143,6 +143,7 @@ export async function ExecWatch<T extends GenericClass>(
       }
     };
 
+    // Cleanup the stream listeners
     const cleanup = () => {
       if (!doneCalled) {
         doneCalled = true;
