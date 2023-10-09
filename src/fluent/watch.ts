@@ -14,13 +14,14 @@ import { k8sCfg, pathBuilder } from "./utils";
 export type WatchController = {
   /**
    * Abort the watch.
+   *
    * @param reason optional reason for aborting the watch
-   * @returns
    */
   abort: (reason?: string) => void;
   /**
    * Get the AbortSignal for the watch.
-   * @returns
+   *
+   * @returns the AbortSignal
    */
   signal: () => AbortSignal;
 };
@@ -49,6 +50,12 @@ export type WatchCfg = {
 
 /**
  * Execute a watch on the specified resource.
+ *
+ * @param model - the model to use for the API
+ * @param filters - (optional) filter overrides, can also be chained
+ * @param callback - the callback function to call when an event is received
+ * @param watchCfg - (optional) watch configuration
+ * @returns a WatchController to allow the watch to be aborted externally
  */
 export async function ExecWatch<T extends GenericClass>(
   model: T,
@@ -94,6 +101,9 @@ export async function ExecWatch<T extends GenericClass>(
   // Create a wrapped AbortController to allow the watch to be aborted externally
   const abortWrapper = {} as WatchController;
 
+  /**
+   * Bind the abort controller to the wrapper.
+   */
   function bindAbortController() {
     // Create a new AbortController
     abortController = new AbortController();
@@ -106,6 +116,9 @@ export async function ExecWatch<T extends GenericClass>(
     opts.signal = abortController.signal;
   }
 
+  /**
+   * The main watch runner. This will run until the process is terminated or the watch is aborted.
+   */
   async function runner() {
     let doneCalled = false;
 
@@ -130,6 +143,7 @@ export async function ExecWatch<T extends GenericClass>(
       }
     };
 
+    // Cleanup the stream listeners
     const cleanup = () => {
       if (!doneCalled) {
         doneCalled = true;
@@ -181,7 +195,11 @@ export async function ExecWatch<T extends GenericClass>(
       onError(e);
     }
 
-    // On unhandled errors, retry the watch
+    /**
+     * Reload the watch.
+     *
+     * @param e - the error that caused the reload
+     */
     async function reload(e: Error) {
       // If there are more attempts, retry the watch
       if (watchCfg.retryMax! > retryCount) {

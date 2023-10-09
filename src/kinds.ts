@@ -10,6 +10,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
    * Events have a limited retention time and triggers and messages may evolve with time. Event consumers should not
    * rely on the timing of an event with a given Reason reflecting a consistent underlying trigger, or the continued
    * existence of events with that Reason. Events should be treated as informative, best-effort, supplemental data.
+   *
    * @see {@link https://kubernetes.io/docs/reference/kubernetes-api/cluster-resources/event-v1/}
    */
   CoreV1Event: {
@@ -21,6 +22,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s ClusterRole resource.
    * ClusterRole is a set of permissions that can be bound to a user or group in a cluster-wide scope.
+   *
    * @see {@link https://kubernetes.io/docs/reference/access-authn-authz/rbac/#role-and-clusterrole}
    */
   V1ClusterRole: {
@@ -31,6 +33,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s ClusterRoleBinding resource.
    * ClusterRoleBinding binds a ClusterRole to a user or group in a cluster-wide scope.
+   *
    * @see {@link https://kubernetes.io/docs/reference/access-authn-authz/rbac/#rolebinding-and-clusterrolebinding}
    */
   V1ClusterRoleBinding: {
@@ -41,6 +44,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s Role resource.
    * Role is a set of permissions that can be bound to a user or group in a namespace scope.
+   *
    * @see {@link https://kubernetes.io/docs/reference/access-authn-authz/rbac/#role-and-clusterrole}
    */
   V1Role: {
@@ -51,6 +55,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s RoleBinding resource.
    * RoleBinding binds a Role to a user or group in a namespace scope.
+   *
    * @see {@link https://kubernetes.io/docs/reference/access-authn-authz/rbac/#rolebinding-and-clusterrolebinding}
    */
   V1RoleBinding: {
@@ -61,6 +66,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s ConfigMap resource.
    * ConfigMap holds configuration data for pods to consume.
+   *
    * @see {@link https://kubernetes.io/docs/concepts/configuration/configmap/}
    */
   V1ConfigMap: {
@@ -72,6 +78,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s Endpoints resource.
    * Endpoints expose a service's IP addresses and ports to other resources.
+   *
    * @see {@link https://kubernetes.io/docs/concepts/services-networking/service/#endpoints}
    */
   V1Endpoint: {
@@ -84,6 +91,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s LimitRange resource.
    * LimitRange enforces constraints on the resource consumption of objects in a namespace.
+   *
    * @see {@link https://kubernetes.io/docs/concepts/policy/limit-range/}
    */
   V1LimitRange: {
@@ -95,6 +103,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s Namespace resource.
    * Namespace is a way to divide cluster resources between multiple users.
+   *
    * @see {@link https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/}
    */
   V1Namespace: {
@@ -106,6 +115,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s Node resource.
    * Node is a worker machine in Kubernetes.
+   *
    * @see {@link https://kubernetes.io/docs/concepts/architecture/nodes/}
    */
   V1Node: {
@@ -117,6 +127,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s PersistentVolumeClaim resource.
    * PersistentVolumeClaim is a user's request for and claim to a persistent volume.
+   *
    * @see {@link https://kubernetes.io/docs/concepts/storage/persistent-volumes/#persistentvolumeclaims}
    */
   V1PersistentVolumeClaim: {
@@ -128,6 +139,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s PersistentVolume resource.
    * PersistentVolume is a piece of storage in the cluster that has been provisioned by an administrator.
+   *
    * @see {@link https://kubernetes.io/docs/concepts/storage/persistent-volumes/}
    */
   V1PersistentVolume: {
@@ -139,6 +151,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s Pod resource.
    * Pod is the smallest and simplest unit in the Kubernetes object model.
+   *
    * @see {@link https://kubernetes.io/docs/concepts/workloads/pods/}
    */
   V1Pod: {
@@ -149,6 +162,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s PodTemplate resource.
    * PodTemplate is an object that describes the pod that will be created from a higher level abstraction.
+   *
    * @see {@link https://kubernetes.io/docs/concepts/workloads/controllers/#pod-template}
    */
   V1PodTemplate: {
@@ -160,6 +174,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s ReplicationController resource.
    * ReplicationController ensures that a specified number of pod replicas are running at any given time.
+   *
    * @see {@link https://kubernetes.io/docs/concepts/workloads/controllers/replicationcontroller/}
    */
   V1ReplicationController: {
@@ -171,6 +186,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s ResourceQuota resource.
    * ResourceQuota provides constraints that limit resource consumption per namespace.
+   *
    * @see {@link https://kubernetes.io/docs/concepts/policy/resource-quotas/}
    */
   V1ResourceQuota: {
@@ -182,6 +198,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s Secret resource.
    * Secret holds secret data of a certain type.
+   *
    * @see {@link https://kubernetes.io/docs/concepts/configuration/secret/}
    */
   V1Secret: {
@@ -193,6 +210,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s ServiceAccount resource.
    * ServiceAccount is an identity that processes in a pod can use to access the Kubernetes API.
+   *
    * @see {@link https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/}
    */
   V1ServiceAccount: {
@@ -204,6 +222,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s Service resource.
    * Service is an abstraction which defines a logical set of Pods and a policy by which to access them.
+   *
    * @see {@link https://kubernetes.io/docs/concepts/services-networking/service/}
    */
   V1Service: {
@@ -215,6 +234,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s MutatingWebhookConfiguration resource.
    * MutatingWebhookConfiguration configures a mutating admission webhook.
+   *
    * @see {@link https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/#configure-admission-webhooks-on-the-fly}
    */
   V1MutatingWebhookConfiguration: {
@@ -226,6 +246,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s ValidatingWebhookConfiguration resource.
    * ValidatingWebhookConfiguration configures a validating admission webhook.
+   *
    * @see {@link https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/#configure-admission-webhooks-on-the-fly}
    */
   V1ValidatingWebhookConfiguration: {
@@ -236,6 +257,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s CustomResourceDefinition resource.
    * CustomResourceDefinition is a custom resource in a Kubernetes cluster.
+   *
    * @see {@link https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/}
    */
   V1CustomResourceDefinition: {
@@ -247,6 +269,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s APIService resource.
    * APIService represents a server for a particular API version and group.
+   *
    * @see {@link https://kubernetes.io/docs/tasks/access-kubernetes-api/setup-extension-api-server/}
    */
   V1APIService: {
@@ -258,6 +281,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s ControllerRevision resource.
    * ControllerRevision is used to manage the history of a StatefulSet or DaemonSet.
+   *
    * @see {@link https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#revision-history}
    */
   V1ControllerRevision: {
@@ -269,6 +293,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s DaemonSet resource.
    * DaemonSet ensures that all (or some) nodes run a copy of a Pod.
+   *
    * @see {@link https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/}
    */
   V1DaemonSet: {
@@ -280,6 +305,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s Deployment resource.
    * Deployment provides declarative updates for Pods and ReplicaSets.
+   *
    * @see {@link https://kubernetes.io/docs/concepts/workloads/controllers/deployment/}
    */
   V1Deployment: {
@@ -291,6 +317,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s ReplicaSet resource.
    * ReplicaSet ensures that a specified number of pod replicas are running at any given time.
+   *
    * @see {@link https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/}
    */
   V1ReplicaSet: {
@@ -302,6 +329,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s StatefulSet resource.
    * StatefulSet is used to manage stateful applications.
+   *
    * @see {@link https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/}
    */
   V1StatefulSet: {
@@ -313,6 +341,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s TokenReview resource.
    * TokenReview attempts to authenticate a token to a known user.
+   *
    * @see {@link https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.20/#tokenreview-v1-authentication-k8s-io}
    */
   V1TokenReview: {
@@ -324,6 +353,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s LocalSubjectAccessReview resource.
    * LocalSubjectAccessReview checks whether a specific user can perform a specific action in a specific namespace.
+   *
    * @see {@link https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.20/#localsubjectaccessreview-v1-authorization-k8s-io}
    */
   V1LocalSubjectAccessReview: {
@@ -335,6 +365,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s SelfSubjectAccessReview resource.
    * SelfSubjectAccessReview checks whether the current user can perform a specific action.
+   *
    * @see {@link https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.20/#selfsubjectaccessreview-v1-authorization-k8s-io}
    */
   V1SelfSubjectAccessReview: {
@@ -346,6 +377,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s SelfSubjectRulesReview resource.
    * SelfSubjectRulesReview lists the permissions a specific user has within a namespace.
+   *
    * @see {@link https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.20/#selfsubjectrulesreview-v1-authorization-k8s-io}
    */
   V1SelfSubjectRulesReview: {
@@ -357,6 +389,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s SubjectAccessReview resource.
    * SubjectAccessReview checks whether a specific user can perform a specific action.
+   *
    * @see {@link https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.20/#subjectaccessreview-v1-authorization-k8s-io}
    */
   V1SubjectAccessReview: {
@@ -368,6 +401,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s HorizontalPodAutoscaler resource.
    * HorizontalPodAutoscaler automatically scales the number of Pods in a replication controller, deployment, or replica set.
+   *
    * @see {@link https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/}
    */
   V1HorizontalPodAutoscaler: {
@@ -379,6 +413,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s CronJob resource.
    * CronJob manages time-based jobs, specifically those that run periodically and complete after a successful execution.
+   *
    * @see {@link https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/}
    */
   V1CronJob: {
@@ -390,6 +425,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s Job resource.
    * Job represents the configuration of a single job.
+   *
    * @see {@link https://kubernetes.io/docs/concepts/workloads/controllers/job/}
    */
   V1Job: {
@@ -401,6 +437,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s CertificateSigningRequest resource.
    * CertificateSigningRequest represents a certificate signing request.
+   *
    * @see {@link https://kubernetes.io/docs/reference/access-authn-authz/certificate-signing-requests/}
    */
   V1CertificateSigningRequest: {
@@ -412,6 +449,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s EndpointSlice resource.
    * EndpointSlice represents a scalable set of network endpoints for a Kubernetes Service.
+   *
    * @see {@link https://kubernetes.io/docs/concepts/services-networking/endpoint-slices/}
    */
   V1EndpointSlice: {
@@ -423,6 +461,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s IngressClass resource.
    * IngressClass represents the class of the Ingress, referenced by the Ingress spec.
+   *
    * @see {@link https://kubernetes.io/docs/concepts/services-networking/ingress/}
    */
   V1IngressClass: {
@@ -434,6 +473,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s Ingress resource.
    * Ingress exposes HTTP and HTTPS routes from outside the cluster to services within the cluster.
+   *
    * @see {@link https://kubernetes.io/docs/concepts/services-networking/ingress/}
    */
   V1Ingress: {
@@ -446,6 +486,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s NetworkPolicy resource.
    * NetworkPolicy defines a set of rules for how pods communicate with each other.
+   *
    * @see {@link https://kubernetes.io/docs/concepts/services-networking/network-policies/}
    */
   V1NetworkPolicy: {
@@ -457,6 +498,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s RuntimeClass resource.
    * RuntimeClass is a cluster-scoped resource that surfaces container runtime properties to the control plane.
+   *
    * @see {@link https://kubernetes.io/docs/concepts/containers/runtime-class/}
    */
   V1RuntimeClass: {
@@ -468,6 +510,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s PodDisruptionBudget resource.
    * PodDisruptionBudget is an API object that limits the number of pods of a replicated application that are down simultaneously.
+   *
    * @see {@link https://kubernetes.io/docs/concepts/workloads/pods/disruptions/}
    */
   V1PodDisruptionBudget: {
@@ -479,6 +522,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s VolumeAttachment resource.
    * VolumeAttachment captures the intent to attach or detach the specified volume to/from the specified node.
+   *
    * @see {@link https://kubernetes.io/docs/concepts/storage/storage-classes/}
    */
   V1VolumeAttachment: {
@@ -490,6 +534,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s CSIDriver resource.
    * CSIDriver captures information about a Container Storage Interface (CSI) volume driver.
+   *
    * @see {@link https://kubernetes.io/docs/concepts/storage/volumes/}
    */
   V1CSIDriver: {
@@ -501,6 +546,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s CSIStorageCapacity resource.
    * CSIStorageCapacity stores the reported storage capacity of a CSI node or storage class.
+   *
    * @see {@link https://kubernetes.io/docs/concepts/storage/csi/}
    */
   V1CSIStorageCapacity: {
@@ -512,6 +558,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
   /**
    * Represents a K8s StorageClass resource.
    * StorageClass is a cluster-scoped resource that provides a way for administrators to describe the classes of storage they offer.
+   *
    * @see {@link https://kubernetes.io/docs/concepts/storage/storage-classes/}
    */
   V1StorageClass: {
@@ -521,6 +568,12 @@ const gvkMap: Record<string, GroupVersionKind> = {
   },
 };
 
+/**
+ * Converts a model name to a GroupVersionKind
+ *
+ * @param key The name of the model
+ * @returns The GroupVersionKind for the model
+ */
 export function modelToGroupVersionKind(key: string): GroupVersionKind {
   return gvkMap[key];
 }

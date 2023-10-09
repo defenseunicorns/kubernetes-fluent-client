@@ -16,11 +16,11 @@ const SSA_CONTENT_TYPE = "application/apply-patch+yaml";
 /**
  * Generate a path to a Kubernetes resource
  *
- * @param serverUrl
- * @param model
- * @param filters
- * @param excludeName
- * @returns
+ * @param serverUrl - the URL of the Kubernetes API server
+ * @param model - the model to use for the API
+ * @param filters - (optional) filter overrides, can also be chained
+ * @param excludeName - (optional) exclude the name from the path
+ * @returns the path to the resource
  */
 export function pathBuilder<T extends GenericClass>(
   serverUrl: string,
@@ -90,8 +90,8 @@ export function pathBuilder<T extends GenericClass>(
  * - We have to create an agent to handle the TLS connection (for the custom CA + mTLS in some cases)
  * - The K8s lib uses request instead of node-fetch today so the object is slightly different
  *
- * @param method
- * @returns
+ * @param method - the HTTP method to use
+ * @returns the fetch options and server URL
  */
 export async function k8sCfg(method: FetchMethods) {
   const kubeConfig = new KubeConfig();
@@ -119,6 +119,17 @@ export async function k8sCfg(method: FetchMethods) {
   return { opts, serverUrl: cluster.server };
 }
 
+/**
+ * Execute a request against the Kubernetes API server.
+ *
+ * @param model - the model to use for the API
+ * @param filters - (optional) filter overrides, can also be chained
+ * @param method - the HTTP method to use
+ * @param payload - (optional) the payload to send
+ * @param applyCfg - (optional) configuration for the apply method
+ *
+ * @returns the parsed JSON response
+ */
 export async function k8sExec<T extends GenericClass, K>(
   model: T,
   filters: Filters,

@@ -22,7 +22,7 @@ export type FetchResponse<T> = {
  *
  * @param url The URL or Request object to fetch
  * @param init Additional options for the request
- * @returns
+ * @returns The parsed JSON response
  */
 export async function fetch<T>(
   url: URL | RequestInfo,

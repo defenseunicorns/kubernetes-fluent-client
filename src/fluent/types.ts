@@ -28,6 +28,14 @@ export interface Filters {
   namespace?: string;
 }
 
+/**
+ * Get the resource or resources matching the filters.
+ * If no filters are specified, all resources will be returned.
+ * If a name is specified, only a single resource will be returned.
+ *
+ * @param name - (optional) the name of the resource to get
+ * @returns the resource or list of resources
+ */
 export type GetFunction<K extends KubernetesObject> = {
   (): Promise<KubernetesListObject<K>>;
   (name: string): Promise<K>;
@@ -42,16 +50,18 @@ export type K8sFilteredActions<K extends KubernetesObject> = {
   Get: GetFunction<K>;
 
   /**
-   * Delete the resource if it exists.
+   * Delete the resource matching the filters.
    *
    * @param filter - the resource or resource name to delete
    */
   Delete: (filter?: K | string) => Promise<void>;
 
   /**
+   * Watch the resource matching the filters.
    *
-   * @param callback
-   * @returns
+   * @param callback - the callback function to call when an event occurs
+   * @param watchCfg - (optional) watch configuration
+   * @returns a watch controller
    */
   Watch: (
     callback: (payload: K, phase: WatchPhase) => void,
@@ -63,16 +73,17 @@ export type K8sUnfilteredActions<K extends KubernetesObject> = {
   /**
    * Perform a server-side apply of the provided K8s resource.
    *
-   * @param resource
-   * @returns
+   * @param resource - the resource to apply
+   * @param applyCfg - (optional) apply configuration
+   * @returns the applied resource
    */
   Apply: (resource: PartialDeep<K>, applyCfg?: ApplyCfg) => Promise<K>;
 
   /**
    * Create the provided K8s resource or throw an error if it already exists.
    *
-   * @param resource
-   * @returns
+   * @param resource - the resource to create
+   * @returns the created resource
    */
   Create: (resource: K) => Promise<K>;
 
@@ -94,18 +105,18 @@ export type K8sWithFilters<K extends KubernetesObject> = K8sFilteredActions<K> &
    *
    * ```ts
    * K8s(kind.Deployment)
-   *  .WithField("metadata.name", "bar")
-   *  .WithField("metadata.namespace", "qux")
-   *  .Delete(...)
+   * .WithField("metadata.name", "bar")
+   * .WithField("metadata.namespace", "qux")
+   * .Delete(...)
    * ```
    *
    * Will only delete the Deployment if it has the `metadata.name=bar` and `metadata.namespace=qux` fields.
    * Not all fields are supported, see https://kubernetes.io/docs/concepts/overview/working-with-objects/field-selectors/#supported-fields,
    * but Typescript will limit to only fields that exist on the resource.
    *
-   * @param key  The field key
-   * @param value The field value
-   * @returns
+   * @param key - the field key
+   * @param value - the field value
+   * @returns the fluent API
    */
   WithField: <P extends Paths<K>>(key: P, value: string) => K8sWithFilters<K>;
 
@@ -115,15 +126,16 @@ export type K8sWithFilters<K extends KubernetesObject> = K8sFilteredActions<K> &
    *
    * ```ts
    * K8s(kind.Deployment)
-   *   .WithLabel("foo", "bar")
-   *   .WithLabel("baz", "qux")
-   *   .Delete(...)
+   * .WithLabel("foo", "bar")
+   * .WithLabel("baz", "qux")
+   * .Delete(...)
    * ```
    *
    * Will only delete the Deployment if it has the`foo=bar` and `baz=qux` labels.
    *
-   * @param key The label key
-   * @param value (optional) The label value
+   * @param key - the label key
+   * @param value - the label value
+   * @returns the fluent API
    */
   WithLabel: (key: string, value: string) => K8sWithFilters<K>;
 };
@@ -131,10 +143,10 @@ export type K8sWithFilters<K extends KubernetesObject> = K8sFilteredActions<K> &
 export type K8sInit<K extends KubernetesObject> = K8sWithFilters<K> &
   K8sUnfilteredActions<K> & {
     /**
-     * Filter the query by the given namespace.
+     * Set the namespace filter.
      *
-     * @param namespace
-     * @returns
+     * @param namespace - the namespace to filter on
+     * @returns the fluent API
      */
     InNamespace: (namespace: string) => K8sWithFilters<K>;
   };
