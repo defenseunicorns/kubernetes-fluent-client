@@ -2,6 +2,7 @@
   "name": "kubernetes-fluent-client",
   "version": "0.0.0-development",
   "description": "A @kubernetes/client-node fluent API wrapper that leverages K8s Server Side Apply",
+  "bin": "./dist/cli.js",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -39,13 +40,17 @@
     "fast-json-patch": "3.1.1",
     "http-status-codes": "2.3.0",
     "node-fetch": "2.7.0",
-    "type-fest": "4.3.3"
+    "quicktype-core": "23.0.76",
+    "type-fest": "4.3.3",
+    "yargs": "17.7.2"
   },
   "devDependencies": {
     "@commitlint/cli": "17.7.2",
     "@commitlint/config-conventional": "17.7.0",
     "@jest/globals": "29.7.0",
     "@types/byline": "4.2.34",
+    "@types/readable-stream": "4.0.3",
+    "@types/yargs": "17.0.28",
     "@typescript-eslint/eslint-plugin": "6.7.4",
     "@typescript-eslint/parser": "6.7.4",
     "eslint-plugin-jsdoc": "46.8.2",
