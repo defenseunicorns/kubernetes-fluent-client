@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2023-Present The Pepr Authors
+// SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
 
 import { StatusCodes } from "http-status-codes";
 import fetchRaw, { FetchError, RequestInfo, RequestInit } from "node-fetch";
