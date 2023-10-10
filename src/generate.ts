@@ -4,27 +4,45 @@
 import { loadYaml } from "@kubernetes/client-node";
 import * as fs from "fs";
 import * as path from "path";
-import { FetchingJSONSchemaStore, InputData, JSONSchemaInput, quicktype } from "quicktype-core";
+import {
+  FetchingJSONSchemaStore,
+  InputData,
+  JSONSchemaInput,
+  TargetLanguage,
+  quicktype,
+} from "quicktype-core";
 
 import { fetch } from "./fetch";
 import { K8s } from "./fluent";
 import { CustomResourceDefinition } from "./upstream";
 
+export interface GenerateOptions {
+  /** The source URL, yaml file path or K8s CRD name */
+  source: string;
+  /** The output file path */
+  output?: string;
+  /** The version of the CRD to use */
+  version?: string;
+  /** Disable kubernetes-fluent-client wrapping */
+  plain?: boolean;
+  /** The language to generate types in */
+  language?: string | TargetLanguage;
+}
+
 /**
  * Converts a CustomResourceDefinition to TypeScript types
  *
  * @param crd The CustomResourceDefinition to convert
- * @param output The output file to write to
- * @param version The version of the CustomResourceDefinition to convert
+ * @param opts The options to use when converting
  */
-async function convertCRDtoTS(crd: CustomResourceDefinition, output?: string, version?: string) {
+async function convertCRDtoTS(crd: CustomResourceDefinition, opts: GenerateOptions) {
   // If no version is specified, use the first version
-  if (!version) {
-    version = crd.spec.versions[0].name;
+  if (!opts.version) {
+    opts.version = crd.spec.versions[0].name;
   }
 
   // Find the version that matches the specified version
-  const match = crd.spec.versions.find(v => v.name === version);
+  const match = crd.spec.versions.find(v => v.name === opts.version);
 
   // If no match is found, throw an error
   if (!match) {
@@ -50,34 +68,41 @@ async function convertCRDtoTS(crd: CustomResourceDefinition, output?: string, ve
   // Generate the types
   const out = await quicktype({
     inputData,
-    lang: "ts",
+    lang: opts.language || "ts",
     rendererOptions: { "just-types": "true" },
   });
 
-  // Add the imports before any other lines
-  out.lines.unshift(`import { GenericKind, RegisterKind } from "kubernetes-fluent-client";\n`);
+  let processedLines = out.lines;
 
-  // Remove the line containing `[property: string]: any;`
-  const filteredLines = out.lines.filter(line => !line.includes("[property: string]: any;"));
+  // If using typescript, remove the line containing `[property: string]: any;`
+  if (opts.language === "ts" || opts.language === "typescript") {
+    processedLines = out.lines.filter(line => !line.includes("[property: string]: any;"));
+  }
 
-  // Replace the interface with a named class that extends GenericKind
-  const entryIdx = filteredLines.findIndex(line => line.includes(`export interface ${name} {`));
+  // If the language is TypeScript and plain is not specified, wire up the fluent client
+  if (opts.language === "ts" && !opts.plain) {
+    // Add the imports before any other lines
+    out.lines.unshift(`import { GenericKind, RegisterKind } from "kubernetes-fluent-client";\n`);
 
-  // Replace the interface with a named class that extends GenericKind
-  filteredLines[entryIdx] = `export class ${name} extends GenericKind {`;
+    // Replace the interface with a named class that extends GenericKind
+    const entryIdx = processedLines.findIndex(line => line.includes(`export interface ${name} {`));
 
-  // Add the RegisterKind call
-  filteredLines.push(`RegisterKind(${name}, {`);
-  filteredLines.push(`  group: "${crd.spec.group}",`);
-  filteredLines.push(`  version: "${version}",`);
-  filteredLines.push(`  kind: "${name}",`);
-  filteredLines.push(`});`);
+    // Replace the interface with a named class that extends GenericKind
+    processedLines[entryIdx] = `export class ${name} extends GenericKind {`;
 
-  const finalContents = filteredLines.join("\n");
+    // Add the RegisterKind call
+    processedLines.push(`RegisterKind(${name}, {`);
+    processedLines.push(`  group: "${crd.spec.group}",`);
+    processedLines.push(`  version: "${opts.version}",`);
+    processedLines.push(`  kind: "${name}",`);
+    processedLines.push(`});`);
+  }
+
+  const finalContents = processedLines.join("\n");
 
   // If an output file is specified, write the output to the file
-  if (output) {
-    fs.writeFileSync(output, finalContents);
+  if (opts.output) {
+    fs.writeFileSync(opts.output, finalContents);
   } else {
     // Otherwise, print the output to the console
     console.log(finalContents);
@@ -138,11 +163,9 @@ async function readOrFetchCrd(source: string): Promise<CustomResourceDefinition>
 /**
  * Generate TypeScript types from a K8s CRD
  *
- * @param source The source to read from (file path, cluster or URL)
- * @param output The output file to write to
- * @param version The version of the CustomResourceDefinition to convert
+ * @param opts The options to use when generating
  */
-export async function generate(source: string, output?: string, version?: string) {
-  const crd = await readOrFetchCrd(source);
-  await convertCRDtoTS(crd, output, version);
+export async function generate(opts: GenerateOptions) {
+  const crd = await readOrFetchCrd(opts.source);
+  await convertCRDtoTS(crd, opts);
 }
