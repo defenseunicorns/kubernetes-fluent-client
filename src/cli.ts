@@ -10,7 +10,7 @@ import { GenerateOptions, generate } from "./generate";
 void yargs(hideBin(process.argv))
   .version(false)
   .command(
-    "crd [source] [output]",
+    "crd [source] [directory]",
     "generate usable types from a K8s CRD",
     yargs => {
       return yargs
@@ -18,14 +18,9 @@ void yargs(hideBin(process.argv))
           describe: "the yaml file path, remote url, or K8s CRD name",
           type: "string",
         })
-        .positional("output", {
-          describe: "the output file path",
+        .positional("directory", {
+          describe: "the directory to output the generated types to",
           type: "string",
-        })
-        .option("version", {
-          alias: "v",
-          type: "string",
-          description: "the version of the CRD to use",
         })
         .option("plain", {
           alias: "p",
@@ -39,7 +34,8 @@ void yargs(hideBin(process.argv))
           default: "ts",
           description:
             "the language to generate types in, see https://github.com/glideapps/quicktype#target-languages for a list of supported languages",
-        });
+        })
+        .demandOption(["source", "directory"]);
     },
     argv => {
       void generate(argv as GenerateOptions);
