@@ -34,11 +34,16 @@ export interface GenerateOptions {
  * @param opts The options to use when converting
  * @returns A promise that resolves when the CustomResourceDefinition has been converted
  */
-async function convertCRDtoTS(crd: CustomResourceDefinition, opts: GenerateOptions) {
-  for (const match of crd.spec.versions) {
-    // Get the name of the kind
-    const name = crd.spec.names.kind;
+async function convertCRDtoTS(
+  crd: CustomResourceDefinition,
+  opts: GenerateOptions,
+): Promise<Record<string, string[]>> {
+  // Get the name of the kind
+  const name = crd.spec.names.kind;
 
+  const results: Record<string, string[]> = {};
+
+  for (const match of crd.spec.versions) {
     // Get the schema from the matched version
     const schema = JSON.stringify(match?.schema?.openAPIV3Schema);
 
@@ -95,6 +100,7 @@ async function convertCRDtoTS(crd: CustomResourceDefinition, opts: GenerateOptio
     }
 
     const finalContents = processedLines.join("\n");
+    const fileName = `${name.toLowerCase()}-${match.name.toLowerCase()}`;
 
     // If an output file is specified, write the output to the file
     if (opts.directory) {
@@ -102,15 +108,15 @@ async function convertCRDtoTS(crd: CustomResourceDefinition, opts: GenerateOptio
       fs.mkdirSync(opts.directory, { recursive: true });
 
       // Write the file
-      const fileName = `${name.toLowerCase()}-${match.name.toLowerCase()}`;
       const filePath = path.join(opts.directory, `${fileName}.${opts.language}`);
       fs.writeFileSync(filePath, finalContents);
     }
 
-    return processedLines;
+    // Add the results to the array
+    results[fileName] = processedLines;
   }
 
-  return [];
+  return {};
 }
 
 /**
@@ -166,12 +172,18 @@ async function readOrFetchCrd(source: string): Promise<CustomResourceDefinition[
  */
 export async function generate(opts: GenerateOptions) {
   const crds = await readOrFetchCrd(opts.source);
-  const results: string[][] = [];
+  const results: Record<string, string[]> = {};
 
   for (const crd of crds) {
-    if (!crd || !crd.spec?.versions?.length) {
+    if (!crd || crd.kind !== "CustomResourceDefinition" || !crd.spec?.versions?.length) {
+      // Ignore empty and non-CRD objects
       continue;
     }
-    results.push(await convertCRDtoTS(crd, opts));
+
+    // Add the results to the record
+    const out = await convertCRDtoTS(crd, opts);
+    for (const key of Object.keys(out)) {
+      results[key] = out[key];
+    }
   }
 }
