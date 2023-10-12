@@ -19,6 +19,9 @@ export { K8s } from "./fluent";
 // Export helpers for working with K8s types
 export { RegisterKind, modelToGroupVersionKind } from "./kinds";
 
+// Export the GenericKind interface for CRD registration
+export { GenericKind } from "./types";
+
 export * from "./types";
 
 export * as K8sClientNode from "@kubernetes/client-node";
