@@ -41,7 +41,7 @@
     "http-status-codes": "2.3.0",
     "node-fetch": "2.7.0",
     "quicktype-core": "23.0.76",
-    "type-fest": "4.3.3",
+    "type-fest": "4.4.0",
     "yargs": "17.7.2"
   },
   "devDependencies": {
@@ -51,11 +51,11 @@
     "@types/byline": "4.2.34",
     "@types/readable-stream": "4.0.3",
     "@types/yargs": "17.0.28",
-    "@typescript-eslint/eslint-plugin": "6.7.4",
-    "@typescript-eslint/parser": "6.7.4",
+    "@typescript-eslint/eslint-plugin": "6.7.5",
+    "@typescript-eslint/parser": "6.7.5",
     "eslint-plugin-jsdoc": "46.8.2",
     "jest": "29.7.0",
-    "nock": "13.3.3",
+    "nock": "13.3.4",
     "prettier": "3.0.3",
     "semantic-release": "22.0.5",
     "ts-jest": "29.1.1",
