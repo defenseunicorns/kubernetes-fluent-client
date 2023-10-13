@@ -172,7 +172,10 @@ async function readOrFetchCrd(opts: GenerateOptions): Promise<CustomResourceDefi
       return loadAllYaml(data) as CustomResourceDefinition[];
     }
   } catch (e) {
-    // Ignore errors
+    // If invalid, ignore the error
+    if (e.code !== "ERR_INVALID_URL") {
+      throw new Error(e);
+    }
   }
 
   // Finally, if the source is not a file or URL, try to read it as a CustomResourceDefinition from the cluster
@@ -180,7 +183,11 @@ async function readOrFetchCrd(opts: GenerateOptions): Promise<CustomResourceDefi
     logFn(`Attempting to read ${source} from the current Kubernetes context`);
     return [await K8s(CustomResourceDefinition).Get(source)];
   } catch (e) {
-    throw new Error(`Failed to read ${source} as a file, url or K8s CRD: ${e}`);
+    throw new Error(
+      `Failed to read ${source} as a file, url or K8s CRD: ${
+        e.data?.message || "Cluster not available"
+      }`,
+    );
   }
 }
 
