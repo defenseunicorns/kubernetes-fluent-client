@@ -37,8 +37,15 @@ void yargs(hideBin(process.argv))
         })
         .demandOption(["source", "directory"]);
     },
-    argv => {
-      void generate(argv as GenerateOptions);
+    async argv => {
+      const opts = argv as unknown as GenerateOptions;
+      opts.logFn = console.log;
+
+      try {
+        await generate(opts);
+      } catch (e) {
+        console.log(`\n❌ ${e.message}`);
+      }
     },
   )
   .parse();
