@@ -128,16 +128,17 @@ export type K8sWithFilters<K extends KubernetesObject> = K8sFilteredActions<K> &
    * K8s(kind.Deployment)
    * .WithLabel("foo", "bar")
    * .WithLabel("baz", "qux")
+   * .WithLabel("quux")
    * .Delete(...)
    * ```
    *
-   * Will only delete the Deployment if it has the`foo=bar` and `baz=qux` labels.
+   * Will only delete the Deployment if it has the`foo=bar` and `baz=qux` labels and the `quux` label exists.
    *
    * @param key - the label key
    * @param value - the label value
    * @returns the fluent API
    */
-  WithLabel: (key: string, value: string) => K8sWithFilters<K>;
+  WithLabel: (key: string, value?: string) => K8sWithFilters<K>;
 };
 
 export type K8sInit<K extends KubernetesObject> = K8sWithFilters<K> &
