@@ -21,6 +21,21 @@ describe("pathBuilder Function", () => {
     expect(() => pathBuilder("", model, filters)).toThrow("Kind not specified for Unknown");
   });
 
+  it("should generate a path with a set-based label selector", () => {
+    const filters: Filters = {
+      namespace: "default",
+      name: "mypod",
+      labels: { iamalabel: "" },
+    };
+    const result = pathBuilder(serverUrl, Pod, filters);
+    const expected = new URL(
+      "/api/v1/namespaces/default/pods/mypod?labelSelector=iamalabel",
+      serverUrl,
+    );
+
+    expect(result.toString()).toEqual(expected.toString());
+  });
+
   it("should generate a path for core group kinds (with custom filters)", () => {
     const filters: Filters = {
       namespace: "default",
