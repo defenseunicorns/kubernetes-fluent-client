@@ -54,7 +54,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
    * @inheritdoc
    * @see {@link K8sInit.WithLabel}
    */
-  function WithLabel(key: string, value: string) {
+  function WithLabel(key: string, value = "") {
     filters.labels = filters.labels || {};
     filters.labels[key] = value;
     return withFilters;

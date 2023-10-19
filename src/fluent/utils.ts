@@ -73,7 +73,9 @@ export function pathBuilder<T extends GenericClass>(
   // Add label selectors to the query params
   if (filters.labels) {
     const labelSelector = Object.entries(filters.labels)
-      .map(([key, value]) => `${key}=${value}`)
+      // Exists set-based operators only include the key
+      // See https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#set-based-requirement
+      .map(([key, value]) => (value ? `${key}=${value}` : key))
       .join(",");
 
     url.searchParams.set("labelSelector", labelSelector);
