@@ -46,7 +46,7 @@
   },
   "devDependencies": {
     "@commitlint/cli": "17.8.0",
-    "@commitlint/config-conventional": "17.8.0",
+    "@commitlint/config-conventional": "18.0.0",
     "@jest/globals": "29.7.0",
     "@types/byline": "4.2.35",
     "@types/readable-stream": "4.0.4",
