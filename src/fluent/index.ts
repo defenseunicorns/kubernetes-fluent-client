@@ -163,11 +163,20 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
 
   /**
    * @inheritdoc
+   * @see {@link K8sInit.Replace}
+   */
+  async function Replace(resource: K): Promise<K> {
+    syncFilters(resource);
+    return k8sExec<T, K>(model, filters, "REPLACE", resource);
+  }
+
+  /**
+   * @inheritdoc
    * @see {@link K8sInit.Watch}
    */
   async function Watch(callback: WatchAction<T>, watchCfg?: WatchCfg) {
     return ExecWatch(model, filters, callback, watchCfg);
   }
 
-  return { InNamespace, Apply, Create, Patch, ...withFilters };
+  return { InNamespace, Apply, Create, Patch, Replace, ...withFilters };
 }

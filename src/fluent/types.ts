@@ -18,7 +18,15 @@ export enum WatchPhase {
   Deleted = "DELETED",
 }
 
-export type FetchMethods = "GET" | "APPLY" | "POST" | "PUT" | "DELETE" | "PATCH" | "WATCH";
+export type FetchMethods =
+  | "GET"
+  | "APPLY"
+  | "POST"
+  | "PUT"
+  | "DELETE"
+  | "PATCH"
+  | "REPLACE"
+  | "WATCH";
 
 export interface Filters {
   kindOverride?: GroupVersionKind;
@@ -78,6 +86,14 @@ export type K8sUnfilteredActions<K extends KubernetesObject> = {
    * @returns the applied resource
    */
   Apply: (resource: PartialDeep<K>, applyCfg?: ApplyCfg) => Promise<K>;
+
+  /**
+   * Create the provided K8s resource or throw an error if it already exists.
+   *
+   * @param resource - the resource to replace
+   * @returns the replaced resource
+   */
+  Replace: (resource: K) => Promise<K>;
 
   /**
    * Create the provided K8s resource or throw an error if it already exists.
