@@ -167,7 +167,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
    */
   async function Replace(resource: K): Promise<K> {
     syncFilters(resource);
-    return k8sExec<T, K>(model, filters, "REPLACE", resource);
+    return k8sExec<T, K>(model, filters, "PUT", resource);
   }
 
   /**
