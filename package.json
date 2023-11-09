@@ -41,7 +41,7 @@
     "http-status-codes": "2.3.0",
     "node-fetch": "2.7.0",
     "quicktype-core": "github:defenseunicorns/temp-quicktype-fork#main",
-    "type-fest": "4.5.0",
+    "type-fest": "4.7.0",
     "yargs": "17.7.2"
   },
   "devDependencies": {
