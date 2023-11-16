@@ -13,7 +13,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
    *
    * @see {@link https://kubernetes.io/docs/reference/kubernetes-api/cluster-resources/event-v1/}
    */
-  CoreV1Event: {
+  EventsV1Event: {
     kind: "Event",
     version: "v1",
     group: "events.k8s.io",

@@ -3,7 +3,7 @@
 
 /** a is a collection of K8s types to be used within an action: `When(a.Configmap)` */
 export {
-  CoreV1Event as Event,
+  EventsV1Event as Event,
   V1APIService as APIService,
   V1CertificateSigningRequest as CertificateSigningRequest,
   V1ClusterRole as ClusterRole,
