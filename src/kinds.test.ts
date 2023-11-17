@@ -13,6 +13,10 @@ const testCases = [
     expected: { group: "events.k8s.io", version: "v1", kind: "Event" },
   },
   {
+    name: kind.CoreEvent,
+    expected: { group: "", version: "v1", kind: "Event" },
+  },
+  {
     name: kind.ClusterRole,
     expected: { group: "rbac.authorization.k8s.io", version: "v1", kind: "ClusterRole" },
   },
