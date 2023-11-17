@@ -5,7 +5,7 @@ import { GenericClass, GroupVersionKind } from "./types";
 
 const gvkMap: Record<string, GroupVersionKind> = {
   /**
-   * Represents a K8s Event resource.
+   * Represents a K8s Event resource (new Event in the events.k8s.io API)
    * Event is a report of an event somewhere in the cluster. It generally denotes some state change in the system.
    * Events have a limited retention time and triggers and messages may evolve with time. Event consumers should not
    * rely on the timing of an event with a given Reason reflecting a consistent underlying trigger, or the continued
@@ -18,7 +18,20 @@ const gvkMap: Record<string, GroupVersionKind> = {
     version: "v1",
     group: "events.k8s.io",
   },
-
+  /**
+   * Represents a K8s Event resource (legacy core v1 Event, use the above one instead, it is more complete)
+   * Event is a report of an event somewhere in the cluster. It generally denotes some state change in the system.
+   * Events have a limited retention time and triggers and messages may evolve with time. Event consumers should not
+   * rely on the timing of an event with a given Reason reflecting a consistent underlying trigger, or the continued
+   * existence of events with that Reason. Events should be treated as informative, best-effort, supplemental data.
+   *
+   * @see {@link https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.28/#event-v1-core}
+   */
+    CoreV1Event: {
+      kind: "Event",
+      version: "v1",
+      group: "",
+    },
   /**
    * Represents a K8s ClusterRole resource.
    * ClusterRole is a set of permissions that can be bound to a user or group in a cluster-wide scope.
