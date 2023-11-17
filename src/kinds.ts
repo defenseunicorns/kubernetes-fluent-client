@@ -27,11 +27,11 @@ const gvkMap: Record<string, GroupVersionKind> = {
    *
    * @see {@link https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.28/#event-v1-core}
    */
-    CoreV1Event: {
-      kind: "Event",
-      version: "v1",
-      group: "",
-    },
+  CoreV1Event: {
+    kind: "Event",
+    version: "v1",
+    group: "",
+  },
   /**
    * Represents a K8s ClusterRole resource.
    * ClusterRole is a set of permissions that can be bound to a user or group in a cluster-wide scope.
