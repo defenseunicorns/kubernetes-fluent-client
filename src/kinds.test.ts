@@ -54,7 +54,12 @@ const testCases = [
   { name: kind.Ingress, expected: { group: "networking.k8s.io", version: "v1", kind: "Ingress" } },
   {
     name: kind.NetworkPolicy,
-    expected: { group: "networking.k8s.io", version: "v1", kind: "NetworkPolicy" },
+    expected: {
+      group: "networking.k8s.io",
+      version: "v1",
+      kind: "NetworkPolicy",
+      plural: "networkpolicies",
+    },
   },
   { name: kind.Node, expected: { group: "", version: "v1", kind: "Node" } },
   { name: kind.PersistentVolume, expected: { group: "", version: "v1", kind: "PersistentVolume" } },
