@@ -506,6 +506,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
     kind: "NetworkPolicy",
     version: "v1",
     group: "networking.k8s.io",
+    plural: "networkpolicies",
   },
 
   /**
