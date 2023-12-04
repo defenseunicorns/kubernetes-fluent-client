@@ -60,8 +60,7 @@ describe("Kube", () => {
   });
 
   it("should create a resource", async () => {
-    const kube = K8s(Pod);
-    const result = await kube.Create(fakeResource);
+    const result = await K8s(Pod).Create(fakeResource);
 
     expect(result).toEqual(fakeResource);
     expect(mockedKubeExec).toHaveBeenCalledWith(
@@ -76,8 +75,7 @@ describe("Kube", () => {
   });
 
   it("should delete a resource", async () => {
-    const kube = K8s(Pod);
-    await kube.Delete(fakeResource);
+    await K8s(Pod).Delete(fakeResource);
 
     expect(mockedKubeExec).toHaveBeenCalledWith(
       Pod,
@@ -94,16 +92,15 @@ describe("Kube", () => {
       { op: "replace", path: "/metadata/name", value: "new-fake" },
     ];
 
-    const kube = K8s(Pod);
-    const result = await kube.Patch(patchOperations);
+    const result = await K8s(Pod).Patch(patchOperations);
 
     expect(result).toEqual(fakeResource);
     expect(mockedKubeExec).toHaveBeenCalledWith(Pod, {}, "PATCH", patchOperations);
   });
 
   it("should filter with WithField", async () => {
-    const kube = K8s(Pod).WithField("metadata.name", "fake");
-    await kube.Get();
+    await K8s(Pod).WithField("metadata.name", "fake").Get();
+
     expect(mockedKubeExec).toHaveBeenCalledWith(
       Pod,
       expect.objectContaining({
@@ -116,8 +113,8 @@ describe("Kube", () => {
   });
 
   it("should filter with WithLabel", async () => {
-    const kube = K8s(Pod).WithLabel("app", "fakeApp");
-    await kube.Get();
+    await K8s(Pod).WithLabel("app", "fakeApp").Get();
+
     expect(mockedKubeExec).toHaveBeenCalledWith(
       Pod,
       expect.objectContaining({
@@ -130,8 +127,8 @@ describe("Kube", () => {
   });
 
   it("should use InNamespace", async () => {
-    const kube = K8s(Pod).InNamespace("fakeNamespace");
-    await kube.Get();
+    await K8s(Pod).InNamespace("fakeNamespace").Get();
+
     expect(mockedKubeExec).toHaveBeenCalledWith(
       Pod,
       expect.objectContaining({
@@ -142,19 +139,18 @@ describe("Kube", () => {
   });
 
   it("should throw an error if namespace is already specified", async () => {
-    const kube = K8s(Pod, { namespace: "default" });
-    expect(() => kube.InNamespace("fakeNamespace")).toThrow("Namespace already specified: default");
+    expect(() => K8s(Pod, { namespace: "default" }).InNamespace("fakeNamespace")).toThrow(
+      "Namespace already specified: default",
+    );
   });
 
   it("should handle Delete when the resource doesn't exist", async () => {
     mockedKubeExec.mockRejectedValueOnce({ status: 404 }); // Not Found on first call
-    const kube = K8s(Pod);
-    await expect(kube.Delete("fakeResource")).resolves.toBeUndefined();
+    await expect(K8s(Pod).Delete("fakeResource")).resolves.toBeUndefined();
   });
 
   it("should handle Get", async () => {
-    const kube = K8s(Pod);
-    const result = await kube.Get("fakeResource");
+    const result = await K8s(Pod).Get("fakeResource");
 
     expect(result).toEqual(fakeResource);
     expect(mockedKubeExec).toHaveBeenCalledWith(
@@ -167,24 +163,22 @@ describe("Kube", () => {
   });
 
   it("should thrown an error if Get is called with a name and filters are already specified a name", async () => {
-    const kube = K8s(Pod, { name: "fake" });
-    await expect(kube.Get("fakeResource")).rejects.toThrow("Name already specified: fake");
+    await expect(K8s(Pod, { name: "fake" }).Get("fakeResource")).rejects.toThrow(
+      "Name already specified: fake",
+    );
   });
 
   it("should throw an error if no patch operations provided", async () => {
-    const kube = K8s(Pod);
-    await expect(kube.Patch([])).rejects.toThrow("No operations specified");
+    await expect(K8s(Pod).Patch([])).rejects.toThrow("No operations specified");
   });
 
   it("should allow Apply of deep partials", async () => {
-    const kube = K8s(Pod);
-    const result = await kube.Apply({ metadata: { name: "fake" }, spec: { priority: 3 } });
+    const result = await K8s(Pod).Apply({ metadata: { name: "fake" }, spec: { priority: 3 } });
     expect(result).toEqual(fakeResource);
   });
 
   it("should allow force apply to resolve FieldManagerConflict", async () => {
-    const kube = K8s(Pod);
-    const result = await kube.Apply(
+    const result = await K8s(Pod).Apply(
       {
         metadata: { name: "fake", managedFields: generateFakePodManagedFields("kubectl") },
         spec: { priority: 3 },
@@ -196,8 +190,7 @@ describe("Kube", () => {
 
   it("should throw an error if a Delete failed for a reason other than Not Found", async () => {
     mockedKubeExec.mockRejectedValueOnce({ status: 500 }); // Internal Server Error on first call
-    const kube = K8s(Pod);
-    await expect(kube.Delete("fakeResource")).rejects.toEqual(
+    await expect(K8s(Pod).Delete("fakeResource")).rejects.toEqual(
       expect.objectContaining({ status: 500 }),
     );
   });
