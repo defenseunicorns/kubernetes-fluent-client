@@ -1,11 +1,23 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
 
+import { Cluster, KubeConfig } from "@kubernetes/client-node";
+
 declare const Deno: {
   env: {
     get(name: string): string | undefined;
   };
 };
+
+/**
+ *  Sleep for a number of seconds.
+ *
+ * @param seconds The number of seconds to sleep.
+ * @returns A promise that resolves after the specified number of seconds.
+ */
+function sleep(seconds: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, seconds * 1000));
+}
 
 /**
  * Get an environment variable (Node, Deno or Bun), or throw an error if it's not set.
@@ -44,4 +56,27 @@ export function fromEnv(name: string): string {
   }
 
   return envValue;
+}
+
+/**
+ * Wait for the Kubernetes cluster to be ready.
+ *
+ * @param seconds The number of seconds to wait for the cluster to be ready.
+ * @returns The current cluster.
+ */
+export async function waitForCluster(seconds = 30): Promise<Cluster> {
+  const kubeConfig = new KubeConfig();
+  kubeConfig.loadFromDefault();
+
+  const cluster = kubeConfig.getCurrentCluster();
+  if (!cluster) {
+    await sleep(1);
+    if (seconds > 0) {
+      return await waitForCluster(seconds - 1);
+    } else {
+      throw new Error("Cluster not ready");
+    }
+  }
+
+  return cluster;
 }

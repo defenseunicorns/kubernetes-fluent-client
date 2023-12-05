@@ -11,11 +11,9 @@ cloned.KubeConfig = class MockedKubeConfig {
 
   applyToFetchOptions = jest.fn(data => data);
 
-  getCurrentCluster() {
-    return {
-      server: "http://jest-test:8080",
-    };
-  }
+  getCurrentCluster = jest.fn().mockReturnValue({
+    server: "http://jest-test:8080",
+  });
 };
 
 // export all elements of the mocked module
