@@ -28,4 +28,4 @@ export * from "./types";
 
 export * as K8sClientNode from "@kubernetes/client-node";
 
-export { fromEnv } from "./helpers";
+export { fromEnv, waitForCluster } from "./helpers";
