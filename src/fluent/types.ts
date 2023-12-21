@@ -105,7 +105,7 @@ export type K8sUnfilteredActions<K extends KubernetesObject> = {
    *
    * ```ts
    * import { V1APIGroup } from "@kubernetes/client-node";
-   * 
+   *
    * K8s(V1APIGroup).Raw("/api")
    * ```
    *
