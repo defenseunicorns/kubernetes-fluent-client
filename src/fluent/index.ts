@@ -6,11 +6,12 @@ import { Operation } from "fast-json-patch";
 import { StatusCodes } from "http-status-codes";
 import type { PartialDeep } from "type-fest";
 
+import { fetch } from "../fetch";
 import { modelToGroupVersionKind } from "../kinds";
 import { GenericClass } from "../types";
 import { ApplyCfg } from "./apply";
 import { Filters, K8sInit, Paths, WatchAction } from "./types";
-import { k8sExec } from "./utils";
+import { k8sCfg, k8sExec } from "./utils";
 import { ExecWatch, WatchCfg } from "./watch";
 
 /**
@@ -158,7 +159,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
       throw new Error("No operations specified");
     }
 
-    return k8sExec<T, K>(model, filters, "PATCH", payload);
+    return k8sExec(model, filters, "PATCH", payload);
   }
 
   /**
@@ -169,5 +170,21 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
     return ExecWatch(model, filters, callback, watchCfg);
   }
 
-  return { InNamespace, Apply, Create, Patch, ...withFilters };
+  /**
+   * @inheritdoc
+   * @see {@link K8sInit.Raw}
+   */
+  async function Raw(url: string) {
+    const thing = await k8sCfg("GET");
+    const { opts, serverUrl } = thing;
+    const resp = await fetch<K>(`${serverUrl}${url}`, opts);
+
+    if (resp.ok) {
+      return resp.data;
+    }
+
+    throw resp;
+  }
+
+  return { InNamespace, Apply, Create, Patch, Raw, ...withFilters };
 }
