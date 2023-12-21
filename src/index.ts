@@ -26,6 +26,7 @@ export { GenericKind } from "./types";
 
 export * from "./types";
 
-export * as K8sClientNode from "@kubernetes/client-node";
+// Export the upstream raw models
+export * as models from "@kubernetes/client-node/dist/gen/models/all";
 
-export { fromEnv } from "./helpers";
+export { fromEnv, waitForCluster } from "./helpers";
