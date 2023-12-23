@@ -6,7 +6,7 @@ import { Operation } from "fast-json-patch";
 import type { PartialDeep } from "type-fest";
 
 import { GenericClass, GroupVersionKind } from "../types";
-import { WatchCfg, WatchController } from "./watch";
+import { WatchCfg } from "./watch";
 import { ApplyCfg } from "./apply";
 
 /**
@@ -66,7 +66,7 @@ export type K8sFilteredActions<K extends KubernetesObject> = {
   Watch: (
     callback: (payload: K, phase: WatchPhase) => void,
     watchCfg?: WatchCfg,
-  ) => Promise<WatchController>;
+  ) => Promise<AbortController>;
 };
 
 export type K8sUnfilteredActions<K extends KubernetesObject> = {

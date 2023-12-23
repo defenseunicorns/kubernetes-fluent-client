@@ -12,7 +12,7 @@ import { GenericClass } from "../types";
 import { ApplyCfg } from "./apply";
 import { Filters, K8sInit, Paths, WatchAction } from "./types";
 import { k8sCfg, k8sExec } from "./utils";
-import { ExecWatch, WatchCfg } from "./watch";
+import { WatchCfg, Watcher } from "./watch";
 
 /**
  * Kubernetes fluent API inspired by Kubectl. Pass in a model, then call filters and actions on it.
@@ -167,7 +167,9 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
    * @see {@link K8sInit.Watch}
    */
   async function Watch(callback: WatchAction<T>, watchCfg?: WatchCfg) {
-    return ExecWatch(model, filters, callback, watchCfg);
+    const watcher = new Watcher(model, filters, callback, watchCfg);
+    
+    return watcher.start();
   }
 
   /**
