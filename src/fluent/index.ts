@@ -24,7 +24,7 @@ import { WatchCfg, Watcher } from "./watch";
 export function K8s<T extends GenericClass, K extends KubernetesObject = InstanceType<T>>(
   model: T,
   filters: Filters = {},
-): K8sInit<K> {
+): K8sInit<T, K> {
   const withFilters = { WithField, WithLabel, Get, Delete, Watch };
   const matchedKind = filters.kindOverride || modelToGroupVersionKind(model.name);
 
@@ -166,10 +166,8 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
    * @inheritdoc
    * @see {@link K8sInit.Watch}
    */
-  async function Watch(callback: WatchAction<T>, watchCfg?: WatchCfg) {
-    const watcher = new Watcher(model, filters, callback, watchCfg);
-    
-    return watcher.start();
+  function Watch(callback: WatchAction<T>, watchCfg?: WatchCfg) {
+    return new Watcher(model, filters, callback, watchCfg);
   }
 
   /**
