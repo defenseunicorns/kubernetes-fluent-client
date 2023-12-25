@@ -10,14 +10,25 @@ import { Filters, WatchAction, WatchPhase } from "./types";
 import { k8sCfg, pathBuilder } from "./utils";
 
 export enum WatchEvent {
+  /** Watch is connected successfully */
   CONNECT = "connect",
+  /** Network error occurs */
   NETWORK_ERROR = "network_error",
+  /** Error decoding data or running the callback */
   DATA_ERROR = "data_error",
+  /** Retry is called */
   RETRY = "retry",
+  /** Retry limit is exceeded */
   GIVE_UP = "give_up",
+  /** Abort is called */
   ABORT = "abort",
+  /** Data is received and decoded */
   DATA = "data",
+  /** Bookmark is received */
+  BOOKMARK = "bookmark",
+  /** ResourceVersion is updated */
   RESOURCE_VERSION = "resource_version",
+  /** 410 (old resource version) occurs */
   OLD_RESOURCE_VERSION = "old_resource_version",
 }
 
@@ -114,6 +125,7 @@ export class Watcher<T extends GenericClass> {
    * - `give_up` - emitted when the watch is aborted after reaching the maximum number of retries
    * - `abort` - emitted when the watch is aborted
    * - `data` - emitted when an event is received from the API server
+   * - `bookmark` - emitted when a bookmark event is received from the API server
    * - `resource_version` - emitted when the resource version is updated after successfully processing an event
    * - `old_resource_version` - emitted when the resource version is updated after receiving a 410 Gone error
    *
@@ -125,6 +137,11 @@ export class Watcher<T extends GenericClass> {
     return this.#events;
   }
 
+  /**
+   * Build the URL and request options for the watch.
+   *
+   * @returns the URL and request options
+   */
   #buildURL = async () => {
     // Build the path and query params for the resource, excluding the name
     const { opts, serverUrl } = await k8sCfg("GET");
@@ -152,8 +169,9 @@ export class Watcher<T extends GenericClass> {
     return { opts, url };
   };
 
-  // #initialize = async () => {};
-
+  /**
+   * Run the watch.
+   */
   #runner = async () => {
     try {
       // Build the URL and request options
@@ -163,7 +181,7 @@ export class Watcher<T extends GenericClass> {
       this.#stream = byline.createStream();
 
       // Bind the stream events
-      this.#stream.on("error", this.#onNetworkError);
+      this.#stream.on("error", this.#networkError);
       this.#stream.on("close", this.#cleanup);
       this.#stream.on("finish", this.#cleanup);
 
@@ -188,27 +206,25 @@ export class Watcher<T extends GenericClass> {
               object: InstanceType<T>;
             };
 
-            // If the watch is bookmarked, update the resourceVersion and return
-            if (phase === WatchPhase.Bookmark) {
-              this.#setResourceVersion(payload.metadata.resourceVersion);
-              return;
-            }
-
             // If the watch is too old, remove the resourceVersion and reload the watch
             if (payload.kind === "Status" && payload.code === 410) {
               throw new Error("resourceVersion too old");
             }
 
-            this.#events.emit(WatchEvent.DATA, payload, phase);
+            // If the event is a bookmark, emit the event and skip the callback
+            if (phase === WatchPhase.Bookmark) {
+              this.#events.emit(WatchEvent.BOOKMARK, payload);
+            } else {
+              this.#events.emit(WatchEvent.DATA, payload, phase);
 
-            // Call the callback function with the parsed payload
-            await this.#callback(payload, phase as WatchPhase);
+              // Call the callback function with the parsed payload
+              await this.#callback(payload, phase as WatchPhase);
+            }
 
             // Update the resource version if the callback was successful
-            this.#watchCfg.resourceVersion = payload.metadata.resourceVersion;
-            this.#events.emit(WatchEvent.RESOURCE_VERSION, this.#watchCfg.resourceVersion);
+            this.#setResourceVersion(payload.metadata.resourceVersion);
           } catch (err) {
-            // If the watch is too old, reload the watch
+            // If the watch is too old, reload it
             if (err.message === "resourceVersion too old") {
               this.#events.emit(WatchEvent.OLD_RESOURCE_VERSION, this.#watchCfg.resourceVersion);
               // Remove the resourceVersion to start the watch from the beginning
@@ -226,7 +242,7 @@ export class Watcher<T extends GenericClass> {
         });
 
         // Bind the body events
-        body.on("error", this.#onNetworkError);
+        body.on("error", this.#networkError);
         body.on("close", this.#cleanup);
         body.on("finish", this.#cleanup);
 
@@ -236,26 +252,34 @@ export class Watcher<T extends GenericClass> {
         throw new Error(`watch connect failed: ${response.status} ${response.statusText}`);
       }
     } catch (e) {
-      await this.#onNetworkError(e);
+      await this.#networkError(e);
     }
   };
 
+  /**
+   * Update the resource version.
+   *
+   * @param resourceVersion - the new resource version
+   */
   #setResourceVersion = (resourceVersion?: string) => {
     this.#watchCfg.resourceVersion = resourceVersion;
-    this.#events.emit(WatchEvent.RESOURCE_VERSION, this.#watchCfg.resourceVersion);
+    this.#events.emit(WatchEvent.RESOURCE_VERSION, resourceVersion);
   };
 
+  /**
+   * Reload the watch after an error.
+   *
+   * @param e - the error that occurred
+   */
   #reload = async (e: Error) => {
-    const watchCfg = this.#watchCfg;
-
     // If there are more attempts, retry the watch (undefined is unlimited retries)
-    if (watchCfg.retryMax === undefined || watchCfg.retryMax > this.#retryCount) {
+    if (this.#watchCfg.retryMax === undefined || this.#watchCfg.retryMax > this.#retryCount) {
       this.#retryCount++;
 
       this.#events.emit(WatchEvent.RETRY, e, this.#retryCount);
 
       // Sleep for the specified delay or 5 seconds
-      await new Promise(r => setTimeout(r, watchCfg.retryDelaySec! * 1000));
+      await new Promise(r => setTimeout(r, this.#watchCfg.retryDelaySec! * 1000));
 
       // Retry the watch after the delay
       await this.#runner();
@@ -270,7 +294,7 @@ export class Watcher<T extends GenericClass> {
    *
    * @param err - the error that occurred
    */
-  #onNetworkError = async (err: Error) => {
+  #networkError = async (err: Error) => {
     if (this.#stream) {
       this.#cleanup();
 
