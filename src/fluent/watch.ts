@@ -8,6 +8,7 @@ import fetch from "node-fetch";
 import { GenericClass } from "../types";
 import { Filters, WatchAction, WatchPhase } from "./types";
 import { k8sCfg, pathBuilder } from "./utils";
+import { K8s } from ".";
 
 export enum WatchEvent {
   /** Watch is connected successfully */
@@ -32,27 +33,19 @@ export enum WatchEvent {
   OLD_RESOURCE_VERSION = "old_resource_version",
 }
 
-/**
- * Configuration for the watch function.
- */
+/** Configuration for the watch function. */
 export type WatchCfg = {
-  /**
-   * The resource version to start the watch at, this will be updated on each event.
-   */
+  /** The resource version to start the watch at, this will be updated on each event. */
   resourceVersion?: string;
-  /**
-   * The maximum number of times to retry the watch, the retry count is reset on success. Unlimited retries if not specified.
-   */
+  /** The maximum number of times to retry the watch, the retry count is reset on success. Unlimited retries if not specified. */
   retryMax?: number;
-  /**
-   * The delay between retries in seconds.
-   */
+  /** The delay between retries in seconds. Defaults to 10 seconds. */
   retryDelaySec?: number;
+  /** Amount of seconds to wait before a forced-resyncing of the watch list. Defaults to 600 (10 minutes). */
+  resyncIntervalSec?: number;
 };
 
-/**
- * A wrapper around the Kubernetes watch API.
- */
+/** A wrapper around the Kubernetes watch API. */
 export class Watcher<T extends GenericClass> {
   // User-provided properties
   #model: T;
@@ -72,6 +65,9 @@ export class Watcher<T extends GenericClass> {
   // Create an EventEmitter to emit events
   #events = new EventEmitter();
 
+  // Create a timer to resync the watch
+  #resyncTimer?: NodeJS.Timeout;
+
   /**
    * Setup a Kubernetes watcher for the specified model and filters. The callback function will be called for each event received.
    * The watch can be aborted by calling {@link Watcher.abort} or by calling abort() on the AbortController returned by {@link Watcher.start}.
@@ -87,6 +83,9 @@ export class Watcher<T extends GenericClass> {
   constructor(model: T, filters: Filters, callback: WatchAction<T>, watchCfg: WatchCfg = {}) {
     // Set the retry delay to 10 seconds if not specified
     watchCfg.retryDelaySec ??= 10;
+
+    // Set the resync interval to 10 minutes if not specified
+    watchCfg.resyncIntervalSec ??= 600;
 
     // Bind class properties
     this.#model = model;
@@ -206,6 +205,8 @@ export class Watcher<T extends GenericClass> {
               object: InstanceType<T>;
             };
 
+            void this.#clearResync();
+
             // If the watch is too old, remove the resourceVersion and reload the watch
             if (payload.kind === "Status" && payload.code === 410) {
               throw new Error("resourceVersion too old");
@@ -254,6 +255,30 @@ export class Watcher<T extends GenericClass> {
     } catch (e) {
       await this.#networkError(e);
     }
+  };
+
+  #clearResync = async () => {
+    // Reset the resync timer
+    clearTimeout(this.#resyncTimer);
+
+    const resync = async () => {
+      try {
+        const { items } = await K8s(this.#model, this.#filters).Get();
+        const resourceVersions = items.reverse().flatMap(i => i.metadata?.resourceVersion);
+        if (resourceVersions[0] !== this.#watchCfg.resourceVersion) {
+          throw new Error(
+            `Resync failed: ${resourceVersions[0]} !== ${this.#watchCfg.resourceVersion}`,
+          );
+        }
+
+        void this.#clearResync();
+      } catch (e) {
+        await this.#networkError(e);
+      }
+    };
+
+    // Start the resync timer
+    this.#resyncTimer = setTimeout(resync, this.#watchCfg.resyncIntervalSec! * 1000);
   };
 
   /**
