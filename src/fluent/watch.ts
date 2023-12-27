@@ -4,11 +4,11 @@
 import byline from "byline";
 import { EventEmitter } from "events";
 import fetch from "node-fetch";
+import { Agent } from "https";
 
 import { GenericClass } from "../types";
 import { Filters, WatchAction, WatchPhase } from "./types";
 import { k8sCfg, pathBuilder } from "./utils";
-import { K8s } from ".";
 
 export enum WatchEvent {
   /** Watch is connected successfully */
@@ -17,12 +17,14 @@ export enum WatchEvent {
   NETWORK_ERROR = "network_error",
   /** Error decoding data or running the callback */
   DATA_ERROR = "data_error",
-  /** Retry is called */
-  RETRY = "retry",
+  /** Reconnect is called */
+  RECONNECT = "reconnect",
   /** Retry limit is exceeded */
   GIVE_UP = "give_up",
   /** Abort is called */
   ABORT = "abort",
+  /** Resync is called */
+  RESYNC = "resync",
   /** Data is received and decoded */
   DATA = "data",
   /** Bookmark is received */
@@ -31,6 +33,8 @@ export enum WatchEvent {
   RESOURCE_VERSION = "resource_version",
   /** 410 (old resource version) occurs */
   OLD_RESOURCE_VERSION = "old_resource_version",
+  /** A reconnect is already pending */
+  RECONNECT_PENDING = "reconnect_pending",
 }
 
 /** Configuration for the watch function. */
@@ -41,7 +45,7 @@ export type WatchCfg = {
   retryMax?: number;
   /** The delay between retries in seconds. Defaults to 10 seconds. */
   retryDelaySec?: number;
-  /** Amount of seconds to wait before a forced-resyncing of the watch list. Defaults to 600 (10 minutes). */
+  /** Amount of seconds to wait before a forced-resyncing of the watch list. Defaults to 300 (5 minutes). */
   resyncIntervalSec?: number;
 };
 
@@ -68,6 +72,12 @@ export class Watcher<T extends GenericClass> {
   // Create a timer to resync the watch
   #resyncTimer?: NodeJS.Timeout;
 
+  // Unique ID for the watch
+  #id?: string;
+
+  // Track if a reconnect is pending
+  #pendingReconnect = false;
+
   /**
    * Setup a Kubernetes watcher for the specified model and filters. The callback function will be called for each event received.
    * The watch can be aborted by calling {@link Watcher.abort} or by calling abort() on the AbortController returned by {@link Watcher.start}.
@@ -84,8 +94,8 @@ export class Watcher<T extends GenericClass> {
     // Set the retry delay to 10 seconds if not specified
     watchCfg.retryDelaySec ??= 10;
 
-    // Set the resync interval to 10 minutes if not specified
-    watchCfg.resyncIntervalSec ??= 600;
+    // Set the resync interval to 5 minutes if not specified
+    watchCfg.resyncIntervalSec ??= 300;
 
     // Bind class properties
     this.#model = model;
@@ -115,6 +125,16 @@ export class Watcher<T extends GenericClass> {
   }
 
   /**
+   * Get a unique ID for the watch based on the model and filters.
+   * This is useful for caching the watch data or resource versions.
+   *
+   * @returns the watch ID
+   */
+  public get id() {
+    return this.#id;
+  }
+
+  /**
    * Subscribe to watch events. This is an EventEmitter that emits the following events:
    *
    * - `connect` - emitted when the watch connects to the API server
@@ -127,6 +147,8 @@ export class Watcher<T extends GenericClass> {
    * - `bookmark` - emitted when a bookmark event is received from the API server
    * - `resource_version` - emitted when the resource version is updated after successfully processing an event
    * - `old_resource_version` - emitted when the resource version is updated after receiving a 410 Gone error
+   * - `resync` - emitted when the watch is resynced
+   * - `reconnect_pending` - emitted when a reconnect is already pending
    *
    * Use {@link WatchEvent} for the event names.
    *
@@ -176,16 +198,25 @@ export class Watcher<T extends GenericClass> {
       // Build the URL and request options
       const { opts, url } = await this.#buildURL();
 
+      // Set the watch ID
+      this.#id = [url.pathname, url.search].join("?");
+
       // Create a stream to read the response body
       this.#stream = byline.createStream();
 
       // Bind the stream events
-      this.#stream.on("error", this.#networkError);
+      this.#stream.on("error", this.#errHandler);
       this.#stream.on("close", this.#cleanup);
       this.#stream.on("finish", this.#cleanup);
 
       // Make the actual request
       const response = await fetch(url, { ...opts });
+
+      // Reset the pending reconnect flag
+      this.#pendingReconnect = false;
+
+      // Reset the resync timer
+      void this.#scheduleResync();
 
       // If the request is successful, start listening for events
       if (response.ok) {
@@ -205,11 +236,19 @@ export class Watcher<T extends GenericClass> {
               object: InstanceType<T>;
             };
 
-            void this.#clearResync();
+            void this.#scheduleResync();
 
             // If the watch is too old, remove the resourceVersion and reload the watch
             if (payload.kind === "Status" && payload.code === 410) {
-              throw new Error("resourceVersion too old");
+              // Prevent any body events from firing
+              body.removeAllListeners();
+              // Reload the watch
+              void this.#errHandler({
+                name: "TooOld",
+                message: this.#watchCfg.resourceVersion!,
+              });
+              // Skip the callback
+              return;
             }
 
             // If the event is a bookmark, emit the event and skip the callback
@@ -225,25 +264,12 @@ export class Watcher<T extends GenericClass> {
             // Update the resource version if the callback was successful
             this.#setResourceVersion(payload.metadata.resourceVersion);
           } catch (err) {
-            // If the watch is too old, reload it
-            if (err.message === "resourceVersion too old") {
-              this.#events.emit(WatchEvent.OLD_RESOURCE_VERSION, this.#watchCfg.resourceVersion);
-              // Remove the resourceVersion to start the watch from the beginning
-              this.#setResourceVersion(undefined);
-              // Prevent any body events from firing
-              body.removeAllListeners();
-              // Close the stream
-              this.#cleanup();
-              // Retry the watch
-              await this.#runner();
-            }
-
             this.#events.emit(WatchEvent.DATA_ERROR, err);
           }
         });
 
         // Bind the body events
-        body.on("error", this.#networkError);
+        body.on("error", this.#errHandler);
         body.on("close", this.#cleanup);
         body.on("finish", this.#cleanup);
 
@@ -253,32 +279,21 @@ export class Watcher<T extends GenericClass> {
         throw new Error(`watch connect failed: ${response.status} ${response.statusText}`);
       }
     } catch (e) {
-      await this.#networkError(e);
+      void this.#errHandler(e);
     }
   };
 
-  #clearResync = async () => {
+  #scheduleResync = async () => {
     // Reset the resync timer
     clearTimeout(this.#resyncTimer);
 
-    const resync = async () => {
-      try {
-        const { items } = await K8s(this.#model, this.#filters).Get();
-        const resourceVersions = items.reverse().flatMap(i => i.metadata?.resourceVersion);
-        if (resourceVersions[0] !== this.#watchCfg.resourceVersion) {
-          throw new Error(
-            `Resync failed: ${resourceVersions[0]} !== ${this.#watchCfg.resourceVersion}`,
-          );
-        }
-
-        void this.#clearResync();
-      } catch (e) {
-        await this.#networkError(e);
-      }
-    };
-
     // Start the resync timer
-    this.#resyncTimer = setTimeout(resync, this.#watchCfg.resyncIntervalSec! * 1000);
+    this.#resyncTimer = setTimeout(async () => {
+      void this.#errHandler({
+        name: "Resync",
+        message: "Resync",
+      });
+    }, this.#watchCfg.resyncIntervalSec! * 1000);
   };
 
   /**
@@ -294,23 +309,30 @@ export class Watcher<T extends GenericClass> {
   /**
    * Reload the watch after an error.
    *
-   * @param e - the error that occurred
+   * @param err - the error that occurred
    */
-  #reload = async (e: Error) => {
+  #reload = async (err: Error) => {
     // If there are more attempts, retry the watch (undefined is unlimited retries)
     if (this.#watchCfg.retryMax === undefined || this.#watchCfg.retryMax > this.#retryCount) {
-      this.#retryCount++;
-
-      this.#events.emit(WatchEvent.RETRY, e, this.#retryCount);
-
-      // Sleep for the specified delay or 5 seconds
+      // Sleep for the specified delay
       await new Promise(r => setTimeout(r, this.#watchCfg.retryDelaySec! * 1000));
 
-      // Retry the watch after the delay
-      await this.#runner();
+      this.#retryCount++;
+      this.#events.emit(WatchEvent.RECONNECT, err, this.#retryCount);
+
+      if (this.#pendingReconnect) {
+        this.#events.emit(WatchEvent.RECONNECT_PENDING);
+      } else {
+        this.#pendingReconnect = true;
+        this.#cleanup();
+
+        // Retry the watch after the delay
+        await this.#runner();
+      }
     } else {
       // Otherwise, call the finally function if it exists
-      this.#events.emit(WatchEvent.GIVE_UP, e);
+      this.#events.emit(WatchEvent.GIVE_UP, err);
+      this.abort();
     }
   };
 
@@ -319,18 +341,30 @@ export class Watcher<T extends GenericClass> {
    *
    * @param err - the error that occurred
    */
-  #networkError = async (err: Error) => {
-    if (this.#stream) {
-      this.#cleanup();
-
-      // If the error is not an AbortError, reload the watch
-      if (err.name !== "AbortError") {
-        this.#events.emit(WatchEvent.NETWORK_ERROR, err);
-        await this.#reload(err);
-      } else {
+  #errHandler = async (err: Error) => {
+    switch (err.name) {
+      case "AbortError":
         this.#events.emit(WatchEvent.ABORT, err);
-      }
+        clearTimeout(this.#resyncTimer);
+        this.#cleanup();
+        return;
+
+      case "TooOld":
+        // Purge the resource version if it is too old
+        this.#setResourceVersion(undefined);
+        this.#events.emit(WatchEvent.OLD_RESOURCE_VERSION, err.message);
+        break;
+
+      case "Resync":
+        this.#events.emit(WatchEvent.RESYNC, err);
+        break;
+
+      default:
+        this.#events.emit(WatchEvent.NETWORK_ERROR, err);
+        break;
     }
+
+    await this.#reload(err);
   };
 
   /**
