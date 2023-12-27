@@ -4,7 +4,6 @@
 import byline from "byline";
 import { EventEmitter } from "events";
 import fetch from "node-fetch";
-import { Agent } from "https";
 
 import { GenericClass } from "../types";
 import { Filters, WatchAction, WatchPhase } from "./types";
