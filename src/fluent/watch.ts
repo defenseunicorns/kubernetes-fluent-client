@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
 
 import byline from "byline";
+import { createHash } from "crypto";
 import { EventEmitter } from "events";
 import fetch from "node-fetch";
 
@@ -73,6 +74,7 @@ export class Watcher<T extends GenericClass> {
 
   // Unique ID for the watch
   #id?: string;
+  #hashedID?: string;
 
   // Track if a reconnect is pending
   #pendingReconnect = false;
@@ -130,7 +132,17 @@ export class Watcher<T extends GenericClass> {
    * @returns the watch ID
    */
   public get id() {
-    return this.#id;
+    // The ID must exist at this point
+    if (!this.#id) {
+      throw new Error("watch not started");
+    }
+
+    // Hash and truncate the ID to 10 characters, cache the result
+    if (!this.#hashedID) {
+      this.#hashedID = createHash("sha224").update(this.#id).digest("hex").substring(0, 10);
+    }
+
+    return this.#hashedID;
   }
 
   /**
@@ -167,6 +179,11 @@ export class Watcher<T extends GenericClass> {
     const { opts, serverUrl } = await k8sCfg("GET");
     const url = pathBuilder(serverUrl, this.#model, this.#filters, true);
 
+    // Set the watch ID if it does not exist (this does not change on reconnect)
+    if (!this.#id) {
+      this.#id = url.pathname + url.search;
+    }
+
     // Enable the watch query param
     url.searchParams.set("watch", "true");
 
@@ -196,9 +213,6 @@ export class Watcher<T extends GenericClass> {
     try {
       // Build the URL and request options
       const { opts, url } = await this.#buildURL();
-
-      // Set the watch ID
-      this.#id = [url.pathname, url.search].join("?");
 
       // Create a stream to read the response body
       this.#stream = byline.createStream();

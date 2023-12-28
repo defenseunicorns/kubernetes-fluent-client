@@ -21,7 +21,6 @@ const watcher = K8s(kind.Pod).Watch(
   },
   {
     resourceVersion,
-    resyncIntervalSec: 15,
   },
 );
 
@@ -57,39 +56,8 @@ watcher.events.on(WatchEvent.RECONNECT_PENDING, () => console.log(`reconnect pen
 
 watcher
   .start()
-  .then(() => console.log("started"))
+  .then(() => {
+    console.log("started");
+    console.log("cache id: ", watcher.id);
+  })
   .catch(e => console.error(`failed to start:`, e));
-
-process.on("unhandledRejection", (reason, p) => {
-  console.trace("Unhandled Rejection at: Promise", p, "reason:", reason);
-});
-
-process.on("uncaughtException", err => {
-  console.trace("Uncaught Exception:", err);
-});
-
-process.on("SIGINT", () => {
-  console.trace("Caught interrupt signal");
-  process.exit(0);
-});
-
-process.on("SIGTERM", () => {
-  console.trace("Caught terminate signal");
-  process.exit(0);
-});
-
-process.on("exit", () => {
-  console.trace("Exiting");
-});
-
-process.on("beforeExit", () => {
-  console.trace("Before exit");
-});
-
-// Hold the process open for a day
-setTimeout(
-  () => {
-    console.log("Done");
-  },
-  1000 * 60 * 60 * 24,
-);
