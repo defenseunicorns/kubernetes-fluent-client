@@ -35,13 +35,13 @@
   },
   "homepage": "https://github.com/defenseunicorns/kubernetes-fluent-client#readme",
   "dependencies": {
-    "@kubernetes/client-node": "1.0.0-rc3",
+    "@kubernetes/client-node": "1.0.0-rc4",
     "byline": "5.0.0",
     "fast-json-patch": "3.1.1",
     "http-status-codes": "2.3.0",
     "node-fetch": "2.7.0",
     "quicktype-core": "23.0.80",
-    "type-fest": "4.8.3",
+    "type-fest": "4.9.0",
     "yargs": "17.7.2"
   },
   "devDependencies": {
