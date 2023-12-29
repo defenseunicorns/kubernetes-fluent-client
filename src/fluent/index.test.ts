@@ -1,12 +1,15 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { V1APIGroup } from "@kubernetes/client-node";
 import { Operation } from "fast-json-patch";
 
-import { Pod } from "../upstream";
 import { K8s } from ".";
-import { k8sExec } from "./utils";
+import { fetch } from "../fetch";
+import { Pod } from "../upstream";
+import { k8sCfg, k8sExec } from "./utils";
 
 // Setup mocks
 jest.mock("./utils");
+jest.mock("../fetch");
 
 const generateFakePodManagedFields = (manager: string) => {
   return [
@@ -52,6 +55,7 @@ describe("Kube", () => {
     },
   };
 
+  const mockedKubeCfg = jest.mocked(k8sCfg);
   const mockedKubeExec = jest.mocked(k8sExec).mockResolvedValue(fakeResource);
 
   beforeEach(() => {
@@ -193,5 +197,36 @@ describe("Kube", () => {
     await expect(K8s(Pod).Delete("fakeResource")).rejects.toEqual(
       expect.objectContaining({ status: 500 }),
     );
+  });
+
+  it("should create a raw api request", async () => {
+    mockedKubeCfg.mockReturnValue(
+      new Promise(r =>
+        r({
+          serverUrl: "http://localhost:8080",
+          opts: {},
+        }),
+      ),
+    );
+    const mockResp = {
+      kind: "APIVersions",
+      versions: ["v1"],
+      serverAddressByClientCIDRs: [
+        {
+          serverAddress: "172.27.0.3:6443",
+        },
+      ],
+    };
+
+    jest.mocked(fetch).mockResolvedValue({
+      ok: true,
+      data: mockResp,
+      status: 200,
+      statusText: "OK",
+    });
+
+    const result = await K8s(V1APIGroup).Raw("/api");
+
+    expect(result).toEqual(mockResp);
   });
 });

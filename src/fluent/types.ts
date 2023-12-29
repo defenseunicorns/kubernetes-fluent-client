@@ -96,6 +96,25 @@ export type K8sUnfilteredActions<K extends KubernetesObject> = {
    * @returns The patched resource
    */
   Patch: (payload: Operation[]) => Promise<K>;
+
+  /**
+   * Perform a raw GET request to the Kubernetes API. This is useful for calling endpoints that are not supported by the fluent API.
+   * This command mirrors the `kubectl get --raw` command.
+   *
+   * E.g.
+   *
+   * ```ts
+   * import { V1APIGroup } from "@kubernetes/client-node";
+   *
+   * K8s(V1APIGroup).Raw("/api")
+   * ```
+   *
+   * will call the `/api` endpoint and is equivalent to `kubectl get --raw /api`.
+   *
+   * @param url the URL to call (e.g. /api)
+   * @returns
+   */
+  Raw: (url: string) => Promise<K>;
 };
 
 export type K8sWithFilters<K extends KubernetesObject> = K8sFilteredActions<K> & {
