@@ -11,10 +11,11 @@ import { Watcher } from "./watch";
 
 describe("Watcher", () => {
   const evtMock = jest.fn<(update: kind.Pod, phase: WatchPhase) => void>();
+  const errMock = jest.fn<(err: Error) => void>();
 
   const setupAndStartWatcher = (eventType: WatchEvent, handler: (...args: any[]) => void) => {
     watcher.events.on(eventType, handler);
-    watcher.start().catch(jest.fn<(err: Error) => void>());
+    watcher.start().catch(errMock);
   };
 
   let watcher: Watcher<typeof kind.Pod>;
@@ -49,6 +50,100 @@ describe("Watcher", () => {
 
   afterEach(() => {
     watcher.close();
+  });
+
+  it("should watch named resources", done => {
+    nock.cleanAll();
+    nock("http://jest-test:8080")
+      .get("/api/v1/namespaces/tester/pods")
+      .query({ watch: "true", allowWatchBookmarks: "true", fieldSelector: "metadata.name=demo" })
+      .reply(200);
+
+    watcher = K8s(kind.Pod, { name: "demo" }).InNamespace("tester").Watch(evtMock);
+
+    setupAndStartWatcher(WatchEvent.CONNECT, () => {
+      done();
+    });
+  });
+
+  it("should start the watch at the specified resource version", done => {
+    nock.cleanAll();
+    nock("http://jest-test:8080")
+      .get("/api/v1/pods")
+      .query({
+        watch: "true",
+        allowWatchBookmarks: "true",
+        resourceVersion: "25",
+      })
+      .reply(200);
+
+    watcher = K8s(kind.Pod).Watch(evtMock, {
+      resourceVersion: "25",
+    });
+
+    setupAndStartWatcher(WatchEvent.CONNECT, () => {
+      done();
+    });
+  });
+
+  it("should handle resource version is too old", done => {
+    nock.cleanAll();
+    nock("http://jest-test:8080")
+      .get("/api/v1/pods")
+      .query({ watch: "true", allowWatchBookmarks: "true", resourceVersion: "45" })
+      .reply(200, () => {
+        const stream = new PassThrough();
+        stream.write(
+          JSON.stringify({
+            type: "ERROR",
+            object: {
+              kind: "Status",
+              apiVersion: "v1",
+              metadata: {},
+              status: "Failure",
+              message: "too old resource version: 123 (391079)",
+              reason: "Gone",
+              code: 410,
+            },
+          }) + "\n",
+        );
+
+        stream.end();
+        return stream;
+      });
+
+    watcher = K8s(kind.Pod).Watch(evtMock, {
+      resourceVersion: "45",
+    });
+
+    setupAndStartWatcher(WatchEvent.OLD_RESOURCE_VERSION, res => {
+      expect(res).toEqual("45");
+      done();
+    });
+  });
+
+  it("should call the event handler for each event", done => {
+    watcher = K8s(kind.Pod).Watch((evt, phase) => {
+      expect(evt.metadata?.name).toEqual(`pod-0`);
+      expect(phase).toEqual(WatchPhase.Added);
+      done();
+    });
+
+    watcher.start().catch(errMock);
+  });
+
+  it("should return the cache id", done => {
+    watcher
+      .start()
+      .then(() => {
+        expect(watcher.id).toEqual("d69b75a611");
+        done();
+      })
+      .catch(errMock);
+  });
+
+  it("should handle calling .id() before .start()", () => {
+    expect(() => watcher.id).toThrowError("watch not started");
   });
 
   it("should handle the CONNECT event", done => {
@@ -101,6 +196,35 @@ describe("Watcher", () => {
       done();
     });
   });
+
+  it("should perform a resync after the resync interval", done => {
+    watcher = K8s(kind.Pod).Watch(evtMock, {
+      resyncIntervalSec: 1,
+    });
+
+    setupAndStartWatcher(WatchEvent.RESYNC, err => {
+      expect(err.name).toEqual("Resync");
+      expect(err.message).toEqual("Resync triggered by resyncIntervalSec");
+      done();
+    });
+  });
+
+  it("should handle the GIVE_UP event", done => {
+    nock.cleanAll();
+    nock("http://jest-test:8080");
+
+    watcher = K8s(kind.Pod).Watch(evtMock, {
+      retryMax: 1,
+      retryDelaySec: 1,
+    });
+
+    setupAndStartWatcher(WatchEvent.GIVE_UP, error => {
+      expect(error.message).toEqual(
+        "request to http://jest-test:8080/api/v1/pods?watch=true&allowWatchBookmarks=true failed, reason: getaddrinfo ENOTFOUND jest-test",
+      );
+      done();
+    });
+  });
 });
 
 /**
@@ -138,41 +262,3 @@ function createMockPod(name: string, resourceVersion: string): kind.Pod {
     },
   };
 }
-
-// const watcher = K8s(kind.Pod).Watch((d, phase) => {
-//   console.log(`>-----> ${d.metadata?.name} (${d.metadata?.resourceVersion}) is ${phase}`);
-// });
-
-// watcher.events.on(WatchEvent.CONNECT, () => console.log("connected"));
-
-// watcher.events.on(WatchEvent.DATA, (_pod, phase) => {
-//   console.log("data received", phase);
-// });
-
-// watcher.events.on(WatchEvent.BOOKMARK, bookmark => console.log(`bookmark:`, bookmark));
-
-// watcher.events.on(WatchEvent.NETWORK_ERROR, e => console.error(`network error:`, e));
-
-// watcher.events.on(WatchEvent.RECONNECT, e => console.error(`reconnecting:`, e));
-
-// watcher.events.on(WatchEvent.GIVE_UP, e => console.error(`giving up:`, e));
-
-// watcher.events.on(WatchEvent.ABORT, e => console.error(`aborting:`, e));
-
-// watcher.events.on(WatchEvent.RESYNC, e => console.error(`resyncing:`, e));
-
-// watcher.events.on(WatchEvent.RESOURCE_VERSION, rv => console.log(`resource version:`, rv));
-
-// watcher.events.on(WatchEvent.OLD_RESOURCE_VERSION, rv => console.log(`old resource version:`, rv));
-
-// watcher.events.on(WatchEvent.DATA_ERROR, e => console.error(`data error:`, e));
-
-// watcher.events.on(WatchEvent.RECONNECT_PENDING, () => console.log(`reconnect pending`));
-
-// watcher
-//   .start()
-//   .then(() => {
-//     console.log("started");
-//     console.log("cache id: ", watcher.id);
-//   })
-//   .catch(e => console.error(`failed to start:`, e));

@@ -17,6 +17,7 @@ export enum WatchPhase {
   Modified = "MODIFIED",
   Deleted = "DELETED",
   Bookmark = "BOOKMARK",
+  Error = "ERROR",
 }
 
 export type FetchMethods = "GET" | "APPLY" | "POST" | "PUT" | "DELETE" | "PATCH" | "WATCH";

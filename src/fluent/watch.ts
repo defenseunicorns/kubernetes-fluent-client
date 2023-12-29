@@ -237,7 +237,7 @@ export class Watcher<T extends GenericClass> {
             void this.#scheduleResync();
 
             // If the watch is too old, remove the resourceVersion and reload the watch
-            if (payload.kind === "Status" && payload.code === 410) {
+            if (phase === WatchPhase.Error && payload.code === 410) {
               throw {
                 name: "TooOld",
                 message: this.#watchCfg.resourceVersion!,
@@ -262,7 +262,8 @@ export class Watcher<T extends GenericClass> {
               body.removeAllListeners();
 
               // Reload the watch
-              throw err;
+              void this.#errHandler(err);
+              return;
             }
 
             this.#events.emit(WatchEvent.DATA_ERROR, err);
