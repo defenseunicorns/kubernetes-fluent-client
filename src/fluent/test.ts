@@ -1,28 +1,10 @@
-import { readFileSync, writeFileSync } from "fs";
-
 import { K8s } from ".";
 import { kind } from "..";
 import { WatchEvent } from "./watch";
 
-// load the resource version from the file "resource-version.txt"
-let resourceVersion: string | undefined = undefined;
-try {
-  const buffer = readFileSync("resource-version.txt", "utf8");
-  if (buffer) {
-    resourceVersion = buffer.toString();
-  }
-} catch (e) {
-  // ignore
-}
-
-const watcher = K8s(kind.Pod).Watch(
-  (d, phase) => {
-    console.log(`>-----> ${d.metadata?.name} (${d.metadata?.resourceVersion}) is ${phase}`);
-  },
-  {
-    resourceVersion,
-  },
-);
+const watcher = K8s(kind.Pod).Watch((d, phase) => {
+  console.log(`>-----> ${d.metadata?.name} (${d.metadata?.resourceVersion}) is ${phase}`);
+});
 
 watcher.events.on(WatchEvent.CONNECT, () => console.log("connected"));
 
@@ -42,11 +24,7 @@ watcher.events.on(WatchEvent.ABORT, e => console.error(`aborting:`, e));
 
 watcher.events.on(WatchEvent.RESYNC, e => console.error(`resyncing:`, e));
 
-watcher.events.on(WatchEvent.RESOURCE_VERSION, rv => {
-  console.log(`resource version:`, rv);
-  // persist the resource version
-  writeFileSync("resource-version.txt", rv || "", "utf8");
-});
+watcher.events.on(WatchEvent.RESOURCE_VERSION, rv => console.log(`resource version:`, rv));
 
 watcher.events.on(WatchEvent.OLD_RESOURCE_VERSION, rv => console.log(`old resource version:`, rv));
 

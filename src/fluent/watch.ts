@@ -81,7 +81,7 @@ export class Watcher<T extends GenericClass> {
 
   /**
    * Setup a Kubernetes watcher for the specified model and filters. The callback function will be called for each event received.
-   * The watch can be aborted by calling {@link Watcher.abort} or by calling abort() on the AbortController returned by {@link Watcher.start}.
+   * The watch can be aborted by calling {@link Watcher.close} or by calling abort() on the AbortController returned by {@link Watcher.start}.
    *
    *
    * Kubernetes API docs: {@link https://kubernetes.io/docs/reference/using-api/api-concepts/#efficient-detection-of-changes}
@@ -118,10 +118,10 @@ export class Watcher<T extends GenericClass> {
     return this.#abortController;
   }
 
-  /**
-   * Abort the watch. Also available on the AbortController returned by {@link Watcher.start}.
-   */
-  public abort() {
+  /** Close the watch. Also available on the AbortController returned by {@link Watcher.start}. */
+  public close() {
+    clearTimeout(this.#resyncTimer);
+    this.#cleanup();
     this.#abortController.abort();
   }
 
@@ -147,19 +147,6 @@ export class Watcher<T extends GenericClass> {
 
   /**
    * Subscribe to watch events. This is an EventEmitter that emits the following events:
-   *
-   * - `connect` - emitted when the watch connects to the API server
-   * - `network_error` - emitted when a network error occurs
-   * - `data_error` - emitted when an error occurs in the data processing or callback function
-   * - `retry` - emitted when the watch is retried after an error
-   * - `give_up` - emitted when the watch is aborted after reaching the maximum number of retries
-   * - `abort` - emitted when the watch is aborted
-   * - `data` - emitted when an event is received from the API server
-   * - `bookmark` - emitted when a bookmark event is received from the API server
-   * - `resource_version` - emitted when the resource version is updated after successfully processing an event
-   * - `old_resource_version` - emitted when the resource version is updated after receiving a 410 Gone error
-   * - `resync` - emitted when the watch is resynced
-   * - `reconnect_pending` - emitted when a reconnect is already pending
    *
    * Use {@link WatchEvent} for the event names.
    *
@@ -206,9 +193,7 @@ export class Watcher<T extends GenericClass> {
     return { opts, url };
   };
 
-  /**
-   * Run the watch.
-   */
+  /** Run the watch. */
   #runner = async () => {
     try {
       // Build the URL and request options
@@ -253,15 +238,10 @@ export class Watcher<T extends GenericClass> {
 
             // If the watch is too old, remove the resourceVersion and reload the watch
             if (payload.kind === "Status" && payload.code === 410) {
-              // Prevent any body events from firing
-              body.removeAllListeners();
-              // Reload the watch
-              void this.#errHandler({
+              throw {
                 name: "TooOld",
                 message: this.#watchCfg.resourceVersion!,
-              });
-              // Skip the callback
-              return;
+              };
             }
 
             // If the event is a bookmark, emit the event and skip the callback
@@ -277,6 +257,14 @@ export class Watcher<T extends GenericClass> {
             // Update the resource version if the callback was successful
             this.#setResourceVersion(payload.metadata.resourceVersion);
           } catch (err) {
+            if (err.name === "TooOld") {
+              // Prevent any body events from firing
+              body.removeAllListeners();
+
+              // Reload the watch
+              throw err;
+            }
+
             this.#events.emit(WatchEvent.DATA_ERROR, err);
           }
         });
@@ -296,17 +284,21 @@ export class Watcher<T extends GenericClass> {
     }
   };
 
-  #scheduleResync = async () => {
-    // Reset the resync timer
-    clearTimeout(this.#resyncTimer);
+  /**
+   * Resync the watch.
+   *
+   * @returns the error handler
+   */
+  #resync = () =>
+    this.#errHandler({
+      name: "Resync",
+      message: "Resync triggered by resyncIntervalSec",
+    });
 
-    // Start the resync timer
-    this.#resyncTimer = setTimeout(async () => {
-      void this.#errHandler({
-        name: "Resync",
-        message: "Resync",
-      });
-    }, this.#watchCfg.resyncIntervalSec! * 1000);
+  /** Clear the resync timer and schedule a new one. */
+  #scheduleResync = async () => {
+    clearTimeout(this.#resyncTimer);
+    this.#resyncTimer = setTimeout(this.#resync, this.#watchCfg.resyncIntervalSec! * 1000);
   };
 
   /**
@@ -324,11 +316,18 @@ export class Watcher<T extends GenericClass> {
    *
    * @param err - the error that occurred
    */
-  #reload = async (err: Error) => {
+  #reconnect = async (err: Error) => {
     // If there are more attempts, retry the watch (undefined is unlimited retries)
     if (this.#watchCfg.retryMax === undefined || this.#watchCfg.retryMax > this.#retryCount) {
-      // Sleep for the specified delay
-      await new Promise(r => setTimeout(r, this.#watchCfg.retryDelaySec! * 1000));
+      // Sleep for the specified delay, but check every 500ms if the watch has been aborted
+      let delay = this.#watchCfg.retryDelaySec! * 1000;
+      while (delay > 0) {
+        if (this.#abortController.signal.aborted) {
+          return;
+        }
+        delay -= 500;
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
 
       this.#retryCount++;
       this.#events.emit(WatchEvent.RECONNECT, err, this.#retryCount);
@@ -345,7 +344,7 @@ export class Watcher<T extends GenericClass> {
     } else {
       // Otherwise, call the finally function if it exists
       this.#events.emit(WatchEvent.GIVE_UP, err);
-      this.abort();
+      this.close();
     }
   };
 
@@ -357,9 +356,9 @@ export class Watcher<T extends GenericClass> {
   #errHandler = async (err: Error) => {
     switch (err.name) {
       case "AbortError":
-        this.#events.emit(WatchEvent.ABORT, err);
         clearTimeout(this.#resyncTimer);
         this.#cleanup();
+        this.#events.emit(WatchEvent.ABORT, err);
         return;
 
       case "TooOld":
@@ -377,16 +376,14 @@ export class Watcher<T extends GenericClass> {
         break;
     }
 
-    await this.#reload(err);
+    await this.#reconnect(err);
   };
 
-  /**
-   * Cleanup the stream and listeners.
-   */
+  /** Cleanup the stream and listeners. */
   #cleanup = () => {
     if (this.#stream) {
       this.#stream.removeAllListeners();
-      this.#stream = undefined;
+      this.#stream.destroy();
     }
   };
 }
