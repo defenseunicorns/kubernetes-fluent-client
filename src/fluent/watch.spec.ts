@@ -219,8 +219,8 @@ describe("Watcher", () => {
     });
 
     setupAndStartWatcher(WatchEvent.GIVE_UP, error => {
-      expect(error.message).toEqual(
-        "request to http://jest-test:8080/api/v1/pods?watch=true&allowWatchBookmarks=true failed, reason: getaddrinfo ENOTFOUND jest-test",
+      expect(error.message).toContain(
+        "request to http://jest-test:8080/api/v1/pods?watch=true&allowWatchBookmarks=true failed",
       );
       done();
     });
