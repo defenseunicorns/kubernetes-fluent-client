@@ -15,6 +15,9 @@ export { fetch } from "./fetch";
 // Export the HTTP status codes
 export { StatusCodes as fetchStatus } from "http-status-codes";
 
+// Export the Watch Config and Event types
+export { WatchCfg, WatchEvent } from "./fluent/watch";
+
 // Export the fluent API entrypoint
 export { K8s } from "./fluent";
 

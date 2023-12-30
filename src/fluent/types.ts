@@ -6,8 +6,8 @@ import { Operation } from "fast-json-patch";
 import type { PartialDeep } from "type-fest";
 
 import { GenericClass, GroupVersionKind } from "../types";
-import { WatchCfg, WatchController } from "./watch";
 import { ApplyCfg } from "./apply";
+import { WatchCfg, Watcher } from "./watch";
 
 /**
  * The Phase matched when using the K8s Watch API.
@@ -16,6 +16,8 @@ export enum WatchPhase {
   Added = "ADDED",
   Modified = "MODIFIED",
   Deleted = "DELETED",
+  Bookmark = "BOOKMARK",
+  Error = "ERROR",
 }
 
 export type FetchMethods = "GET" | "APPLY" | "POST" | "PUT" | "DELETE" | "PATCH" | "WATCH";
@@ -41,7 +43,7 @@ export type GetFunction<K extends KubernetesObject> = {
   (name: string): Promise<K>;
 };
 
-export type K8sFilteredActions<K extends KubernetesObject> = {
+export type K8sFilteredActions<T extends GenericClass, K extends KubernetesObject> = {
   /**
    * Get the resource or resources matching the filters.
    * If no filters are specified, all resources will be returned.
@@ -63,10 +65,7 @@ export type K8sFilteredActions<K extends KubernetesObject> = {
    * @param watchCfg - (optional) watch configuration
    * @returns a watch controller
    */
-  Watch: (
-    callback: (payload: K, phase: WatchPhase) => void,
-    watchCfg?: WatchCfg,
-  ) => Promise<WatchController>;
+  Watch: (callback: WatchAction<T>, watchCfg?: WatchCfg) => Watcher<T>;
 };
 
 export type K8sUnfilteredActions<K extends KubernetesObject> = {
@@ -117,7 +116,10 @@ export type K8sUnfilteredActions<K extends KubernetesObject> = {
   Raw: (url: string) => Promise<K>;
 };
 
-export type K8sWithFilters<K extends KubernetesObject> = K8sFilteredActions<K> & {
+export type K8sWithFilters<T extends GenericClass, K extends KubernetesObject> = K8sFilteredActions<
+  T,
+  K
+> & {
   /**
    * Filter the query by the given field.
    * Note multiple calls to this method will result in an AND condition. e.g.
@@ -137,7 +139,7 @@ export type K8sWithFilters<K extends KubernetesObject> = K8sFilteredActions<K> &
    * @param value - the field value
    * @returns the fluent API
    */
-  WithField: <P extends Paths<K>>(key: P, value: string) => K8sWithFilters<K>;
+  WithField: <P extends Paths<K>>(key: P, value: string) => K8sWithFilters<T, K>;
 
   /**
    * Filter the query by the given label. If no value is specified, the label simply must exist.
@@ -157,10 +159,10 @@ export type K8sWithFilters<K extends KubernetesObject> = K8sFilteredActions<K> &
    * @param value - the label value
    * @returns the fluent API
    */
-  WithLabel: (key: string, value?: string) => K8sWithFilters<K>;
+  WithLabel: (key: string, value?: string) => K8sWithFilters<T, K>;
 };
 
-export type K8sInit<K extends KubernetesObject> = K8sWithFilters<K> &
+export type K8sInit<T extends GenericClass, K extends KubernetesObject> = K8sWithFilters<T, K> &
   K8sUnfilteredActions<K> & {
     /**
      * Set the namespace filter.
@@ -168,7 +170,7 @@ export type K8sInit<K extends KubernetesObject> = K8sWithFilters<K> &
      * @param namespace - the namespace to filter on
      * @returns the fluent API
      */
-    InNamespace: (namespace: string) => K8sWithFilters<K>;
+    InNamespace: (namespace: string) => K8sWithFilters<T, K>;
   };
 
 export type WatchAction<T extends GenericClass, K extends KubernetesObject = InstanceType<T>> = (
