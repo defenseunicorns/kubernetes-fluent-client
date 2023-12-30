@@ -20,13 +20,15 @@ async function demo() {
   // Now, we can use the fluent API to query for the resources we just created
 
   // You can use watch to monitor resources in the cluster and react to changes
-  // This will run until the process is terminated or the watch is aborted
-  const ctrl = await K8s(kind.Pod).Watch((pod, phase) => {
+  const watcher = K8s(kind.Pod).Watch((pod, phase) => {
     console.log(`Pod ${pod.metadata?.name} is ${phase}`);
   });
 
+  // This will run until the process is terminated or the watch is aborted
+  await watcher.start();
+
   // Let's abort the watch after 5 seconds
-  setTimeout(ctrl.abort, 5 * 1000);
+  setTimeout(watcher.close, 5 * 1000);
 
   // Passing the name to Get() will return a single resource
   const ns = await K8s(kind.Namespace).Get(namespace);

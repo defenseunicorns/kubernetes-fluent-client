@@ -132,18 +132,27 @@ describe("Watcher", () => {
     watcher.start().catch(errMock);
   });
 
-  it("should return the cache id", done => {
-    watcher
-      .start()
-      .then(() => {
-        expect(watcher.id).toEqual("d69b75a611");
-        done();
-      })
-      .catch(errMock);
+  it("should return the cache id", () => {
+    expect(watcher.getCacheID()).toEqual("d69b75a611");
   });
 
-  it("should handle calling .id() before .start()", () => {
-    expect(() => watcher.id).toThrowError("watch not started");
+  it("should use an updated resourceVersion", done => {
+    nock.cleanAll();
+    nock("http://jest-test:8080")
+      .get("/api/v1/pods")
+      .query({
+        watch: "true",
+        allowWatchBookmarks: "true",
+        resourceVersion: "35",
+      })
+      .reply(200);
+
+    // Update the resource version, could be combined with getCacheID to store the value
+    watcher.resourceVersion = "35";
+
+    setupAndStartWatcher(WatchEvent.CONNECT, () => {
+      done();
+    });
   });
 
   it("should handle the CONNECT event", done => {
@@ -178,6 +187,14 @@ describe("Watcher", () => {
       expect(error.message).toEqual(
         "request to http://jest-test:8080/api/v1/pods?watch=true&allowWatchBookmarks=true failed, reason: Something bad happened",
       );
+      done();
+    });
+  });
+
+  it("should handle the RESOURCE_VERSION event", done => {
+    setupAndStartWatcher(WatchEvent.RESOURCE_VERSION, resourceVersion => {
+      expect(watcher.resourceVersion).toEqual("2");
+      expect(resourceVersion).toEqual("2");
       done();
     });
   });
