@@ -136,14 +136,10 @@ describe("Watcher", () => {
     watcher
       .start()
       .then(() => {
-        expect(watcher.id).toEqual("d69b75a611");
+        expect(watcher.getCacheID()).toEqual("d69b75a611");
         done();
       })
       .catch(errMock);
-  });
-
-  it("should handle calling .id() before .start()", () => {
-    expect(() => watcher.id).toThrowError("watch not started");
   });
 
   it("should handle the CONNECT event", done => {

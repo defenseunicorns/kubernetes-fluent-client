@@ -72,10 +72,6 @@ export class Watcher<T extends GenericClass> {
   // Create a timer to resync the watch
   #resyncTimer?: NodeJS.Timeout;
 
-  // Unique ID for the watch
-  #id?: string;
-  #hashedID?: string;
-
   // Track if a reconnect is pending
   #pendingReconnect = false;
 
@@ -129,20 +125,17 @@ export class Watcher<T extends GenericClass> {
    * Get a unique ID for the watch based on the model and filters.
    * This is useful for caching the watch data or resource versions.
    *
-   * @returns the watch ID
+   * @returns the watch CacheID
    */
-  public get id() {
-    // The ID must exist at this point
-    if (!this.#id) {
-      throw new Error("watch not started");
-    }
+  public getCacheID() {
+    // Build the URL, we don't care about the server URL or resourceVersion
+    const url = pathBuilder("https://ignore", this.#model, this.#filters, false);
 
     // Hash and truncate the ID to 10 characters, cache the result
-    if (!this.#hashedID) {
-      this.#hashedID = createHash("sha224").update(this.#id).digest("hex").substring(0, 10);
-    }
-
-    return this.#hashedID;
+    return createHash("sha224")
+      .update(url.pathname + url.search)
+      .digest("hex")
+      .substring(0, 10);
   }
 
   /**
@@ -165,11 +158,6 @@ export class Watcher<T extends GenericClass> {
     // Build the path and query params for the resource, excluding the name
     const { opts, serverUrl } = await k8sCfg("GET");
     const url = pathBuilder(serverUrl, this.#model, this.#filters, true);
-
-    // Set the watch ID if it does not exist (this does not change on reconnect)
-    if (!this.#id) {
-      this.#id = url.pathname + url.search;
-    }
 
     // Enable the watch query param
     url.searchParams.set("watch", "true");
