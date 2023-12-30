@@ -139,6 +139,24 @@ export class Watcher<T extends GenericClass> {
   }
 
   /**
+   * Get the current resource version.
+   *
+   * @returns the current resource version
+   */
+  public get resourceVersion() {
+    return this.#watchCfg.resourceVersion;
+  }
+
+  /**
+   * Set the current resource version.
+   *
+   * @param resourceVersion - the new resource version
+   */
+  public set resourceVersion(resourceVersion: string | undefined) {
+    this.#watchCfg.resourceVersion = resourceVersion;
+  }
+
+  /**
    * Subscribe to watch events. This is an EventEmitter that emits the following events:
    *
    * Use {@link WatchEvent} for the event names.
