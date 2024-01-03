@@ -102,6 +102,42 @@ describe("Kube", () => {
     expect(mockedKubeExec).toHaveBeenCalledWith(Pod, {}, "PATCH", patchOperations);
   });
 
+  it("should patch the status of a resource", async () => {
+    await K8s(Pod).PatchStatus({
+      metadata: {
+        name: "fake",
+        namespace: "default",
+        managedFields: generateFakePodManagedFields("pepr"),
+      },
+      spec: { priority: 3 },
+      status: {
+        phase: "Ready",
+      },
+    });
+
+    expect(k8sExec).toBeCalledWith(
+      Pod,
+      expect.objectContaining({
+        name: "fake",
+        namespace: "default",
+      }),
+      "PATCH_STATUS",
+      {
+        apiVersion: "v1",
+        kind: "Pod",
+        metadata: {
+          name: "fake",
+          namespace: "default",
+          managedFields: generateFakePodManagedFields("pepr"),
+        },
+        spec: { priority: 3 },
+        status: {
+          phase: "Ready",
+        },
+      },
+    );
+  });
+
   it("should filter with WithField", async () => {
     await K8s(Pod).WithField("metadata.name", "fake").Get();
 
