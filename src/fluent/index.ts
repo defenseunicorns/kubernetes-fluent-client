@@ -9,8 +9,7 @@ import type { PartialDeep } from "type-fest";
 import { fetch } from "../fetch";
 import { modelToGroupVersionKind } from "../kinds";
 import { GenericClass } from "../types";
-import { ApplyCfg } from "./apply";
-import { Filters, K8sInit, Paths, WatchAction } from "./types";
+import { ApplyCfg, FetchMethods, Filters, K8sInit, Paths, WatchAction } from "./types";
 import { k8sCfg, k8sExec } from "./utils";
 import { WatchCfg, Watcher } from "./watch";
 
@@ -164,6 +163,15 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
 
   /**
    * @inheritdoc
+   * @see {@link K8sInit.PatchStatus}
+   */
+  async function PatchStatus(resource: PartialDeep<K>): Promise<K> {
+    syncFilters(resource as K);
+    return k8sExec(model, filters, "PATCH_STATUS", resource);
+  }
+
+  /**
+   * @inheritdoc
    * @see {@link K8sInit.Watch}
    */
   function Watch(callback: WatchAction<T>, watchCfg?: WatchCfg) {
@@ -174,8 +182,8 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
    * @inheritdoc
    * @see {@link K8sInit.Raw}
    */
-  async function Raw(url: string) {
-    const thing = await k8sCfg("GET");
+  async function Raw(url: string, method: FetchMethods = "GET") {
+    const thing = await k8sCfg(method);
     const { opts, serverUrl } = thing;
     const resp = await fetch<K>(`${serverUrl}${url}`, opts);
 
@@ -186,5 +194,5 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
     throw resp;
   }
 
-  return { InNamespace, Apply, Create, Patch, Raw, ...withFilters };
+  return { InNamespace, Apply, Create, Patch, PatchStatus, Raw, ...withFilters };
 }

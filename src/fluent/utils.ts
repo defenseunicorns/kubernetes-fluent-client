@@ -2,14 +2,13 @@
 // SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
 
 import { KubeConfig, PatchStrategy } from "@kubernetes/client-node";
-
 import { Headers } from "node-fetch";
 import { URL } from "url";
+
 import { fetch } from "../fetch";
 import { modelToGroupVersionKind } from "../kinds";
 import { GenericClass } from "../types";
-import { FetchMethods, Filters } from "./types";
-import { ApplyCfg } from "./apply";
+import { ApplyCfg, FetchMethods, Filters } from "./types";
 
 const SSA_CONTENT_TYPE = "application/apply-patch+yaml";
 
@@ -143,6 +142,14 @@ export async function k8sExec<T extends GenericClass, K>(
   const url = pathBuilder(serverUrl, model, filters, method === "POST");
 
   switch (opts.method) {
+    // PATCH_STATUS is a special case that uses the PATCH method on status subresources
+    case "PATCH_STATUS":
+      opts.method = "PATCH";
+      url.pathname = `${url.pathname}/status`;
+      (opts.headers as Headers).set("Content-Type", PatchStrategy.MergePatch);
+      payload = { status: (payload as { status: unknown }).status };
+      break;
+
     case "PATCH":
       (opts.headers as Headers).set("Content-Type", PatchStrategy.JsonPatch);
       break;
@@ -164,6 +171,11 @@ export async function k8sExec<T extends GenericClass, K>(
 
   if (resp.ok) {
     return resp.data;
+  }
+
+  if (resp.status === 404 && method === "PATCH_STATUS") {
+    resp.statusText =
+      "Not Found" + " (NOTE: This error is expected if the resource has no status subresource)";
   }
 
   throw resp;

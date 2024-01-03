@@ -2,13 +2,14 @@
 // SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
 
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { Headers } from "node-fetch";
 
 import { fetch } from "../fetch";
+import { RegisterKind } from "../kinds";
 import { GenericClass } from "../types";
 import { ClusterRole, Ingress, Pod } from "../upstream";
 import { Filters } from "./types";
 import { k8sExec, pathBuilder } from "./utils";
-import { RegisterKind } from "../kinds";
 
 jest.mock("https");
 jest.mock("../fetch");
@@ -115,14 +116,18 @@ describe("kubeExec Function", () => {
 
   const fakeFilters: Filters = { name: "fake", namespace: "default" };
   const fakeMethod = "GET";
-  const fakePayload = { metadata: { name: "fake", namespace: "default" } };
+  const fakePayload = {
+    metadata: { name: "fake", namespace: "default" },
+    status: { phase: "Ready" },
+  };
   const fakeUrl = new URL("http://jest-test:8080/api/v1/namespaces/default/pods/fake");
   const fakeOpts = {
     body: JSON.stringify(fakePayload),
-    headers: {
+    compress: true,
+    headers: new Headers({
       "Content-Type": "application/json",
       "User-Agent": `kubernetes-fluent-client`,
-    },
+    }),
     method: fakeMethod,
   };
 
@@ -142,6 +147,112 @@ describe("kubeExec Function", () => {
 
     expect(result).toEqual(fakePayload);
     expect(mockedFetch).toHaveBeenCalledWith(fakeUrl, expect.objectContaining(fakeOpts));
+  });
+
+  it("should handle PATCH_STATUS", async () => {
+    mockedFetch.mockResolvedValueOnce({
+      ok: true,
+      data: fakePayload,
+      status: 200,
+      statusText: "OK",
+    });
+
+    const result = await k8sExec(Pod, fakeFilters, "PATCH_STATUS", fakePayload);
+
+    expect(result).toEqual(fakePayload);
+    expect(mockedFetch).toHaveBeenCalledWith(
+      new URL("http://jest-test:8080/api/v1/namespaces/default/pods/fake/status"),
+      expect.objectContaining({
+        method: "PATCH",
+        compress: true,
+        headers: new Headers({
+          "Content-Type": "application/merge-patch+json",
+          "User-Agent": `kubernetes-fluent-client`,
+        }),
+        body: JSON.stringify({ status: fakePayload.status }),
+      }),
+    );
+  });
+
+  it("should handle PATCH", async () => {
+    mockedFetch.mockResolvedValueOnce({
+      ok: true,
+      data: fakePayload,
+      status: 200,
+      statusText: "OK",
+    });
+
+    const patchPayload = [{ op: "replace", path: "/status/phase", value: "Ready" }];
+
+    const result = await k8sExec(Pod, fakeFilters, "PATCH", patchPayload);
+
+    expect(result).toEqual(fakePayload);
+    expect(mockedFetch).toHaveBeenCalledWith(
+      new URL("http://jest-test:8080/api/v1/namespaces/default/pods/fake"),
+      expect.objectContaining({
+        method: "PATCH",
+        compress: true,
+        headers: new Headers({
+          "Content-Type": "application/json-patch+json",
+          "User-Agent": `kubernetes-fluent-client`,
+        }),
+        body: JSON.stringify(patchPayload),
+      }),
+    );
+  });
+
+  it("should handle APPLY", async () => {
+    mockedFetch.mockResolvedValueOnce({
+      ok: true,
+      data: fakePayload,
+      status: 200,
+      statusText: "OK",
+    });
+
+    const result = await k8sExec(Pod, fakeFilters, "APPLY", fakePayload);
+
+    expect(result).toEqual(fakePayload);
+    expect(mockedFetch).toHaveBeenCalledWith(
+      new URL(
+        "http://jest-test:8080/api/v1/namespaces/default/pods/fake?fieldManager=pepr&fieldValidation=Strict&force=false",
+      ),
+      expect.objectContaining({
+        method: "PATCH",
+        compress: true,
+        headers: new Headers({
+          "Content-Type": "application/apply-patch+yaml",
+          "User-Agent": `kubernetes-fluent-client`,
+        }),
+        body: JSON.stringify(fakePayload),
+      }),
+    );
+  });
+
+  it("should handle APPLY with force", async () => {
+    mockedFetch.mockResolvedValueOnce({
+      ok: true,
+      data: fakePayload,
+      status: 200,
+      statusText: "OK",
+    });
+
+    const result = await k8sExec(Pod, fakeFilters, "APPLY", fakePayload, { force: true });
+
+    expect(result).toEqual(fakePayload);
+    expect(mockedFetch).toHaveBeenCalledWith(
+      new URL(
+        "http://jest-test:8080/api/v1/namespaces/default/pods/fake?fieldManager=pepr&fieldValidation=Strict&force=true",
+      ),
+      expect.objectContaining({
+        method: "PATCH",
+        compress: true,
+        headers: new Headers({
+          "Content-Type": "application/apply-patch+yaml",
+          "User-Agent": `kubernetes-fluent-client`,
+        }),
+        body: JSON.stringify(fakePayload),
+      }),
+    );
   });
 
   it("should handle fetch call failure", async () => {

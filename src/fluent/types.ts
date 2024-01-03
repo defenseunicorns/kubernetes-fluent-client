@@ -6,7 +6,6 @@ import { Operation } from "fast-json-patch";
 import type { PartialDeep } from "type-fest";
 
 import { GenericClass, GroupVersionKind } from "../types";
-import { ApplyCfg } from "./apply";
 import { WatchCfg, Watcher } from "./watch";
 
 /**
@@ -20,7 +19,15 @@ export enum WatchPhase {
   Error = "ERROR",
 }
 
-export type FetchMethods = "GET" | "APPLY" | "POST" | "PUT" | "DELETE" | "PATCH" | "WATCH";
+export type FetchMethods =
+  | "GET"
+  | "APPLY"
+  | "POST"
+  | "PUT"
+  | "DELETE"
+  | "PATCH"
+  | "WATCH"
+  | "PATCH_STATUS";
 
 export interface Filters {
   kindOverride?: GroupVersionKind;
@@ -97,6 +104,20 @@ export type K8sUnfilteredActions<K extends KubernetesObject> = {
   Patch: (payload: Operation[]) => Promise<K>;
 
   /**
+   * Patch the status of the provided K8s resource. Note this is a special case of the Patch method that
+   * only allows patching the status subresource. This can be used in Operator reconciliation loops to
+   * update the status of a resource without triggering a new Generation of the resource.
+   *
+   * See https://stackoverflow.com/q/47100389/467373 for more details.
+   *
+   * IMPORTANT: This method will throw a 404 error if the resource does not have a status subresource defined.
+   *
+   * @param resource - the resource to patch
+   * @returns the patched resource
+   */
+  PatchStatus: (resource: PartialDeep<K>) => Promise<K>;
+
+  /**
    * Perform a raw GET request to the Kubernetes API. This is useful for calling endpoints that are not supported by the fluent API.
    * This command mirrors the `kubectl get --raw` command.
    *
@@ -113,7 +134,7 @@ export type K8sUnfilteredActions<K extends KubernetesObject> = {
    * @param url the URL to call (e.g. /api)
    * @returns
    */
-  Raw: (url: string) => Promise<K>;
+  Raw: (url: string, method?: FetchMethods) => Promise<K>;
 };
 
 export type K8sWithFilters<T extends GenericClass, K extends KubernetesObject> = K8sFilteredActions<
@@ -160,6 +181,16 @@ export type K8sWithFilters<T extends GenericClass, K extends KubernetesObject> =
    * @returns the fluent API
    */
   WithLabel: (key: string, value?: string) => K8sWithFilters<T, K>;
+};
+
+/**
+ * Configuration for the apply function.
+ */
+export type ApplyCfg = {
+  /**
+   * Force the apply to be a create.
+   */
+  force?: boolean;
 };
 
 export type K8sInit<T extends GenericClass, K extends KubernetesObject> = K8sWithFilters<T, K> &
