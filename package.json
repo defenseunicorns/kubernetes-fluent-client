@@ -1,7 +1,7 @@
 {
   "name": "kubernetes-fluent-client",
   "version": "0.0.0-development",
-  "description": "A @kubernetes/client-node fluent API wrapper that leverages K8s Server Side Apply",
+  "description": "A @kubernetes/client-node fluent API wrapper that leverages K8s Server Side Apply.",
   "bin": "./dist/cli.js",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
