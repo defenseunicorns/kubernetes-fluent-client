@@ -94,4 +94,3 @@ Promise.all([
     console.error(err);
   });
 ```
-
