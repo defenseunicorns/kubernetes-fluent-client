@@ -6,11 +6,9 @@
 import { hideBin } from "yargs/helpers";
 import yargs from "yargs/yargs";
 import { GenerateOptions, generate } from "./generate";
-import { version } from "../package.json";
 
 void yargs(hideBin(process.argv))
-  .version("version", "Display version number", version)
-  .alias("version", "v")
+  .version(false)
   .command(
     "crd [source] [directory]",
     "generate usable types from a K8s CRD",
