@@ -1,6 +1,6 @@
 {
   "name": "kubernetes-fluent-client",
-  "version": "0.0.0-development",
+  "version": "2.1.3",
   "description": "A @kubernetes/client-node fluent API wrapper that leverages K8s Server Side Apply.",
   "bin": "./dist/cli.js",
   "main": "dist/index.js",
