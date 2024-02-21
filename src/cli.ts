@@ -9,8 +9,8 @@ import { GenerateOptions, generate } from "./generate";
 import { version } from "../package.json";
 
 void yargs(hideBin(process.argv))
-  .version("version", "Display version number", version)
-  .alias("version", "v")
+  .version("version", "Display version number", `kubernetes-fluent-client v${version}`)
+  .alias("version", "V")
   .command(
     "crd [source] [directory]",
     "generate usable types from a K8s CRD",
