@@ -144,9 +144,11 @@ async function readOrFetchCrd(opts: GenerateOptions): Promise<CustomResourceDefi
   const { source, logFn } = opts;
   let filePath: string;
 
-  if (source[0] === "/") { // If the source is an absolute path
+  if (source[0] === "/") {
+    // If the source is an absolute path
     filePath = source;
-  } else { // If the source is a relative path
+  } else {
+    // If the source is a relative path
     filePath = path.join(process.cwd(), source);
   }
 
