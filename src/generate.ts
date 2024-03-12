@@ -142,7 +142,15 @@ async function convertCRDtoTS(
  */
 async function readOrFetchCrd(opts: GenerateOptions): Promise<CustomResourceDefinition[]> {
   const { source, logFn } = opts;
-  const filePath = path.join(process.cwd(), source);
+  let filePath: string;
+
+  if (source[0] === "/") {
+    // If source is an absolute path
+    filePath = source;
+  } else {
+    // If source is a relative path
+    filePath = path.join(process.cwd(), source);
+  }
 
   // First try to read the source as a file
   try {
