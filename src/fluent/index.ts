@@ -46,7 +46,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
    */
   function WithField<P extends Paths<K>>(key: P, value: string) {
     filters.fields = filters.fields || {};
-    // @ts-ignore
+    /* @ts-ignore */
     filters.fields[key] = value;
     return withFilters;
   }
