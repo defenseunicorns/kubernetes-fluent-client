@@ -12,7 +12,15 @@ updates:
         dependency-type: production
       development-dependencies:
         dependency-type: development
-
+    ignore:
+      - dependency-name: "@semantic-release/commit-analyzer"
+        versions: ["12.0.0"]
+      - dependency-name: "@semantic-release/github"
+        versions: ["10.0.2"]
+      - dependency-name: "@semantic-release/npm"
+        versions: ["10.0.2"]
+      - dependency-name: "semantic-release"
+        versions: ["23.0.5"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
