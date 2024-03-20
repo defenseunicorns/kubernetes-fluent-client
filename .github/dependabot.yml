@@ -20,7 +20,7 @@ updates:
       - dependency-name: "@semantic-release/npm"
         versions: ["10.0.2"]
       - dependency-name: "semantic-release"
-        versions: ["23.0.5"]
+        versions: ["23.0.4"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
