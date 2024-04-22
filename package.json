@@ -40,7 +40,7 @@
     "fast-json-patch": "3.1.1",
     "http-status-codes": "2.3.0",
     "node-fetch": "2.7.0",
-    "quicktype-core": "23.0.147",
+    "quicktype-core": "23.0.151",
     "type-fest": "4.15.0",
     "yargs": "17.7.2"
   },
