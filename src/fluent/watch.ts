@@ -193,7 +193,7 @@ export class Watcher<T extends GenericClass> {
     }
 
     // Enable watch bookmarks
-    url.searchParams.set("allowWatchBookmarks", "true");
+    url.searchParams.set("allowWatchBookmarks", this.#watchCfg.allowWatchBookMarks ? `${this.#watchCfg.allowWatchBookMarks}` : "true" );
 
     // Add the abort signal to the request options
     opts.signal = this.#abortController.signal;
