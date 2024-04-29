@@ -39,6 +39,8 @@ export enum WatchEvent {
 
 /** Configuration for the watch function. */
 export type WatchCfg = {
+  /** Whether to allow watch bookmarks. */
+  allowWatchBookMarks?: boolean;
   /** The resource version to start the watch at, this will be updated on each event. */
   resourceVersion?: string;
   /** The maximum number of times to retry the watch, the retry count is reset on success. Unlimited retries if not specified. */
@@ -281,6 +283,7 @@ export class Watcher<T extends GenericClass> {
         body.on("close", this.#cleanup);
         body.on("finish", this.#cleanup);
 
+
         // Pipe the response body to the stream
         body.pipe(this.#stream);
       } else {
@@ -340,6 +343,7 @@ export class Watcher<T extends GenericClass> {
       this.#events.emit(WatchEvent.RECONNECT, err, this.#retryCount);
 
       if (this.#pendingReconnect) {
+        // wait for the connection to be re-established
         this.#events.emit(WatchEvent.RECONNECT_PENDING);
       } else {
         this.#pendingReconnect = true;
@@ -352,7 +356,10 @@ export class Watcher<T extends GenericClass> {
       // Otherwise, call the finally function if it exists
       this.#events.emit(WatchEvent.GIVE_UP, err);
       this.close();
+      // await this.#runner();
     }
+    // // Retry the watch after the delay
+    // await this.#runner();
   };
 
   /**
