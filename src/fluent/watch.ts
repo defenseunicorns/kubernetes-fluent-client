@@ -178,7 +178,6 @@ export class Watcher<T extends GenericClass> {
     // Build the path and query params for the resource, excluding the name
     const { opts, serverUrl } = await k8sCfg("GET");
 
-
     const url = pathBuilder(serverUrl, this.#model, this.#filters, true);
 
     // Enable the watch query param
