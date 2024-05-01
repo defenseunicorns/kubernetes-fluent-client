@@ -181,7 +181,7 @@ export class Watcher<T extends GenericClass> {
     // add keep alive
     opts.headers = {
       ...opts.headers,
-      "Connection": "keep-alive",
+      Connection: "keep-alive",
     };
 
     const url = pathBuilder(serverUrl, this.#model, this.#filters, true);
@@ -200,7 +200,10 @@ export class Watcher<T extends GenericClass> {
     }
 
     // Enable watch bookmarks
-    url.searchParams.set("allowWatchBookmarks", this.#watchCfg.allowWatchBookmarks ? `${this.#watchCfg.allowWatchBookmarks}` : "true" );
+    url.searchParams.set(
+      "allowWatchBookmarks",
+      this.#watchCfg.allowWatchBookmarks ? `${this.#watchCfg.allowWatchBookmarks}` : "true",
+    );
 
     // Add the abort signal to the request options
     opts.signal = this.#abortController.signal;
@@ -289,7 +292,6 @@ export class Watcher<T extends GenericClass> {
         body.on("error", this.#errHandler);
         body.on("close", this.#cleanup);
         body.on("finish", this.#cleanup);
-
 
         // Pipe the response body to the stream
         body.pipe(this.#stream);
