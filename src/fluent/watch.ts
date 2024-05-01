@@ -364,8 +364,6 @@ export class Watcher<T extends GenericClass> {
       this.#events.emit(WatchEvent.GIVE_UP, err);
       this.close();
     }
-    // // Retry the watch after the delay
-    // await this.#runner();
   };
 
   /**
