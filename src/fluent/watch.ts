@@ -178,11 +178,6 @@ export class Watcher<T extends GenericClass> {
     // Build the path and query params for the resource, excluding the name
     const { opts, serverUrl } = await k8sCfg("GET");
 
-    // add keep alive
-    opts.headers = {
-      ...opts.headers,
-      Connection: "keep-alive",
-    };
 
     const url = pathBuilder(serverUrl, this.#model, this.#filters, true);
 
