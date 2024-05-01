@@ -39,9 +39,8 @@ export enum WatchEvent {
 
 /** Configuration for the watch function. */
 export type WatchCfg = {
-  // allowWatchBookMarks -> allowWatchBookmarks
   /** Whether to allow watch bookmarks. */
-  allowWatchBookMarks?: boolean;
+  allowWatchBookmarks?: boolean;
   /** The resource version to start the watch at, this will be updated on each event. */
   resourceVersion?: string;
   /** The maximum number of times to retry the watch, the retry count is reset on success. Unlimited retries if not specified. */
