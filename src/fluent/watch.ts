@@ -39,6 +39,8 @@ export enum WatchEvent {
 
 /** Configuration for the watch function. */
 export type WatchCfg = {
+  /** Whether to allow watch bookmarks. */
+  allowWatchBookmarks?: boolean;
   /** The resource version to start the watch at, this will be updated on each event. */
   resourceVersion?: string;
   /** The maximum number of times to retry the watch, the retry count is reset on success. Unlimited retries if not specified. */
@@ -175,6 +177,7 @@ export class Watcher<T extends GenericClass> {
   #buildURL = async () => {
     // Build the path and query params for the resource, excluding the name
     const { opts, serverUrl } = await k8sCfg("GET");
+
     const url = pathBuilder(serverUrl, this.#model, this.#filters, true);
 
     // Enable the watch query param
@@ -191,7 +194,10 @@ export class Watcher<T extends GenericClass> {
     }
 
     // Enable watch bookmarks
-    url.searchParams.set("allowWatchBookmarks", "true");
+    url.searchParams.set(
+      "allowWatchBookmarks",
+      this.#watchCfg.allowWatchBookmarks ? `${this.#watchCfg.allowWatchBookmarks}` : "true",
+    );
 
     // Add the abort signal to the request options
     opts.signal = this.#abortController.signal;
@@ -340,6 +346,7 @@ export class Watcher<T extends GenericClass> {
       this.#events.emit(WatchEvent.RECONNECT, err, this.#retryCount);
 
       if (this.#pendingReconnect) {
+        // wait for the connection to be re-established
         this.#events.emit(WatchEvent.RECONNECT_PENDING);
       } else {
         this.#pendingReconnect = true;
