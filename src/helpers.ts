@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
 
-import { V1Deployment, V1DaemonSet, V1ReplicaSet, V1Service, V1StatefulSet,Cluster, KubeConfig } from "@kubernetes/client-node";
+import { Cluster, KubeConfig } from "@kubernetes/client-node";
 
 declare const Deno: {
   env: {
@@ -82,51 +82,32 @@ export async function waitForCluster(seconds = 30): Promise<Cluster> {
 }
 
 /**
- * Wait for the Kubernetes cluster to be ready.
+ * Determines if object has a selector.
  *
- * @param seconds The number of seconds to wait for the cluster to be ready.
- * @returns The current cluster.
+ * @param kind The kind of Kubernetes object.
+ * @returns boolean.
  */
-export function isDeployment(obj: any): obj is V1Deployment {
-    return obj && obj.kind === 'Deployment';
-}
-
-/**
- * Wait for the Kubernetes cluster to be ready.
- *
- * @param seconds The number of seconds to wait for the cluster to be ready.
- * @returns The current cluster.
- */
-export function isDaemonSet(obj: any): obj is V1DaemonSet {
-    return obj && obj.kind === 'DaemonSet';
-}
-
-/**
- * Wait for the Kubernetes cluster to be ready.
- *
- * @param seconds The number of seconds to wait for the cluster to be ready.
- * @returns The current cluster.
- */
-export function isReplicaSet(obj: any): obj is V1ReplicaSet {
-    return obj && obj.kind === 'ReplicaSet';
-}
-
-/**
- * Wait for the Kubernetes cluster to be ready.
- *
- * @param seconds The number of seconds to wait for the cluster to be ready.
- * @returns The current cluster.
- */
-export function isService(obj: any): obj is V1Service {
-    return obj && obj.kind === 'Service';
-}
-
-/**
- * Wait for the Kubernetes cluster to be ready.
- *
- * @param seconds The number of seconds to wait for the cluster to be ready.
- * @returns The current cluster.
- */
-export function isStatefulSet(obj: any): obj is V1StatefulSet {
-    return obj && obj.kind === 'StatefulSet';
+export function selectorKind(kind: string): boolean {
+  let hasSelector: boolean = false;
+  switch (kind) {
+    case "Pod":
+      hasSelector = true;
+      break;
+    case "DaemonSet":
+      hasSelector = true;
+      break;
+    case "ReplicaSet":
+      hasSelector = true;
+      break;
+    case "Service":
+      hasSelector = true;
+      break;
+    case "StatefulSet":
+      hasSelector = true;
+      break;
+    case "Deployment":
+      hasSelector = true;
+      break;
+  }
+  return hasSelector;
 }
