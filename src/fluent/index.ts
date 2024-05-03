@@ -94,7 +94,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
    * @see {@link K8sInit.Logs}
    */
   async function Logs(name?: string): Promise<string> {
-    let labels: Record<string, string> ={};
+    let labels: Record<string, string> = {};
     const { kind } = matchedKind;
     const { namespace } = filters;
     const podList: K[] = [];
@@ -115,7 +115,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
 
     try {
       const object = await k8sExec<T, K>(model, filters, "GET");
-    
+
       if (kind !== "Pod") {
         if (kind === "Service") {
           // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -126,8 +126,8 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
           // @ts-ignore
           labels = object.spec.selector.matchLabels;
         }
-        
-        const list = await K8s(Pod,{namespace:filters.namespace,labels}).Get()
+
+        const list = await K8s(Pod, { namespace: filters.namespace, labels }).Get();
 
         list.items.forEach(item => {
           return podList.push(item as unknown as K);
@@ -139,20 +139,23 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
       throw new Error(e);
     }
 
-
-    const podModel = {...model, name: "V1Pod"}
+    const podModel = { ...model, name: "V1Pod" };
     const logPromises = podList.map(po =>
       k8sExec<T, string>(podModel, { ...filters, name: po.metadata!.name! }, "LOG"),
     );
 
     const responses = await Promise.all(logPromises);
     const combinedString = responses.reduce((accumulator, currentString, i) => {
-      const prefixedLines = currentString.split('\n').map(line => {
-        if(line !== "") return `${podList[i].metadata!.name!} ${line}`}).join('\n');
-      return accumulator + prefixedLines + '\n'; 
-  }, '');
-  
-    return combinedString
+      const prefixedLines = currentString
+        .split("\n")
+        .map(line => {
+          if (line !== "") return `${podList[i].metadata!.name!} ${line}`;
+        })
+        .join("\n");
+      return accumulator + prefixedLines + "\n";
+    }, "");
+
+    return combinedString;
   }
   async function Get(): Promise<KubernetesListObject<K>>;
   async function Get(name: string): Promise<K>;

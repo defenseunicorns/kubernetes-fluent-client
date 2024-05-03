@@ -138,7 +138,6 @@ export async function k8sExec<T extends GenericClass, K>(
   payload?: K | unknown,
   applyCfg: ApplyCfg = { force: false },
 ) {
-
   const reconstruct = async (method: FetchMethods) => {
     const configMethod = method === "LOG" ? "GET" : method;
     const { opts, serverUrl } = await k8sCfg(configMethod);
@@ -149,9 +148,9 @@ export async function k8sExec<T extends GenericClass, K>(
     }
     return {
       url: baseUrl,
-      opts
-    }
-  }
+      opts,
+    };
+  };
 
   const { opts, url } = await reconstruct(method);
 
@@ -176,7 +175,6 @@ export async function k8sExec<T extends GenericClass, K>(
       url.searchParams.set("force", applyCfg.force ? "true" : "false");
       break;
   }
-
 
   if (payload) {
     opts.body = JSON.stringify(payload);
