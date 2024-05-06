@@ -53,7 +53,7 @@ async function demo() {
   });
 
   // Get logs from a Deployment named "nginx" in the namespace
-  const logs = await K8s(kind.Deployment).InNamespace(namespace).Logs("nginx")
+  const logs = await K8s(kind.Deployment).InNamespace(namespace).Logs("nginx");
   console.log(logs);
 }
 
@@ -97,5 +97,4 @@ Promise.all([
   .catch(err => {
     console.error(err);
   });
-
 ```
