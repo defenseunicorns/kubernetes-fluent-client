@@ -12,7 +12,8 @@ import { GenericClass } from "../types";
 import { ApplyCfg, FetchMethods, Filters, K8sInit, Paths, WatchAction } from "./types";
 import { k8sCfg, k8sExec } from "./utils";
 import { WatchCfg, Watcher } from "./watch";
-
+import { hasLogs } from "../helpers";
+import { Pod, Service, ReplicaSet } from "../upstream";
 /**
  * Kubernetes fluent API inspired by Kubectl. Pass in a model, then call filters and actions on it.
  *
@@ -24,7 +25,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
   model: T,
   filters: Filters = {},
 ): K8sInit<T, K> {
-  const withFilters = { WithField, WithLabel, Get, Delete, Watch };
+  const withFilters = { WithField, WithLabel, Get, Delete, Watch, Logs };
   const matchedKind = filters.kindOverride || modelToGroupVersionKind(model.name);
 
   /**
@@ -87,7 +88,83 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
       payload.kind = matchedKind.kind;
     }
   }
+  async function Logs(name?: string): Promise<string[]>;
+  /**
+   * @inheritdoc
+   * @see {@link K8sInit.Logs}
+   */
+  async function Logs(name?: string): Promise<string[]> {
+    let labels: Record<string, string> = {};
+    const { kind } = matchedKind;
+    const { namespace } = filters;
+    const podList: K[] = [];
 
+    if (name) {
+      if (filters.name) {
+        throw new Error(`Name already specified: ${filters.name}`);
+      }
+      filters.name = name;
+    }
+
+    if (!namespace) {
+      throw new Error("Namespace must be defined");
+    }
+    if (!hasLogs(kind)) {
+      throw new Error("Kind must be Pod or have a selector");
+    }
+
+    try {
+      const object = await k8sExec<T, K>(model, filters, "GET");
+
+      if (kind !== "Pod") {
+        if (kind === "Service") {
+          const svc: InstanceType<typeof Service> = object;
+          labels = svc.spec!.selector ?? {};
+        } else if (
+          kind === "ReplicaSet" ||
+          kind === "Deployment" ||
+          kind === "StatefulSet" ||
+          kind === "DaemonSet"
+        ) {
+          const rs: InstanceType<typeof ReplicaSet> = object;
+          labels = rs.spec!.selector.matchLabels ?? {};
+        }
+
+        const list = await K8s(Pod, { namespace: filters.namespace, labels }).Get();
+
+        list.items.forEach(item => {
+          return podList.push(item as unknown as K);
+        });
+      } else {
+        podList.push(object);
+      }
+    } catch (e) {
+      throw new Error(e);
+    }
+
+    const podModel = { ...model, name: "V1Pod" };
+    const logPromises = podList.map(po =>
+      k8sExec<T, string>(podModel, { ...filters, name: po.metadata!.name! }, "LOG"),
+    );
+
+    const responses = await Promise.all(logPromises);
+
+    const combinedString = responses.reduce(
+      (accumulator: string[], currentString: string, i: number) => {
+        const prefixedLines = currentString
+          .split("\n")
+          .map(line => {
+            return line !== "" ? `[pod/${podList[i].metadata!.name!}] ${line}` : "";
+          })
+          .filter(str => str !== "");
+
+        return [...accumulator, ...prefixedLines];
+      },
+      [],
+    );
+
+    return combinedString;
+  }
   async function Get(): Promise<KubernetesListObject<K>>;
   async function Get(name: string): Promise<K>;
   /**

@@ -27,7 +27,8 @@ export type FetchMethods =
   | "DELETE"
   | "PATCH"
   | "WATCH"
-  | "PATCH_STATUS";
+  | "PATCH_STATUS"
+  | "LOG";
 
 export interface Filters {
   kindOverride?: GroupVersionKind;

@@ -80,3 +80,34 @@ export async function waitForCluster(seconds = 30): Promise<Cluster> {
 
   return cluster;
 }
+
+/**
+ * Determines if object has logs.
+ *
+ * @param kind The kind of Kubernetes object.
+ * @returns boolean.
+ */
+export function hasLogs(kind: string): boolean {
+  let hasSelector: boolean = false;
+  switch (kind) {
+    case "Pod":
+      hasSelector = true;
+      break;
+    case "DaemonSet":
+      hasSelector = true;
+      break;
+    case "ReplicaSet":
+      hasSelector = true;
+      break;
+    case "Service":
+      hasSelector = true;
+      break;
+    case "StatefulSet":
+      hasSelector = true;
+      break;
+    case "Deployment":
+      hasSelector = true;
+      break;
+  }
+  return hasSelector;
+}

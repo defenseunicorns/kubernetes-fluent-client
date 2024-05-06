@@ -138,8 +138,21 @@ export async function k8sExec<T extends GenericClass, K>(
   payload?: K | unknown,
   applyCfg: ApplyCfg = { force: false },
 ) {
-  const { opts, serverUrl } = await k8sCfg(method);
-  const url = pathBuilder(serverUrl, model, filters, method === "POST");
+  const reconstruct = async (method: FetchMethods) => {
+    const configMethod = method === "LOG" ? "GET" : method;
+    const { opts, serverUrl } = await k8sCfg(configMethod);
+    const isPost = method === "POST";
+    const baseUrl = pathBuilder(serverUrl, model, filters, isPost);
+    if (method === "LOG") {
+      baseUrl.pathname = `${baseUrl.pathname}/log`;
+    }
+    return {
+      url: baseUrl,
+      opts,
+    };
+  };
+
+  const { opts, url } = await reconstruct(method);
 
   switch (opts.method) {
     // PATCH_STATUS is a special case that uses the PATCH method on status subresources
