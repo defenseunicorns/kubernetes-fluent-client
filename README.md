@@ -51,6 +51,10 @@ async function demo() {
   runningPods.items.forEach(pod => {
     console.log(`${pod.metadata?.namespace}/${pod.metadata?.name} is running`);
   });
+
+  // Get logs from a Deployment named "nginx" in the namespace
+  const logs = await K8s(kind.Deployment).InNamespace(namespace).Logs("nginx")
+  console.log(logs);
 }
 
 // Create a few resources to work with: Namespace, ConfigMap, and Pod
@@ -93,4 +97,5 @@ Promise.all([
   .catch(err => {
     console.error(err);
   });
+
 ```
