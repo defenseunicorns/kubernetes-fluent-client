@@ -149,7 +149,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
       const prefixedLines = currentString
         .split("\n")
         .map(line => {
-          if (line !== "") return `${podList[i].metadata!.name!} ${line}`;
+          if (line !== "") return `[pod/${podList[i].metadata!.name!}] ${line}`;
         })
         .join("\n");
       return accumulator + prefixedLines + "\n";

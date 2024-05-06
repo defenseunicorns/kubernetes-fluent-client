@@ -3,7 +3,7 @@
 
 import { describe, expect, it, test } from "@jest/globals";
 
-import { fromEnv, waitForCluster } from "./helpers";
+import { fromEnv, selectorKind, waitForCluster } from "./helpers";
 
 describe("helpers", () => {
   test("fromEnv for NodeJS", () => {
@@ -21,5 +21,22 @@ describe("Cluster Wait Function", () => {
   it("should resolve if the cluster is already ready", async () => {
     const cluster = await waitForCluster(5);
     expect(cluster).toEqual({ server: "http://jest-test:8080" });
+  });
+});
+
+describe("selectorKind function", () => {
+  it("should return true for known kinds", () => {
+    expect(selectorKind("Pod")).toBe(true);
+    expect(selectorKind("DaemonSet")).toBe(true);
+    expect(selectorKind("ReplicaSet")).toBe(true);
+    expect(selectorKind("Service")).toBe(true);
+    expect(selectorKind("StatefulSet")).toBe(true);
+    expect(selectorKind("Deployment")).toBe(true);
+  });
+
+  it("should return false for unknown kinds", () => {
+    expect(selectorKind("Unknown")).toBe(false);
+    expect(selectorKind("")).toBe(false);
+    expect(selectorKind("RandomKind")).toBe(false);
   });
 });
