@@ -3,7 +3,7 @@
 
 import { describe, expect, it, test } from "@jest/globals";
 
-import { fromEnv, selectorKind, waitForCluster } from "./helpers";
+import { fromEnv, hasLogs, waitForCluster } from "./helpers";
 
 describe("helpers", () => {
   test("fromEnv for NodeJS", () => {
@@ -24,19 +24,19 @@ describe("Cluster Wait Function", () => {
   });
 });
 
-describe("selectorKind function", () => {
+describe("hasLogs function", () => {
   it("should return true for known kinds", () => {
-    expect(selectorKind("Pod")).toBe(true);
-    expect(selectorKind("DaemonSet")).toBe(true);
-    expect(selectorKind("ReplicaSet")).toBe(true);
-    expect(selectorKind("Service")).toBe(true);
-    expect(selectorKind("StatefulSet")).toBe(true);
-    expect(selectorKind("Deployment")).toBe(true);
+    expect(hasLogs("Pod")).toBe(true);
+    expect(hasLogs("DaemonSet")).toBe(true);
+    expect(hasLogs("ReplicaSet")).toBe(true);
+    expect(hasLogs("Service")).toBe(true);
+    expect(hasLogs("StatefulSet")).toBe(true);
+    expect(hasLogs("Deployment")).toBe(true);
   });
 
   it("should return false for unknown kinds", () => {
-    expect(selectorKind("Unknown")).toBe(false);
-    expect(selectorKind("")).toBe(false);
-    expect(selectorKind("RandomKind")).toBe(false);
+    expect(hasLogs("Unknown")).toBe(false);
+    expect(hasLogs("")).toBe(false);
+    expect(hasLogs("RandomKind")).toBe(false);
   });
 });

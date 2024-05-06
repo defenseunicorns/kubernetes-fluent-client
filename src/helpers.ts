@@ -82,12 +82,12 @@ export async function waitForCluster(seconds = 30): Promise<Cluster> {
 }
 
 /**
- * Determines if object has a selector.
+ * Determines if object has logs.
  *
  * @param kind The kind of Kubernetes object.
  * @returns boolean.
  */
-export function selectorKind(kind: string): boolean {
+export function hasLogs(kind: string): boolean {
   let hasSelector: boolean = false;
   switch (kind) {
     case "Pod":
