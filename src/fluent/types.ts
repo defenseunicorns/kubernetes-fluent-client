@@ -53,6 +53,13 @@ export type GetFunction<K extends KubernetesObject> = {
 
 export type K8sFilteredActions<T extends GenericClass, K extends KubernetesObject> = {
   /**
+   * Gets the logs.
+   *
+   * @param name - the name of the Object to get logs from
+   * @returns array of logs
+   */
+  Logs: (name: string) => Promise<string[]>;
+  /**
    * Get the resource or resources matching the filters.
    * If no filters are specified, all resources will be returned.
    * If a name is specified, only a single resource will be returned.
