@@ -111,6 +111,7 @@ async function convertCRDtoTS(
       processedLines.push(`  group: "${crd.spec.group}",`);
       processedLines.push(`  version: "${version}",`);
       processedLines.push(`  kind: "${name}",`);
+      processedLines.push(`  plural: "${crd.spec.names.plural}",`);
       processedLines.push(`});`);
     }
 
