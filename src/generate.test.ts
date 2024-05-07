@@ -152,6 +152,7 @@ describe("CRD Generate", () => {
       '  group: "example.com",',
       '  version: "v1",',
       '  kind: "Movie",',
+      '  plural: "movies",',
       "});",
     ];
     const expectedBookV1 = [
@@ -173,6 +174,7 @@ describe("CRD Generate", () => {
       '  group: "example.com",',
       '  version: "v1",',
       '  kind: "Book",',
+      '  plural: "books",',
       "});",
     ];
     const expectedBookV2 = expectedBookV1
@@ -252,6 +254,7 @@ describe("CRD Generate", () => {
       '  group: "example.com",',
       '  version: "v1",',
       '  kind: "Movie",',
+      '  plural: "movies",',
       "});",
     ];
     const expectedBookV1 = [
@@ -273,6 +276,7 @@ describe("CRD Generate", () => {
       '  group: "example.com",',
       '  version: "v1",',
       '  kind: "Book",',
+      '  plural: "books",',
       "});",
     ];
     const expectedBookV2 = expectedBookV1
@@ -311,6 +315,7 @@ describe("CRD Generate", () => {
       '  group: "example.com",',
       '  version: "v1",',
       '  kind: "Movie",',
+      '  plural: "movies",',
       "});",
     ];
     const expectedBookV1 = [
@@ -332,6 +337,7 @@ describe("CRD Generate", () => {
       '  group: "example.com",',
       '  version: "v1",',
       '  kind: "Book",',
+      '  plural: "books",',
       "});",
     ];
     const expectedBookV2 = expectedBookV1
