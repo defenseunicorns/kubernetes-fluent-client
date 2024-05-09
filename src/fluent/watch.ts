@@ -230,7 +230,7 @@ export class Watcher<T extends GenericClass> {
 
       // If the request is successful, start listening for events
       if (response.ok) {
-        this.#events.emit(WatchEvent.CONNECT);
+        this.#events.emit(WatchEvent.CONNECT, url.pathname);
 
         const { body } = response;
 
@@ -277,7 +277,6 @@ export class Watcher<T extends GenericClass> {
               void this.#errHandler(err);
               return;
             }
-
             this.#events.emit(WatchEvent.DATA_ERROR, err);
           }
         });
@@ -343,7 +342,7 @@ export class Watcher<T extends GenericClass> {
       }
 
       this.#retryCount++;
-      this.#events.emit(WatchEvent.RECONNECT, err, this.#retryCount);
+      this.#events.emit(WatchEvent.RECONNECT, this.#retryCount);
 
       if (this.#pendingReconnect) {
         // wait for the connection to be re-established
