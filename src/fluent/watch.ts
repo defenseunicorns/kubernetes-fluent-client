@@ -230,9 +230,7 @@ export class Watcher<T extends GenericClass> {
 
       // If the request is successful, start listening for events
       if (response.ok) {
-        console.log("CONNECTION ESTABLISHED" + url.pathname);
         this.#events.emit(WatchEvent.CONNECT, url.pathname);
-        
 
         const { body } = response;
 
@@ -262,7 +260,6 @@ export class Watcher<T extends GenericClass> {
             if (phase === WatchPhase.Bookmark) {
               this.#events.emit(WatchEvent.BOOKMARK, payload);
             } else {
-              console.log(payload, "DATA EVENT!!");
               this.#events.emit(WatchEvent.DATA, payload, phase);
 
               // Call the callback function with the parsed payload
@@ -280,7 +277,6 @@ export class Watcher<T extends GenericClass> {
               void this.#errHandler(err);
               return;
             }
-            console.log(err, "RECONNECT EVENT!!");
             this.#events.emit(WatchEvent.DATA_ERROR, err);
           }
         });
@@ -346,12 +342,10 @@ export class Watcher<T extends GenericClass> {
       }
 
       this.#retryCount++;
-      console.log("RECONNECT EVENT!!", this.#retryCount);
       this.#events.emit(WatchEvent.RECONNECT, err, this.#retryCount);
 
       if (this.#pendingReconnect) {
         // wait for the connection to be re-established
-        console.log(err, "RECONNECT EVENT!!");
         this.#events.emit(WatchEvent.RECONNECT_PENDING);
       } else {
         this.#pendingReconnect = true;
@@ -362,7 +356,6 @@ export class Watcher<T extends GenericClass> {
       }
     } else {
       // Otherwise, call the finally function if it exists
-      console.log(err, "GIVEUP EVENT!!");
       this.#events.emit(WatchEvent.GIVE_UP, err);
       this.close();
     }
@@ -382,19 +375,16 @@ export class Watcher<T extends GenericClass> {
         return;
 
       case "TooOld":
-        console.log(err, "TOO OLD EVENT!!");
         // Purge the resource version if it is too old
         this.#setResourceVersion(undefined);
         this.#events.emit(WatchEvent.OLD_RESOURCE_VERSION, err.message);
         break;
 
       case "Resync":
-        console.log(err, "RESYNC EVENT!!");
         this.#events.emit(WatchEvent.RESYNC, err);
         break;
 
       default:
-        console.log(err, "NETWORK ERROR EVENT!!");
         this.#events.emit(WatchEvent.NETWORK_ERROR, err);
         break;
     }
