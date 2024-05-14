@@ -4,6 +4,7 @@
 import byline from "byline";
 import { createHash } from "crypto";
 import { EventEmitter } from "events";
+import { Agent } from "https";
 import fetch from "node-fetch";
 
 import { GenericClass } from "../types";
@@ -23,7 +24,7 @@ export enum WatchEvent {
   GIVE_UP = "give_up",
   /** Abort is called */
   ABORT = "abort",
-  /** Resync is called */
+  /** @deprecated */
   RESYNC = "resync",
   /** Data is received and decoded */
   DATA = "data",
@@ -101,7 +102,7 @@ export class Watcher<T extends GenericClass> {
     watchCfg.retryDelaySec ??= 10;
 
     // Set the resync interval to 5 minutes if not specified
-    watchCfg.resyncIntervalSec ??= 30;
+    watchCfg.resyncIntervalSec ??= 300;
 
     // Set the last seen limit to the resync interval
     this.#lastSeenLimit = watchCfg.resyncIntervalSec * 1000;
@@ -214,6 +215,19 @@ export class Watcher<T extends GenericClass> {
 
     // Add the abort signal to the request options
     opts.signal = this.#abortController.signal;
+
+    // Extract the agent options from the fetch options
+    const { ca, cert, key } = (opts.agent as Agent).options;
+
+    // Create a new agent with keep-alive and the TLS options
+    opts.agent = new Agent({
+      keepAlive: true,
+      keepAliveMsecs: 30 * 1000,
+      timeout: 30 * 1000,
+      ca,
+      cert,
+      key,
+    });
 
     return { opts, url };
   };
