@@ -4,7 +4,6 @@
 import byline from "byline";
 import { createHash } from "crypto";
 import { EventEmitter } from "events";
-import { Agent } from "https";
 import fetch from "node-fetch";
 
 import { GenericClass } from "../types";
