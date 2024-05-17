@@ -216,19 +216,6 @@ export class Watcher<T extends GenericClass> {
     // Add the abort signal to the request options
     opts.signal = this.#abortController.signal;
 
-    // Extract the agent options from the fetch options
-    const { ca, cert, key } = (opts.agent as Agent).options;
-
-    // Create a new agent with keep-alive and the TLS options
-    opts.agent = new Agent({
-      keepAlive: true,
-      keepAliveMsecs: 30 * 1000,
-      timeout: 30 * 1000,
-      ca,
-      cert,
-      key,
-    });
-
     return { opts, url };
   };
 
