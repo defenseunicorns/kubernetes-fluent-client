@@ -45,7 +45,7 @@ export type WatchCfg = {
   resourceVersion?: string;
   /** The maximum number of times to retry the watch, the retry count is reset on success. Unlimited retries if not specified. */
   retryMax?: number;
-  /** The delay between retries in seconds. Defaults to 10 seconds. */
+  /** Seconds between each retry check. Defaults to 5. */
   retryDelaySec?: number;
   /** Amount of seconds to wait before a forced-resyncing of the watch list. Defaults to 300 (5 minutes). */
   resyncIntervalSec?: number;
@@ -97,8 +97,8 @@ export class Watcher<T extends GenericClass> {
    * @param watchCfg - (optional) watch configuration
    */
   constructor(model: T, filters: Filters, callback: WatchAction<T>, watchCfg: WatchCfg = {}) {
-    // Set the retry delay to 10 seconds if not specified
-    watchCfg.retryDelaySec ??= 10;
+    // Set the retry delay to 5 seconds if not specified
+    watchCfg.retryDelaySec ??= 5;
 
     // Set the resync interval to 5 minutes if not specified
     watchCfg.resyncIntervalSec ??= 300;
@@ -107,7 +107,7 @@ export class Watcher<T extends GenericClass> {
     this.#lastSeenLimit = watchCfg.resyncIntervalSec * 1000;
 
     // Check every 5 seconds for resync
-    this.#resyncTimer = setInterval(this.#checkResync, 5000);
+    this.#resyncTimer = setInterval(this.#checkResync, watchCfg.retryDelaySec * 1000);
 
     // Bind class properties
     this.#model = model;
@@ -132,7 +132,7 @@ export class Watcher<T extends GenericClass> {
   /** Close the watch. Also available on the AbortController returned by {@link Watcher.start}. */
   public close() {
     clearInterval(this.#resyncTimer);
-    this.#cleanup();
+    this.#streamCleanup();
     this.#abortController.abort();
   }
 
@@ -229,8 +229,8 @@ export class Watcher<T extends GenericClass> {
 
       // Bind the stream events
       this.#stream.on("error", this.#errHandler);
-      this.#stream.on("close", this.#cleanup);
-      this.#stream.on("finish", this.#cleanup);
+      this.#stream.on("close", this.#streamCleanup);
+      this.#stream.on("finish", this.#streamCleanup);
 
       // Make the actual request
       const response = await fetch(url, { ...opts });
@@ -294,8 +294,8 @@ export class Watcher<T extends GenericClass> {
 
         // Bind the body events
         body.on("error", this.#errHandler);
-        body.on("close", this.#cleanup);
-        body.on("finish", this.#cleanup);
+        body.on("close", this.#streamCleanup);
+        body.on("finish", this.#streamCleanup);
 
         // Pipe the response body to the stream
         body.pipe(this.#stream);
@@ -342,13 +342,16 @@ export class Watcher<T extends GenericClass> {
         } else {
           this.#pendingReconnect = true;
           this.#events.emit(WatchEvent.RECONNECT, this.#retryCount);
-          this.#cleanup();
+          this.#streamCleanup();
 
           void this.#runner();
         }
       } else {
         // Otherwise, call the finally function if it exists
-        this.#events.emit(WatchEvent.GIVE_UP);
+        this.#events.emit(
+          WatchEvent.GIVE_UP,
+          new Error(`Retry limit (${this.#watchCfg.retryMax}) exceeded, giving up`),
+        );
         this.close();
       }
     }
@@ -363,7 +366,7 @@ export class Watcher<T extends GenericClass> {
     switch (err.name) {
       case "AbortError":
         clearInterval(this.#resyncTimer);
-        this.#cleanup();
+        this.#streamCleanup();
         this.#events.emit(WatchEvent.ABORT, err);
         return;
 
@@ -383,7 +386,7 @@ export class Watcher<T extends GenericClass> {
   };
 
   /** Cleanup the stream and listeners. */
-  #cleanup = () => {
+  #streamCleanup = () => {
     if (this.#stream) {
       this.#stream.removeAllListeners();
       this.#stream.destroy();
