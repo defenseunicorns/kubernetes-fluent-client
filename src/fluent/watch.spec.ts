@@ -225,7 +225,7 @@ describe("Watcher", () => {
       .replyWithError("Something bad happened");
 
     watcher = K8s(kind.Pod).Watch(evtMock, {
-      retryDelaySec: .01,
+      retryDelaySec: 0.01,
     });
 
     setupAndStartWatcher(WatchEvent.RECONNECT, count => {
@@ -236,8 +236,8 @@ describe("Watcher", () => {
 
   it("should perform a resync after the resync interval", done => {
     watcher = K8s(kind.Pod).Watch(evtMock, {
-      retryDelaySec: .01,
-      resyncIntervalSec: .01,
+      retryDelaySec: 0.01,
+      resyncIntervalSec: 0.01,
     });
 
     setupAndStartWatcher(WatchEvent.RECONNECT, count => {
@@ -255,7 +255,7 @@ describe("Watcher", () => {
 
     watcher = K8s(kind.Pod).Watch(evtMock, {
       retryMax: 1,
-      retryDelaySec: .01,
+      retryDelaySec: 0.01,
       resyncIntervalSec: 1,
     });
 
