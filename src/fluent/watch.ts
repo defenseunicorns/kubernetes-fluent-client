@@ -39,7 +39,7 @@ export enum WatchEvent {
 
 /** Configuration for the watch function. */
 export type WatchCfg = {
-  /** Whether to allow watch bookmarks. */
+  /** Whether to use bookmarks with the watch. */
   allowWatchBookmarks?: boolean;
   /** The resource version to start the watch at, this will be updated on each event. */
   resourceVersion?: string;
@@ -102,6 +102,9 @@ export class Watcher<T extends GenericClass> {
 
     // Set the resync interval to 5 minutes if not specified
     watchCfg.resyncIntervalSec ??= 300;
+
+    // Enable bookmarks by default
+    watchCfg.allowWatchBookmarks ??= true;
 
     // Set the last seen limit to the resync interval
     this.#lastSeenLimit = watchCfg.resyncIntervalSec * 1000;
@@ -207,10 +210,9 @@ export class Watcher<T extends GenericClass> {
     }
 
     // Enable watch bookmarks
-    url.searchParams.set(
-      "allowWatchBookmarks",
-      this.#watchCfg.allowWatchBookmarks ? `${this.#watchCfg.allowWatchBookmarks}` : "true",
-    );
+    if (this.#watchCfg.allowWatchBookmarks) {
+      url.searchParams.set("allowWatchBookmarks", "true");
+    }
 
     // Add the abort signal to the request options
     opts.signal = this.#abortController.signal;
