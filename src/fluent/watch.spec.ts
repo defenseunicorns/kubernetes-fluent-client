@@ -22,9 +22,6 @@ describe("Watcher", () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
-    watcher = K8s(kind.Pod).Watch(evtMock, {
-      retryDelaySec: 1,
-    });
 
     nock("http://jest-test:8080")
       .get("/api/v1/pods")
@@ -133,6 +130,9 @@ describe("Watcher", () => {
   });
 
   it("should return the cache id", () => {
+    watcher = K8s(kind.Pod).Watch(evtMock, {
+      retryDelaySec: 1,
+    });
     expect(watcher.getCacheID()).toEqual("d69b75a611");
   });
 
@@ -147,8 +147,10 @@ describe("Watcher", () => {
       })
       .reply(200);
 
-    // Update the resource version, could be combined with getCacheID to store the value
-    watcher.resourceVersion = "35";
+    watcher = K8s(kind.Pod).Watch(evtMock, {
+      retryDelaySec: 1,
+      resourceVersion: "35",
+    });
 
     setupAndStartWatcher(WatchEvent.CONNECT, () => {
       done();
@@ -156,12 +158,18 @@ describe("Watcher", () => {
   });
 
   it("should handle the CONNECT event", done => {
+    watcher = K8s(kind.Pod).Watch(evtMock, {
+      retryDelaySec: 1,
+    });
     setupAndStartWatcher(WatchEvent.CONNECT, () => {
       done();
     });
   });
 
   it("should handle the DATA event", done => {
+    watcher = K8s(kind.Pod).Watch(evtMock, {
+      retryDelaySec: 1,
+    });
     setupAndStartWatcher(WatchEvent.DATA, (pod, phase) => {
       expect(pod.metadata?.name).toEqual(`pod-0`);
       expect(phase).toEqual(WatchPhase.Added);
@@ -170,6 +178,9 @@ describe("Watcher", () => {
   });
 
   it("should handle the BOOKMARK event", done => {
+    watcher = K8s(kind.Pod).Watch(evtMock, {
+      retryDelaySec: 1,
+    });
     setupAndStartWatcher(WatchEvent.BOOKMARK, bookmark => {
       expect(bookmark.metadata?.resourceVersion).toEqual("1");
       done();
@@ -183,6 +194,10 @@ describe("Watcher", () => {
       .query({ watch: "true", allowWatchBookmarks: "true" })
       .replyWithError("Something bad happened");
 
+    watcher = K8s(kind.Pod).Watch(evtMock, {
+      retryDelaySec: 1,
+    });
+
     setupAndStartWatcher(WatchEvent.NETWORK_ERROR, error => {
       expect(error.message).toEqual(
         "request to http://jest-test:8080/api/v1/pods?watch=true&allowWatchBookmarks=true failed, reason: Something bad happened",
@@ -192,6 +207,9 @@ describe("Watcher", () => {
   });
 
   it("should handle the RESOURCE_VERSION event", done => {
+    watcher = K8s(kind.Pod).Watch(evtMock, {
+      retryDelaySec: 1,
+    });
     setupAndStartWatcher(WatchEvent.RESOURCE_VERSION, resourceVersion => {
       expect(watcher.resourceVersion).toEqual("2");
       expect(resourceVersion).toEqual("2");
@@ -199,46 +217,50 @@ describe("Watcher", () => {
     });
   });
 
-  it("should handle the RECONNECT event", done => {
+  it("should handle the RECONNECT event on an error", done => {
     nock.cleanAll();
     nock("http://jest-test:8080")
       .get("/api/v1/pods")
       .query({ watch: "true", allowWatchBookmarks: "true" })
       .replyWithError("Something bad happened");
 
-    setupAndStartWatcher(WatchEvent.RECONNECT, error => {
-      expect(error.message).toEqual(
-        "request to http://jest-test:8080/api/v1/pods?watch=true&allowWatchBookmarks=true failed, reason: Something bad happened",
-      );
+    watcher = K8s(kind.Pod).Watch(evtMock, {
+      retryDelaySec: 0.01,
+    });
+
+    setupAndStartWatcher(WatchEvent.RECONNECT, count => {
+      expect(count).toEqual(1);
       done();
     });
   });
 
   it("should perform a resync after the resync interval", done => {
     watcher = K8s(kind.Pod).Watch(evtMock, {
-      resyncIntervalSec: 1,
+      retryDelaySec: 0.01,
+      resyncIntervalSec: 0.01,
     });
 
-    setupAndStartWatcher(WatchEvent.RESYNC, err => {
-      expect(err.name).toEqual("Resync");
-      expect(err.message).toEqual("Resync triggered by resyncIntervalSec");
+    setupAndStartWatcher(WatchEvent.RECONNECT, count => {
+      expect(count).toEqual(1);
       done();
     });
   });
 
   it("should handle the GIVE_UP event", done => {
     nock.cleanAll();
-    nock("http://jest-test:8080");
+    nock("http://jest-test:8080")
+      .get("/api/v1/pods")
+      .query({ watch: "true", allowWatchBookmarks: "true" })
+      .replyWithError("Something bad happened");
 
     watcher = K8s(kind.Pod).Watch(evtMock, {
       retryMax: 1,
-      retryDelaySec: 1,
+      retryDelaySec: 0.01,
+      resyncIntervalSec: 1,
     });
 
     setupAndStartWatcher(WatchEvent.GIVE_UP, error => {
-      expect(error.message).toContain(
-        "request to http://jest-test:8080/api/v1/pods?watch=true&allowWatchBookmarks=true failed",
-      );
+      expect(error.message).toContain("Retry limit (1) exceeded, giving up");
       done();
     });
   });

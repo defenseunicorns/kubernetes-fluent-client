@@ -23,7 +23,7 @@ export enum WatchEvent {
   GIVE_UP = "give_up",
   /** Abort is called */
   ABORT = "abort",
-  /** Resync is called */
+  /** @deprecated */
   RESYNC = "resync",
   /** Data is received and decoded */
   DATA = "data",
@@ -39,17 +39,20 @@ export enum WatchEvent {
 
 /** Configuration for the watch function. */
 export type WatchCfg = {
-  /** Whether to allow watch bookmarks. */
+  /** Whether to use bookmarks with the watch. */
   allowWatchBookmarks?: boolean;
   /** The resource version to start the watch at, this will be updated on each event. */
   resourceVersion?: string;
   /** The maximum number of times to retry the watch, the retry count is reset on success. Unlimited retries if not specified. */
   retryMax?: number;
-  /** The delay between retries in seconds. Defaults to 10 seconds. */
+  /** Seconds between each retry check. Defaults to 5. */
   retryDelaySec?: number;
   /** Amount of seconds to wait before a forced-resyncing of the watch list. Defaults to 300 (5 minutes). */
   resyncIntervalSec?: number;
 };
+
+const NONE = 50;
+const OVERRIDE = 100;
 
 /** A wrapper around the Kubernetes watch API. */
 export class Watcher<T extends GenericClass> {
@@ -58,6 +61,10 @@ export class Watcher<T extends GenericClass> {
   #filters: Filters;
   #callback: WatchAction<T>;
   #watchCfg: WatchCfg;
+
+  // Track the last time data was received
+  #lastSeenTime = NONE;
+  #lastSeenLimit: number;
 
   // Create a wrapped AbortController to allow the watch to be aborted externally
   #abortController: AbortController;
@@ -90,11 +97,20 @@ export class Watcher<T extends GenericClass> {
    * @param watchCfg - (optional) watch configuration
    */
   constructor(model: T, filters: Filters, callback: WatchAction<T>, watchCfg: WatchCfg = {}) {
-    // Set the retry delay to 10 seconds if not specified
-    watchCfg.retryDelaySec ??= 10;
+    // Set the retry delay to 5 seconds if not specified
+    watchCfg.retryDelaySec ??= 5;
 
     // Set the resync interval to 5 minutes if not specified
     watchCfg.resyncIntervalSec ??= 300;
+
+    // Enable bookmarks by default
+    watchCfg.allowWatchBookmarks ??= true;
+
+    // Set the last seen limit to the resync interval
+    this.#lastSeenLimit = watchCfg.resyncIntervalSec * 1000;
+
+    // Check every 5 seconds for resync
+    this.#resyncTimer = setInterval(this.#checkResync, watchCfg.retryDelaySec * 1000);
 
     // Bind class properties
     this.#model = model;
@@ -118,8 +134,8 @@ export class Watcher<T extends GenericClass> {
 
   /** Close the watch. Also available on the AbortController returned by {@link Watcher.start}. */
   public close() {
-    clearTimeout(this.#resyncTimer);
-    this.#cleanup();
+    clearInterval(this.#resyncTimer);
+    this.#streamCleanup();
     this.#abortController.abort();
   }
 
@@ -194,10 +210,9 @@ export class Watcher<T extends GenericClass> {
     }
 
     // Enable watch bookmarks
-    url.searchParams.set(
-      "allowWatchBookmarks",
-      this.#watchCfg.allowWatchBookmarks ? `${this.#watchCfg.allowWatchBookmarks}` : "true",
-    );
+    if (this.#watchCfg.allowWatchBookmarks) {
+      url.searchParams.set("allowWatchBookmarks", "true");
+    }
 
     // Add the abort signal to the request options
     opts.signal = this.#abortController.signal;
@@ -216,17 +231,14 @@ export class Watcher<T extends GenericClass> {
 
       // Bind the stream events
       this.#stream.on("error", this.#errHandler);
-      this.#stream.on("close", this.#cleanup);
-      this.#stream.on("finish", this.#cleanup);
+      this.#stream.on("close", this.#streamCleanup);
+      this.#stream.on("finish", this.#streamCleanup);
 
       // Make the actual request
       const response = await fetch(url, { ...opts });
 
       // Reset the pending reconnect flag
       this.#pendingReconnect = false;
-
-      // Reset the resync timer
-      void this.#scheduleResync();
 
       // If the request is successful, start listening for events
       if (response.ok) {
@@ -246,7 +258,8 @@ export class Watcher<T extends GenericClass> {
               object: InstanceType<T>;
             };
 
-            void this.#scheduleResync();
+            // Update the last seen time
+            this.#lastSeenTime = Date.now();
 
             // If the watch is too old, remove the resourceVersion and reload the watch
             if (phase === WatchPhase.Error && payload.code === 410) {
@@ -283,8 +296,8 @@ export class Watcher<T extends GenericClass> {
 
         // Bind the body events
         body.on("error", this.#errHandler);
-        body.on("close", this.#cleanup);
-        body.on("finish", this.#cleanup);
+        body.on("close", this.#streamCleanup);
+        body.on("finish", this.#streamCleanup);
 
         // Pipe the response body to the stream
         body.pipe(this.#stream);
@@ -297,23 +310,6 @@ export class Watcher<T extends GenericClass> {
   };
 
   /**
-   * Resync the watch.
-   *
-   * @returns the error handler
-   */
-  #resync = () =>
-    this.#errHandler({
-      name: "Resync",
-      message: "Resync triggered by resyncIntervalSec",
-    });
-
-  /** Clear the resync timer and schedule a new one. */
-  #scheduleResync = async () => {
-    clearTimeout(this.#resyncTimer);
-    this.#resyncTimer = setTimeout(this.#resync, this.#watchCfg.resyncIntervalSec! * 1000);
-  };
-
-  /**
    * Update the resource version.
    *
    * @param resourceVersion - the new resource version
@@ -323,41 +319,43 @@ export class Watcher<T extends GenericClass> {
     this.#events.emit(WatchEvent.RESOURCE_VERSION, resourceVersion);
   };
 
-  /**
-   * Reload the watch after an error.
-   *
-   * @param err - the error that occurred
-   */
-  #reconnect = async (err: Error) => {
-    // If there are more attempts, retry the watch (undefined is unlimited retries)
-    if (this.#watchCfg.retryMax === undefined || this.#watchCfg.retryMax > this.#retryCount) {
-      // Sleep for the specified delay, but check every 500ms if the watch has been aborted
-      let delay = this.#watchCfg.retryDelaySec! * 1000;
-      while (delay > 0) {
-        if (this.#abortController.signal.aborted) {
-          return;
+  /** Clear the resync timer and schedule a new one. */
+  #checkResync = () => {
+    // Ignore if the last seen time is not set
+    if (this.#lastSeenTime === NONE) {
+      return;
+    }
+
+    const now = Date.now();
+
+    // If the last seen time is greater than the limit, trigger a resync
+    if (this.#lastSeenTime == OVERRIDE || now - this.#lastSeenTime > this.#lastSeenLimit) {
+      // Reset the last seen time to now to allow the resync to be called again in case of failure
+      this.#lastSeenTime = now;
+
+      // If there are more attempts, retry the watch (undefined is unlimited retries)
+      if (this.#watchCfg.retryMax === undefined || this.#watchCfg.retryMax > this.#retryCount) {
+        // Increment the retry count
+        this.#retryCount++;
+
+        if (this.#pendingReconnect) {
+          // wait for the connection to be re-established
+          this.#events.emit(WatchEvent.RECONNECT_PENDING);
+        } else {
+          this.#pendingReconnect = true;
+          this.#events.emit(WatchEvent.RECONNECT, this.#retryCount);
+          this.#streamCleanup();
+
+          void this.#runner();
         }
-        delay -= 500;
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
-
-      this.#retryCount++;
-      this.#events.emit(WatchEvent.RECONNECT, err, this.#retryCount);
-
-      if (this.#pendingReconnect) {
-        // wait for the connection to be re-established
-        this.#events.emit(WatchEvent.RECONNECT_PENDING);
       } else {
-        this.#pendingReconnect = true;
-        this.#cleanup();
-
-        // Retry the watch after the delay
-        await this.#runner();
+        // Otherwise, call the finally function if it exists
+        this.#events.emit(
+          WatchEvent.GIVE_UP,
+          new Error(`Retry limit (${this.#watchCfg.retryMax}) exceeded, giving up`),
+        );
+        this.close();
       }
-    } else {
-      // Otherwise, call the finally function if it exists
-      this.#events.emit(WatchEvent.GIVE_UP, err);
-      this.close();
     }
   };
 
@@ -369,8 +367,8 @@ export class Watcher<T extends GenericClass> {
   #errHandler = async (err: Error) => {
     switch (err.name) {
       case "AbortError":
-        clearTimeout(this.#resyncTimer);
-        this.#cleanup();
+        clearInterval(this.#resyncTimer);
+        this.#streamCleanup();
         this.#events.emit(WatchEvent.ABORT, err);
         return;
 
@@ -380,20 +378,17 @@ export class Watcher<T extends GenericClass> {
         this.#events.emit(WatchEvent.OLD_RESOURCE_VERSION, err.message);
         break;
 
-      case "Resync":
-        this.#events.emit(WatchEvent.RESYNC, err);
-        break;
-
       default:
         this.#events.emit(WatchEvent.NETWORK_ERROR, err);
         break;
     }
 
-    await this.#reconnect(err);
+    // Force a resync
+    this.#lastSeenTime = OVERRIDE;
   };
 
   /** Cleanup the stream and listeners. */
-  #cleanup = () => {
+  #streamCleanup = () => {
     if (this.#stream) {
       this.#stream.removeAllListeners();
       this.#stream.destroy();
