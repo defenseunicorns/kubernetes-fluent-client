@@ -36,13 +36,12 @@ describe("Watcher", () => {
 
     nock("http://jest-test:8080")
       .get("/api/v1/pods")
-      .query({ watch: "true", allowWatchBookmarks: "true", resourceVersion: "10" })
+      .query({ watch: "true", resourceVersion: "10" })
       .reply(200, () => {
         const stream = new PassThrough();
 
         const resources = [
           { type: "ADDED", object: createMockPod(`pod-0`, `1`) },
-          { type: "BOOKMARK", object: { metadata: { resourceVersion: "1" } } },
           { type: "MODIFIED", object: createMockPod(`pod-0`, `2`) },
         ];
 
@@ -63,14 +62,14 @@ describe("Watcher", () => {
   it("should watch named resources", done => {
     nock.cleanAll();
     nock("http://jest-test:8080")
-      .get("/api/v1/namespaces/tester/pods/demo")
+      .get("/api/v1/namespaces/tester/pods")
+      .query({ fieldSelector: "metadata.name=demo" })
       .reply(200, createMockPod(`demo`, `15`));
 
     nock("http://jest-test:8080")
       .get("/api/v1/namespaces/tester/pods")
       .query({
         watch: "true",
-        allowWatchBookmarks: "true",
         fieldSelector: "metadata.name=demo",
         resourceVersion: "15",
       })
@@ -97,7 +96,7 @@ describe("Watcher", () => {
       });
     nock("http://jest-test:8080")
       .get("/api/v1/pods")
-      .query({ watch: "true", allowWatchBookmarks: "true", resourceVersion: "25" })
+      .query({ watch: "true", resourceVersion: "25" })
       .reply(200, () => {
         const stream = new PassThrough();
         stream.write(
@@ -164,16 +163,6 @@ describe("Watcher", () => {
     });
   });
 
-  it("should handle the BOOKMARK event", done => {
-    watcher = K8s(kind.Pod).Watch(evtMock, {
-      retryDelaySec: 1,
-    });
-    setupAndStartWatcher(WatchEvent.BOOKMARK, bookmark => {
-      expect(bookmark.metadata?.resourceVersion).toEqual("1");
-      done();
-    });
-  });
-
   it("should handle the NETWORK_ERROR event", done => {
     nock.cleanAll();
     nock("http://jest-test:8080")
@@ -188,7 +177,7 @@ describe("Watcher", () => {
       });
     nock("http://jest-test:8080")
       .get("/api/v1/pods")
-      .query({ watch: "true", allowWatchBookmarks: "true", resourceVersion: "45" })
+      .query({ watch: "true", resourceVersion: "45" })
       .replyWithError("Something bad happened");
 
     watcher = K8s(kind.Pod).Watch(evtMock, {
@@ -197,7 +186,7 @@ describe("Watcher", () => {
 
     setupAndStartWatcher(WatchEvent.NETWORK_ERROR, error => {
       expect(error.message).toEqual(
-        "request to http://jest-test:8080/api/v1/pods?watch=true&resourceVersion=45&allowWatchBookmarks=true failed, reason: Something bad happened",
+        "request to http://jest-test:8080/api/v1/pods?watch=true&resourceVersion=45 failed, reason: Something bad happened",
       );
       done();
     });
@@ -217,7 +206,7 @@ describe("Watcher", () => {
       });
     nock("http://jest-test:8080")
       .get("/api/v1/pods")
-      .query({ watch: "true", allowWatchBookmarks: "true", resourceVersion: "65" })
+      .query({ watch: "true", resourceVersion: "65" })
       .replyWithError("Something bad happened");
 
     watcher = K8s(kind.Pod).Watch(evtMock, {
@@ -256,7 +245,7 @@ describe("Watcher", () => {
       });
     nock("http://jest-test:8080")
       .get("/api/v1/pods")
-      .query({ watch: "true", allowWatchBookmarks: "true", resourceVersion: "75" })
+      .query({ watch: "true", resourceVersion: "75" })
       .replyWithError("Something bad happened");
 
     watcher = K8s(kind.Pod).Watch(evtMock, {
