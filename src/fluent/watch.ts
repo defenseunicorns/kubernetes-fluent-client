@@ -267,7 +267,7 @@ export class Watcher<T extends GenericClass> {
 
         // If the item does not exist, it is new and should be added
         if (!alreadyExists) {
-          // Send aded event. Use void here because we don't care about the result (no consequences here if it fails)
+          // Send added event. Use void here because we don't care about the result (no consequences here if it fails)
           void this.#process(item, WatchPhase.Added);
           continue;
         }
