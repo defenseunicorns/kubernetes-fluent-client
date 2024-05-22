@@ -244,8 +244,9 @@ export class Watcher<T extends GenericClass> {
         return;
       }
 
-      if (list.metadata?._continue) {
-        continueToken = list.metadata._continue;
+      // Gross hack, thanks upstream library :<
+      if ((list.metadata as { continue?: string }).continue) {
+        continueToken = (list.metadata as { continue?: string }).continue;
       }
 
       // Emit the list event
