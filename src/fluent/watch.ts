@@ -6,7 +6,8 @@ import { createHash } from "crypto";
 import { EventEmitter } from "events";
 import fetch from "node-fetch";
 
-import { GenericClass } from "../types";
+import { fetch as wrappedFetch } from "../fetch";
+import { GenericClass, KubernetesListObject } from "../types";
 import { Filters, WatchAction, WatchPhase } from "./types";
 import { k8sCfg, pathBuilder } from "./utils";
 
@@ -23,30 +24,26 @@ export enum WatchEvent {
   GIVE_UP = "give_up",
   /** Abort is called */
   ABORT = "abort",
-  /** @deprecated */
-  RESYNC = "resync",
   /** Data is received and decoded */
   DATA = "data",
-  /** Bookmark is received */
-  BOOKMARK = "bookmark",
-  /** ResourceVersion is updated */
-  RESOURCE_VERSION = "resource_version",
   /** 410 (old resource version) occurs */
   OLD_RESOURCE_VERSION = "old_resource_version",
   /** A reconnect is already pending */
   RECONNECT_PENDING = "reconnect_pending",
+  /** Resource list operation run */
+  LIST = "list",
+  /** List operation error */
+  LIST_ERROR = "list_error",
 }
 
 /** Configuration for the watch function. */
 export type WatchCfg = {
-  /** Whether to use bookmarks with the watch. */
-  allowWatchBookmarks?: boolean;
-  /** The resource version to start the watch at, this will be updated on each event. */
-  resourceVersion?: string;
   /** The maximum number of times to retry the watch, the retry count is reset on success. Unlimited retries if not specified. */
   retryMax?: number;
   /** Seconds between each retry check. Defaults to 5. */
   retryDelaySec?: number;
+  /** Amount of seconds to wait before relisting the watch list. Defaults to 600 (10 minutes). */
+  relistIntervalSec?: number;
   /** Amount of seconds to wait before a forced-resyncing of the watch list. Defaults to 300 (5 minutes). */
   resyncIntervalSec?: number;
 };
@@ -78,11 +75,20 @@ export class Watcher<T extends GenericClass> {
   // Create an EventEmitter to emit events
   #events = new EventEmitter();
 
+  // Create a timer to relist the watch
+  $relistTimer?: NodeJS.Timeout;
+
   // Create a timer to resync the watch
   #resyncTimer?: NodeJS.Timeout;
 
   // Track if a reconnect is pending
   #pendingReconnect = false;
+
+  // The resource version to start the watch at, this will be updated after the list operation.
+  #resourceVersion?: string;
+
+  // Track the list of items in the cache
+  #cache = new Map<string, InstanceType<T>>();
 
   /**
    * Setup a Kubernetes watcher for the specified model and filters. The callback function will be called for each event received.
@@ -100,17 +106,23 @@ export class Watcher<T extends GenericClass> {
     // Set the retry delay to 5 seconds if not specified
     watchCfg.retryDelaySec ??= 5;
 
-    // Set the resync interval to 5 minutes if not specified
-    watchCfg.resyncIntervalSec ??= 300;
+    // Set the relist interval to 30 minutes if not specified
+    watchCfg.relistIntervalSec ??= 1800;
 
-    // Enable bookmarks by default
-    watchCfg.allowWatchBookmarks ??= true;
+    // Set the resync interval to 10 minutes if not specified
+    watchCfg.resyncIntervalSec ??= 600;
 
     // Set the last seen limit to the resync interval
     this.#lastSeenLimit = watchCfg.resyncIntervalSec * 1000;
 
-    // Check every 5 seconds for resync
-    this.#resyncTimer = setInterval(this.#checkResync, watchCfg.retryDelaySec * 1000);
+    // Add random jitter to the relist/resync intervals (up to 1 second)
+    const jitter = Math.floor(Math.random() * 1000);
+
+    // Check every relist interval for cache staleness
+    this.$relistTimer = setInterval(this.#list, watchCfg.relistIntervalSec * 1000 + jitter);
+
+    // Rebuild the watch every retry delay interval
+    this.#resyncTimer = setInterval(this.#checkResync, watchCfg.retryDelaySec * 1000 + jitter);
 
     // Bind class properties
     this.#model = model;
@@ -128,12 +140,13 @@ export class Watcher<T extends GenericClass> {
    * @returns The AbortController for the watch.
    */
   public async start(): Promise<AbortController> {
-    await this.#runner();
+    await this.#watch();
     return this.#abortController;
   }
 
   /** Close the watch. Also available on the AbortController returned by {@link Watcher.start}. */
   public close() {
+    clearInterval(this.$relistTimer);
     clearInterval(this.#resyncTimer);
     this.#streamCleanup();
     this.#abortController.abort();
@@ -157,24 +170,6 @@ export class Watcher<T extends GenericClass> {
   }
 
   /**
-   * Get the current resource version.
-   *
-   * @returns the current resource version
-   */
-  public get resourceVersion() {
-    return this.#watchCfg.resourceVersion;
-  }
-
-  /**
-   * Set the current resource version.
-   *
-   * @param resourceVersion - the new resource version
-   */
-  public set resourceVersion(resourceVersion: string | undefined) {
-    this.#watchCfg.resourceVersion = resourceVersion;
-  }
-
-  /**
    * Subscribe to watch events. This is an EventEmitter that emits the following events:
    *
    * Use {@link WatchEvent} for the event names.
@@ -188,16 +183,26 @@ export class Watcher<T extends GenericClass> {
   /**
    * Build the URL and request options for the watch.
    *
+   * @param isWatch - whether the request is for a watch operation
+   * @param resourceVersion - the resource version to use for the watch
+   * @param continueToken - the continue token for the watch
+   *
    * @returns the URL and request options
    */
-  #buildURL = async () => {
+  #buildURL = async (isWatch: boolean, resourceVersion?: string, continueToken?: string) => {
     // Build the path and query params for the resource, excluding the name
     const { opts, serverUrl } = await k8sCfg("GET");
 
     const url = pathBuilder(serverUrl, this.#model, this.#filters, true);
 
     // Enable the watch query param
-    url.searchParams.set("watch", "true");
+    if (isWatch) {
+      url.searchParams.set("watch", "true");
+    }
+
+    if (continueToken) {
+      url.searchParams.set("continue", continueToken);
+    }
 
     // If a name is specified, add it to the query params
     if (this.#filters.name) {
@@ -205,13 +210,8 @@ export class Watcher<T extends GenericClass> {
     }
 
     // If a resource version is specified, add it to the query params
-    if (this.#watchCfg.resourceVersion) {
-      url.searchParams.set("resourceVersion", this.#watchCfg.resourceVersion);
-    }
-
-    // Enable watch bookmarks
-    if (this.#watchCfg.allowWatchBookmarks) {
-      url.searchParams.set("allowWatchBookmarks", "true");
+    if (resourceVersion) {
+      url.searchParams.set("resourceVersion", resourceVersion);
     }
 
     // Add the abort signal to the request options
@@ -220,11 +220,126 @@ export class Watcher<T extends GenericClass> {
     return { opts, url };
   };
 
-  /** Run the watch. */
-  #runner = async () => {
+  /**
+   * Retrieve the list of resources and process the events.
+   *
+   * @param continueToken - the continue token for the list
+   * @param removedItems - the list of items that have been removed
+   */
+  #list = async (continueToken?: string, removedItems?: Map<string, InstanceType<T>>) => {
     try {
+      const { opts, url } = await this.#buildURL(false, undefined, continueToken);
+
+      // Make the request to list the resources
+      const response = await wrappedFetch<KubernetesListObject<InstanceType<T>>>(url, opts);
+      const list = response.data;
+
+      // If the request fails, emit an error event and return
+      if (!response.ok) {
+        this.#events.emit(
+          WatchEvent.LIST_ERROR,
+          new Error(`list failed: ${response.status} ${response.statusText}`),
+        );
+
+        return;
+      }
+
+      // Gross hack, thanks upstream library :<
+      if ((list.metadata as { continue?: string }).continue) {
+        continueToken = (list.metadata as { continue?: string }).continue;
+      }
+
+      // Emit the list event
+      this.#events.emit(WatchEvent.LIST, list);
+
+      // Update the resource version from the list metadata
+      this.#resourceVersion = list.metadata?.resourceVersion;
+
+      // If removed items are not provided, clone the cache
+      removedItems = removedItems || new Map(this.#cache.entries());
+
+      // Process each item in the list
+      for (const item of list.items || []) {
+        const { uid } = item.metadata;
+
+        // Remove the item from the removed items list
+        const alreadyExists = removedItems.delete(uid);
+
+        // If the item does not exist, it is new and should be added
+        if (!alreadyExists) {
+          // Send added event. Use void here because we don't care about the result (no consequences here if it fails)
+          void this.#process(item, WatchPhase.Added);
+          continue;
+        }
+
+        // Check if the resource version has changed for items that already exist
+        const cachedRV = parseInt(this.#cache.get(uid)?.metadata?.resourceVersion);
+        const itemRV = parseInt(item.metadata.resourceVersion);
+
+        // Check if the resource version is newer than the cached version
+        if (itemRV > cachedRV) {
+          // Send a modified event if the resource version has changed
+          void this.#process(item, WatchPhase.Modified);
+        }
+      }
+
+      // If there is a continue token, call the list function again with the same removed items
+      if (continueToken) {
+        // If there is a continue token, call the list function again with the same removed items
+        // @todo: using all voids here is important for freshness, but is naive with regard to API load & pod resources
+        await this.#list(continueToken, removedItems);
+      } else {
+        // Otherwise, process the removed items
+        for (const item of removedItems.values()) {
+          void this.#process(item, WatchPhase.Deleted);
+        }
+      }
+    } catch (err) {
+      this.#events.emit(WatchEvent.LIST_ERROR, err);
+    }
+  };
+
+  /**
+   * Process the event payload.
+   *
+   * @param payload - the event payload
+   * @param phase - the event phase
+   */
+  #process = async (payload: InstanceType<T>, phase: WatchPhase) => {
+    try {
+      switch (phase) {
+        // If the event is added or modified, update the cache
+        case WatchPhase.Added:
+        case WatchPhase.Modified:
+          this.#cache.set(payload.metadata.uid, payload);
+          break;
+
+        // If the event is deleted, remove the item from the cache
+        case WatchPhase.Deleted:
+          this.#cache.delete(payload.metadata.uid);
+          break;
+      }
+
+      // Emit the data event
+      this.#events.emit(WatchEvent.DATA, payload, phase);
+
+      // Call the callback function with the parsed payload
+      await this.#callback(payload, phase);
+    } catch (err) {
+      this.#events.emit(WatchEvent.DATA_ERROR, err);
+    }
+  };
+
+  /**
+   * Watch for changes to the resource.
+   */
+  #watch = async () => {
+    try {
+      // Start with a list operation
+      await this.#list();
+
       // Build the URL and request options
-      const { opts, url } = await this.#buildURL();
+      const { opts, url } = await this.#buildURL(true, this.#resourceVersion);
 
       // Create a stream to read the response body
       this.#stream = byline.createStream();
@@ -265,22 +380,12 @@ export class Watcher<T extends GenericClass> {
             if (phase === WatchPhase.Error && payload.code === 410) {
               throw {
                 name: "TooOld",
-                message: this.#watchCfg.resourceVersion!,
+                message: this.#resourceVersion!,
               };
             }
 
-            // If the event is a bookmark, emit the event and skip the callback
-            if (phase === WatchPhase.Bookmark) {
-              this.#events.emit(WatchEvent.BOOKMARK, payload);
-            } else {
-              this.#events.emit(WatchEvent.DATA, payload, phase);
-
-              // Call the callback function with the parsed payload
-              await this.#callback(payload, phase as WatchPhase);
-            }
-
-            // Update the resource version if the callback was successful
-            this.#setResourceVersion(payload.metadata.resourceVersion);
+            // Process the event payload, do not update the resource version as that is handled by the list operation
+            await this.#process(payload, phase);
           } catch (err) {
             if (err.name === "TooOld") {
               // Prevent any body events from firing
@@ -290,6 +395,7 @@ export class Watcher<T extends GenericClass> {
               void this.#errHandler(err);
               return;
             }
+
             this.#events.emit(WatchEvent.DATA_ERROR, err);
           }
         });
@@ -307,16 +413,6 @@ export class Watcher<T extends GenericClass> {
     } catch (e) {
       void this.#errHandler(e);
     }
-  };
-
-  /**
-   * Update the resource version.
-   *
-   * @param resourceVersion - the new resource version
-   */
-  #setResourceVersion = (resourceVersion?: string) => {
-    this.#watchCfg.resourceVersion = resourceVersion;
-    this.#events.emit(WatchEvent.RESOURCE_VERSION, resourceVersion);
   };
 
   /** Clear the resync timer and schedule a new one. */
@@ -346,7 +442,7 @@ export class Watcher<T extends GenericClass> {
           this.#events.emit(WatchEvent.RECONNECT, this.#retryCount);
           this.#streamCleanup();
 
-          void this.#runner();
+          void this.#watch();
         }
       } else {
         // Otherwise, call the finally function if it exists
@@ -367,6 +463,7 @@ export class Watcher<T extends GenericClass> {
   #errHandler = async (err: Error) => {
     switch (err.name) {
       case "AbortError":
+        clearInterval(this.$relistTimer);
         clearInterval(this.#resyncTimer);
         this.#streamCleanup();
         this.#events.emit(WatchEvent.ABORT, err);
@@ -374,7 +471,7 @@ export class Watcher<T extends GenericClass> {
 
       case "TooOld":
         // Purge the resource version if it is too old
-        this.#setResourceVersion(undefined);
+        this.#resourceVersion = undefined;
         this.#events.emit(WatchEvent.OLD_RESOURCE_VERSION, err.message);
         break;
 
