@@ -139,7 +139,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
         podList.push(object);
       }
     } catch (e) {
-      throw new Error(e);
+      throw new Error(`Failed to get logs in KFC Logs function`);
     }
 
     const podModel = { ...model, name: "V1Pod" };
