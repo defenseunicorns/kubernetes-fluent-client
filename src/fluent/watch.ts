@@ -34,6 +34,8 @@ export enum WatchEvent {
   LIST = "list",
   /** List operation error */
   LIST_ERROR = "list_error",
+  /** Debug */
+  DEBUG = "debug",
 }
 
 /** Configuration for the watch function. */
@@ -346,8 +348,14 @@ export class Watcher<T extends GenericClass> {
 
       // Bind the stream events
       this.#stream.on("error", this.#errHandler);
-      this.#stream.on("close", this.#streamCleanup);
-      this.#stream.on("finish", this.#streamCleanup);
+      this.#stream.on("close", () => {
+        this.#events.emit(WatchEvent.DEBUG, "stream close event fired");
+        this.#errHandler;
+      });
+      this.#stream.on("finish", () => {
+        this.#events.emit(WatchEvent.DEBUG, "stream close event fired");
+        this.#errHandler;
+      });
 
       // Make the actual request
       const response = await fetch(url, { ...opts });
@@ -402,8 +410,14 @@ export class Watcher<T extends GenericClass> {
 
         // Bind the body events
         body.on("error", this.#errHandler);
-        body.on("close", this.#streamCleanup);
-        body.on("finish", this.#streamCleanup);
+        body.on("close", () => {
+          this.#events.emit(WatchEvent.DEBUG, "body close event fired");
+          this.#errHandler;
+        });
+        body.on("finish", () => {
+          this.#events.emit(WatchEvent.DEBUG, "body finish event fired");
+          this.#errHandler;
+        });
 
         // Pipe the response body to the stream
         body.pipe(this.#stream);
