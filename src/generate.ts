@@ -183,7 +183,7 @@ async function readOrFetchCrd(opts: GenerateOptions): Promise<CustomResourceDefi
   } catch (e) {
     // If invalid, ignore the error
     if (e.code !== "ERR_INVALID_URL") {
-      throw new Error(e);
+      throw new Error(`Error parsing URL ${source}`);
     }
   }
 
