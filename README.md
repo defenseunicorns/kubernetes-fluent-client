@@ -7,6 +7,13 @@
 
 The Kubernetes Fluent Client for Node is a fluent API for the [Kubernetes JavaScript Client](https://github.com/kubernetes-client/javascript) with some additional logic for [Server Side Apply](https://kubernetes.io/docs/reference/using-api/server-side-apply/), [Watch](https://kubernetes.io/docs/reference/using-api/api-concepts/#efficient-detection-of-changes) with retry/signal control, and [Field Selectors](https://kubernetes.io/docs/concepts/overview/working-with-objects/field-selectors/). In addition to providing a human-friendly API, it also provides a simple way to create and manage resources in the cluster and integrate with K8s in a type-safe way.
 
+
+To install the Kubernetes Fluent Client, run the following command:  
+
+```bash
+npm install kubernetes-fluent-client
+```
+
 See below for some example uses of the library.
 
 ```typescript
