@@ -104,3 +104,6 @@ Promise.all([
     console.error(err);
   });
 ```
+
+### Community
+To join our channel go to [Kubernetes Slack](https://communityinviter.com/apps/kubernetes/community) and join the #pepr.
