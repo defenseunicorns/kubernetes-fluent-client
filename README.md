@@ -106,4 +106,5 @@ Promise.all([
 ```
 
 ### Community
-To join our channel go to [Kubernetes Slack](https://communityinviter.com/apps/kubernetes/community) and join the #pepr.
+
+To join our channel go to [Kubernetes Slack](https://communityinviter.com/apps/kubernetes/community) and join #pepr.
