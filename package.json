@@ -41,7 +41,7 @@
     "http-status-codes": "2.3.0",
     "node-fetch": "2.7.0",
     "quicktype-core": "23.0.170",
-    "type-fest": "4.21.0",
+    "type-fest": "4.20.1",
     "yargs": "17.7.2"
   },
   "devDependencies": {
