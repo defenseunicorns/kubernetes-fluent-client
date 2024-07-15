@@ -1,18 +1,20 @@
 ---
 name: Bug report
 about: Create a report to help us improve
-title: ''
+title: ""
 labels: possible-bug
-assignees: ''
+assignees: ""
 ---
 
 ### Environment
+
 Device and OS:
 App version:
 Kubernetes distro being used:
 Other:
 
 ### Steps to reproduce
+
 1.
 
 ### Expected result
@@ -24,4 +26,5 @@ Other:
 ### Severity/Priority
 
 ### Additional Context
+
 Add any other context or screenshots about the technical debt here.
