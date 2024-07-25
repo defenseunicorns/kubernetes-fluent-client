@@ -38,6 +38,8 @@ export enum WatchEvent {
   CACHE_MISS = "cache_miss",
   //** Increment retry count */
   INC_RETRY = "inc_retry",
+  /** Initialize a relist window */
+  INIT_CACHE_MISS = "init_cache_miss",
 }
 
 /** Configuration for the watch function. */
@@ -120,14 +122,18 @@ export class Watcher<T extends GenericClass> {
     // Set the last seen limit to the resync interval
     this.#lastSeenLimit = watchCfg.resyncIntervalSec * 1000;
 
+    // Set the latest relist interval to now
+    this.#latestRelistInterval = new Date().toISOString();
+
     // Add random jitter to the relist/resync intervals (up to 1 second)
     const jitter = Math.floor(Math.random() * 1000);
 
     // Check every relist interval for cache staleness
     this.$relistTimer = setInterval(
       () => {
-        this.#list;
         this.#latestRelistInterval = new Date().toISOString();
+        this.#events.emit(WatchEvent.INIT_CACHE_MISS, this.#latestRelistInterval);
+        this.#list;
       },
       watchCfg.relistIntervalSec * 1000 + jitter,
     );
@@ -151,6 +157,7 @@ export class Watcher<T extends GenericClass> {
    * @returns The AbortController for the watch.
    */
   public async start(): Promise<AbortController> {
+    this.#events.emit(WatchEvent.INIT_CACHE_MISS, this.#latestRelistInterval);
     await this.#watch();
     return this.#abortController;
   }
@@ -377,6 +384,7 @@ export class Watcher<T extends GenericClass> {
 
         // Reset the retry count
         this.#retryCount = 0;
+        this.#events.emit(WatchEvent.INC_RETRY, this.#retryCount);
 
         // Listen for events and call the callback function
         this.#stream.on("data", async line => {
