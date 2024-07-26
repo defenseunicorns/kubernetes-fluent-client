@@ -452,7 +452,10 @@ export class Watcher<T extends GenericClass> {
       this.#lastSeenTime = now;
 
       // If there are more attempts, retry the watch (undefined is unlimited retries)
-      if (this.#watchCfg.resyncFailureMax === undefined || this.#watchCfg.resyncFailureMax > this.#resyncFailureCount) {
+      if (
+        this.#watchCfg.resyncFailureMax === undefined ||
+        this.#watchCfg.resyncFailureMax > this.#resyncFailureCount
+      ) {
         // Increment the retry count
         this.#resyncFailureCount++;
         this.#events.emit(WatchEvent.INC_RESYNC_FAILURE_COUNT, this.#resyncFailureCount);
