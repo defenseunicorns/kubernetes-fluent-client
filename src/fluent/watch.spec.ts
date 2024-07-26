@@ -249,7 +249,7 @@ describe("Watcher", () => {
       .replyWithError("Something bad happened");
 
     watcher = K8s(kind.Pod).Watch(evtMock, {
-      retryMax: 1,
+      resyncFailureMax: 1,
       retryDelaySec: 0.01,
       resyncIntervalSec: 1,
     });
