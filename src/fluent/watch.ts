@@ -36,8 +36,8 @@ export enum WatchEvent {
   LIST_ERROR = "list_error",
   /** Cache Misses */
   CACHE_MISS = "cache_miss",
-  //** Increment retry count */
-  INC_RETRY = "inc_retry",
+  //** Increment resync failure count */
+  INC_RESYNC_FAILURE_COUNT = "inc_resync_failure_count",
   /** Initialize a relist window */
   INIT_CACHE_MISS = "init_cache_miss",
 }
@@ -45,7 +45,7 @@ export enum WatchEvent {
 /** Configuration for the watch function. */
 export type WatchCfg = {
   /** The maximum number of times to retry the watch, the retry count is reset on success. Unlimited retries if not specified. */
-  retryMax?: number;
+  resyncFailureMax?: number;
   /** Seconds between each retry check. Defaults to 5. */
   retryDelaySec?: number;
   /** Amount of seconds to wait before relisting the watch list. Defaults to 600 (10 minutes). */
@@ -74,7 +74,7 @@ export class Watcher<T extends GenericClass> {
   #abortController: AbortController;
 
   // Track the number of retries
-  #retryCount = 0;
+  #resyncFailureCount = 0;
 
   // Create a stream to read the response body
   #stream?: byline.LineStream;
@@ -383,8 +383,8 @@ export class Watcher<T extends GenericClass> {
         const { body } = response;
 
         // Reset the retry count
-        this.#retryCount = 0;
-        this.#events.emit(WatchEvent.INC_RETRY, this.#retryCount);
+        this.#resyncFailureCount = 0;
+        this.#events.emit(WatchEvent.INC_RESYNC_FAILURE_COUNT, this.#resyncFailureCount);
 
         // Listen for events and call the callback function
         this.#stream.on("data", async line => {
@@ -452,17 +452,17 @@ export class Watcher<T extends GenericClass> {
       this.#lastSeenTime = now;
 
       // If there are more attempts, retry the watch (undefined is unlimited retries)
-      if (this.#watchCfg.retryMax === undefined || this.#watchCfg.retryMax > this.#retryCount) {
+      if (this.#watchCfg.resyncFailureMax === undefined || this.#watchCfg.resyncFailureMax > this.#resyncFailureCount) {
         // Increment the retry count
-        this.#retryCount++;
-        this.#events.emit(WatchEvent.INC_RETRY, this.#retryCount);
+        this.#resyncFailureCount++;
+        this.#events.emit(WatchEvent.INC_RESYNC_FAILURE_COUNT, this.#resyncFailureCount);
 
         if (this.#pendingReconnect) {
           // wait for the connection to be re-established
           this.#events.emit(WatchEvent.RECONNECT_PENDING);
         } else {
           this.#pendingReconnect = true;
-          this.#events.emit(WatchEvent.RECONNECT, this.#retryCount);
+          this.#events.emit(WatchEvent.RECONNECT, this.#resyncFailureCount);
           this.#streamCleanup();
 
           void this.#watch();
@@ -471,7 +471,7 @@ export class Watcher<T extends GenericClass> {
         // Otherwise, call the finally function if it exists
         this.#events.emit(
           WatchEvent.GIVE_UP,
-          new Error(`Retry limit (${this.#watchCfg.retryMax}) exceeded, giving up`),
+          new Error(`Retry limit (${this.#watchCfg.resyncFailureMax}) exceeded, giving up`),
         );
         this.close();
       }
