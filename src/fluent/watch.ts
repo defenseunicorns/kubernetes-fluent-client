@@ -36,7 +36,7 @@ export enum WatchEvent {
   LIST_ERROR = "list_error",
   /** Cache Misses */
   CACHE_MISS = "cache_miss",
-  //** Increment resync failure count */
+  /** Increment resync failure count */
   INC_RESYNC_FAILURE_COUNT = "inc_resync_failure_count",
   /** Initialize a relist window */
   INIT_CACHE_MISS = "init_cache_miss",
