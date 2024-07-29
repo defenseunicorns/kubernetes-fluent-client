@@ -138,7 +138,7 @@ export class Watcher<T extends GenericClass> {
       watchCfg.relistIntervalSec * 1000 + jitter,
     );
 
-    // Rebuild the watch every retry delay interval
+    // Rebuild the watch every resync delay interval
     this.#resyncTimer = setInterval(this.#checkResync, watchCfg.resyncDelaySec * 1000 + jitter);
 
     // Bind class properties
