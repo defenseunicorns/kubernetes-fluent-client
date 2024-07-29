@@ -34,18 +34,24 @@ export enum WatchEvent {
   LIST = "list",
   /** List operation error */
   LIST_ERROR = "list_error",
+  /** Cache Misses */
+  CACHE_MISS = "cache_miss",
+  /** Increment resync failure count */
+  INC_RESYNC_FAILURE_COUNT = "inc_resync_failure_count",
+  /** Initialize a relist window */
+  INIT_CACHE_MISS = "init_cache_miss",
 }
 
 /** Configuration for the watch function. */
 export type WatchCfg = {
   /** The maximum number of times to retry the watch, the retry count is reset on success. Unlimited retries if not specified. */
-  retryMax?: number;
-  /** Seconds between each retry check. Defaults to 5. */
-  retryDelaySec?: number;
+  resyncFailureMax?: number;
+  /** Seconds between each resync check. Defaults to 5. */
+  resyncDelaySec?: number;
   /** Amount of seconds to wait before relisting the watch list. Defaults to 600 (10 minutes). */
   relistIntervalSec?: number;
-  /** Amount of seconds to wait before a forced-resyncing of the watch list. Defaults to 300 (5 minutes). */
-  resyncIntervalSec?: number;
+  /** Max amount of seconds to go without receiving an event before reconciliation starts. Defaults to 300 (5 minutes). */
+  lastSeenLimitSeconds?: number;
 };
 
 const NONE = 50;
@@ -58,6 +64,7 @@ export class Watcher<T extends GenericClass> {
   #filters: Filters;
   #callback: WatchAction<T>;
   #watchCfg: WatchCfg;
+  #latestRelistWindow: string = "";
 
   // Track the last time data was received
   #lastSeenTime = NONE;
@@ -67,7 +74,7 @@ export class Watcher<T extends GenericClass> {
   #abortController: AbortController;
 
   // Track the number of retries
-  #retryCount = 0;
+  #resyncFailureCount = 0;
 
   // Create a stream to read the response body
   #stream?: byline.LineStream;
@@ -104,25 +111,35 @@ export class Watcher<T extends GenericClass> {
    */
   constructor(model: T, filters: Filters, callback: WatchAction<T>, watchCfg: WatchCfg = {}) {
     // Set the retry delay to 5 seconds if not specified
-    watchCfg.retryDelaySec ??= 5;
+    watchCfg.resyncDelaySec ??= 5;
 
     // Set the relist interval to 30 minutes if not specified
     watchCfg.relistIntervalSec ??= 1800;
 
     // Set the resync interval to 10 minutes if not specified
-    watchCfg.resyncIntervalSec ??= 600;
+    watchCfg.lastSeenLimitSeconds ??= 600;
 
     // Set the last seen limit to the resync interval
-    this.#lastSeenLimit = watchCfg.resyncIntervalSec * 1000;
+    this.#lastSeenLimit = watchCfg.lastSeenLimitSeconds * 1000;
+
+    // Set the latest relist interval to now
+    this.#latestRelistWindow = new Date().toISOString();
 
     // Add random jitter to the relist/resync intervals (up to 1 second)
     const jitter = Math.floor(Math.random() * 1000);
 
     // Check every relist interval for cache staleness
-    this.$relistTimer = setInterval(this.#list, watchCfg.relistIntervalSec * 1000 + jitter);
+    this.$relistTimer = setInterval(
+      () => {
+        this.#latestRelistWindow = new Date().toISOString();
+        this.#events.emit(WatchEvent.INIT_CACHE_MISS, this.#latestRelistWindow);
+        this.#list;
+      },
+      watchCfg.relistIntervalSec * 1000 + jitter,
+    );
 
-    // Rebuild the watch every retry delay interval
-    this.#resyncTimer = setInterval(this.#checkResync, watchCfg.retryDelaySec * 1000 + jitter);
+    // Rebuild the watch every resync delay interval
+    this.#resyncTimer = setInterval(this.#checkResync, watchCfg.resyncDelaySec * 1000 + jitter);
 
     // Bind class properties
     this.#model = model;
@@ -140,6 +157,7 @@ export class Watcher<T extends GenericClass> {
    * @returns The AbortController for the watch.
    */
   public async start(): Promise<AbortController> {
+    this.#events.emit(WatchEvent.INIT_CACHE_MISS, this.#latestRelistWindow);
     await this.#watch();
     return this.#abortController;
   }
@@ -267,6 +285,7 @@ export class Watcher<T extends GenericClass> {
 
         // If the item does not exist, it is new and should be added
         if (!alreadyExists) {
+          this.#events.emit(WatchEvent.CACHE_MISS, this.#latestRelistWindow);
           // Send added event. Use void here because we don't care about the result (no consequences here if it fails)
           void this.#process(item, WatchPhase.Added);
           continue;
@@ -278,6 +297,7 @@ export class Watcher<T extends GenericClass> {
 
         // Check if the resource version is newer than the cached version
         if (itemRV > cachedRV) {
+          this.#events.emit(WatchEvent.CACHE_MISS, this.#latestRelistWindow);
           // Send a modified event if the resource version has changed
           void this.#process(item, WatchPhase.Modified);
         }
@@ -291,6 +311,7 @@ export class Watcher<T extends GenericClass> {
       } else {
         // Otherwise, process the removed items
         for (const item of removedItems.values()) {
+          this.#events.emit(WatchEvent.CACHE_MISS, this.#latestRelistWindow);
           void this.#process(item, WatchPhase.Deleted);
         }
       }
@@ -362,7 +383,8 @@ export class Watcher<T extends GenericClass> {
         const { body } = response;
 
         // Reset the retry count
-        this.#retryCount = 0;
+        this.#resyncFailureCount = 0;
+        this.#events.emit(WatchEvent.INC_RESYNC_FAILURE_COUNT, this.#resyncFailureCount);
 
         // Listen for events and call the callback function
         this.#stream.on("data", async line => {
@@ -430,16 +452,20 @@ export class Watcher<T extends GenericClass> {
       this.#lastSeenTime = now;
 
       // If there are more attempts, retry the watch (undefined is unlimited retries)
-      if (this.#watchCfg.retryMax === undefined || this.#watchCfg.retryMax > this.#retryCount) {
+      if (
+        this.#watchCfg.resyncFailureMax === undefined ||
+        this.#watchCfg.resyncFailureMax > this.#resyncFailureCount
+      ) {
         // Increment the retry count
-        this.#retryCount++;
+        this.#resyncFailureCount++;
+        this.#events.emit(WatchEvent.INC_RESYNC_FAILURE_COUNT, this.#resyncFailureCount);
 
         if (this.#pendingReconnect) {
           // wait for the connection to be re-established
           this.#events.emit(WatchEvent.RECONNECT_PENDING);
         } else {
           this.#pendingReconnect = true;
-          this.#events.emit(WatchEvent.RECONNECT, this.#retryCount);
+          this.#events.emit(WatchEvent.RECONNECT, this.#resyncFailureCount);
           this.#streamCleanup();
 
           void this.#watch();
@@ -448,7 +474,7 @@ export class Watcher<T extends GenericClass> {
         // Otherwise, call the finally function if it exists
         this.#events.emit(
           WatchEvent.GIVE_UP,
-          new Error(`Retry limit (${this.#watchCfg.retryMax}) exceeded, giving up`),
+          new Error(`Retry limit (${this.#watchCfg.resyncFailureMax}) exceeded, giving up`),
         );
         this.close();
       }
