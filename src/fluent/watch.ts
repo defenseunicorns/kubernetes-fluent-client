@@ -50,8 +50,8 @@ export type WatchCfg = {
   resyncDelaySec?: number;
   /** Amount of seconds to wait before relisting the watch list. Defaults to 600 (10 minutes). */
   relistIntervalSec?: number;
-  /** Amount of seconds to wait before a forced-resyncing of the watch list. Defaults to 300 (5 minutes). */
-  resyncIntervalSec?: number;
+  /** Max amount of seconds to go without receiving an event before reconciliation starts. Defaults to 300 (5 minutes). */
+  lastSeenLimitSeconds?: number;
 };
 
 const NONE = 50;
@@ -117,10 +117,10 @@ export class Watcher<T extends GenericClass> {
     watchCfg.relistIntervalSec ??= 1800;
 
     // Set the resync interval to 10 minutes if not specified
-    watchCfg.resyncIntervalSec ??= 600;
+    watchCfg.lastSeenLimitSeconds ??= 600;
 
     // Set the last seen limit to the resync interval
-    this.#lastSeenLimit = watchCfg.resyncIntervalSec * 1000;
+    this.#lastSeenLimit = watchCfg.lastSeenLimitSeconds * 1000;
 
     // Set the latest relist interval to now
     this.#latestRelistWindow = new Date().toISOString();

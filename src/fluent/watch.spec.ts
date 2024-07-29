@@ -222,7 +222,7 @@ describe("Watcher", () => {
   it("should perform a resync after the resync interval", done => {
     watcher = K8s(kind.Pod).Watch(evtMock, {
       resyncDelaySec: 0.01,
-      resyncIntervalSec: 0.01,
+      lastSeenLimitSeconds: 0.01,
     });
 
     setupAndStartWatcher(WatchEvent.RECONNECT, count => {
@@ -251,7 +251,7 @@ describe("Watcher", () => {
     watcher = K8s(kind.Pod).Watch(evtMock, {
       resyncFailureMax: 1,
       resyncDelaySec: 0.01,
-      resyncIntervalSec: 1,
+      lastSeenLimitSeconds: 1,
     });
 
     setupAndStartWatcher(WatchEvent.GIVE_UP, error => {
