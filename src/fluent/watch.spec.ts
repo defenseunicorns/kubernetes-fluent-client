@@ -138,14 +138,14 @@ describe("Watcher", () => {
 
   it("should return the cache id", () => {
     watcher = K8s(kind.Pod).Watch(evtMock, {
-      retryDelaySec: 1,
+      resyncDelaySec: 1,
     });
     expect(watcher.getCacheID()).toEqual("d69b75a611");
   });
 
   it("should handle the CONNECT event", done => {
     watcher = K8s(kind.Pod).Watch(evtMock, {
-      retryDelaySec: 1,
+      resyncDelaySec: 1,
     });
     setupAndStartWatcher(WatchEvent.CONNECT, () => {
       done();
@@ -154,7 +154,7 @@ describe("Watcher", () => {
 
   it("should handle the DATA event", done => {
     watcher = K8s(kind.Pod).Watch(evtMock, {
-      retryDelaySec: 1,
+      resyncDelaySec: 1,
     });
     setupAndStartWatcher(WatchEvent.DATA, (pod, phase) => {
       expect(pod.metadata?.name).toEqual(`pod-0`);
@@ -181,7 +181,7 @@ describe("Watcher", () => {
       .replyWithError("Something bad happened");
 
     watcher = K8s(kind.Pod).Watch(evtMock, {
-      retryDelaySec: 1,
+      resyncDelaySec: 1,
     });
 
     setupAndStartWatcher(WatchEvent.NETWORK_ERROR, error => {
@@ -210,7 +210,7 @@ describe("Watcher", () => {
       .replyWithError("Something bad happened");
 
     watcher = K8s(kind.Pod).Watch(evtMock, {
-      retryDelaySec: 0.01,
+      resyncDelaySec: 0.01,
     });
 
     setupAndStartWatcher(WatchEvent.RECONNECT, count => {
@@ -221,7 +221,7 @@ describe("Watcher", () => {
 
   it("should perform a resync after the resync interval", done => {
     watcher = K8s(kind.Pod).Watch(evtMock, {
-      retryDelaySec: 0.01,
+      resyncDelaySec: 0.01,
       resyncIntervalSec: 0.01,
     });
 
@@ -250,7 +250,7 @@ describe("Watcher", () => {
 
     watcher = K8s(kind.Pod).Watch(evtMock, {
       resyncFailureMax: 1,
-      retryDelaySec: 0.01,
+      resyncDelaySec: 0.01,
       resyncIntervalSec: 1,
     });
 

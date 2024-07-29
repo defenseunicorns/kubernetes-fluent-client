@@ -46,8 +46,8 @@ export enum WatchEvent {
 export type WatchCfg = {
   /** The maximum number of times to retry the watch, the retry count is reset on success. Unlimited retries if not specified. */
   resyncFailureMax?: number;
-  /** Seconds between each retry check. Defaults to 5. */
-  retryDelaySec?: number;
+  /** Seconds between each resync check. Defaults to 5. */
+  resyncDelaySec?: number;
   /** Amount of seconds to wait before relisting the watch list. Defaults to 600 (10 minutes). */
   relistIntervalSec?: number;
   /** Amount of seconds to wait before a forced-resyncing of the watch list. Defaults to 300 (5 minutes). */
@@ -64,7 +64,7 @@ export class Watcher<T extends GenericClass> {
   #filters: Filters;
   #callback: WatchAction<T>;
   #watchCfg: WatchCfg;
-  #latestRelistInterval: string = "";
+  #latestRelistWindow: string = "";
 
   // Track the last time data was received
   #lastSeenTime = NONE;
@@ -111,7 +111,7 @@ export class Watcher<T extends GenericClass> {
    */
   constructor(model: T, filters: Filters, callback: WatchAction<T>, watchCfg: WatchCfg = {}) {
     // Set the retry delay to 5 seconds if not specified
-    watchCfg.retryDelaySec ??= 5;
+    watchCfg.resyncDelaySec ??= 5;
 
     // Set the relist interval to 30 minutes if not specified
     watchCfg.relistIntervalSec ??= 1800;
@@ -123,7 +123,7 @@ export class Watcher<T extends GenericClass> {
     this.#lastSeenLimit = watchCfg.resyncIntervalSec * 1000;
 
     // Set the latest relist interval to now
-    this.#latestRelistInterval = new Date().toISOString();
+    this.#latestRelistWindow = new Date().toISOString();
 
     // Add random jitter to the relist/resync intervals (up to 1 second)
     const jitter = Math.floor(Math.random() * 1000);
@@ -131,15 +131,15 @@ export class Watcher<T extends GenericClass> {
     // Check every relist interval for cache staleness
     this.$relistTimer = setInterval(
       () => {
-        this.#latestRelistInterval = new Date().toISOString();
-        this.#events.emit(WatchEvent.INIT_CACHE_MISS, this.#latestRelistInterval);
+        this.#latestRelistWindow = new Date().toISOString();
+        this.#events.emit(WatchEvent.INIT_CACHE_MISS, this.#latestRelistWindow);
         this.#list;
       },
       watchCfg.relistIntervalSec * 1000 + jitter,
     );
 
     // Rebuild the watch every retry delay interval
-    this.#resyncTimer = setInterval(this.#checkResync, watchCfg.retryDelaySec * 1000 + jitter);
+    this.#resyncTimer = setInterval(this.#checkResync, watchCfg.resyncDelaySec * 1000 + jitter);
 
     // Bind class properties
     this.#model = model;
@@ -157,7 +157,7 @@ export class Watcher<T extends GenericClass> {
    * @returns The AbortController for the watch.
    */
   public async start(): Promise<AbortController> {
-    this.#events.emit(WatchEvent.INIT_CACHE_MISS, this.#latestRelistInterval);
+    this.#events.emit(WatchEvent.INIT_CACHE_MISS, this.#latestRelistWindow);
     await this.#watch();
     return this.#abortController;
   }
@@ -285,7 +285,7 @@ export class Watcher<T extends GenericClass> {
 
         // If the item does not exist, it is new and should be added
         if (!alreadyExists) {
-          this.#events.emit(WatchEvent.CACHE_MISS, this.#latestRelistInterval);
+          this.#events.emit(WatchEvent.CACHE_MISS, this.#latestRelistWindow);
           // Send added event. Use void here because we don't care about the result (no consequences here if it fails)
           void this.#process(item, WatchPhase.Added);
           continue;
@@ -297,7 +297,7 @@ export class Watcher<T extends GenericClass> {
 
         // Check if the resource version is newer than the cached version
         if (itemRV > cachedRV) {
-          this.#events.emit(WatchEvent.CACHE_MISS, this.#latestRelistInterval);
+          this.#events.emit(WatchEvent.CACHE_MISS, this.#latestRelistWindow);
           // Send a modified event if the resource version has changed
           void this.#process(item, WatchPhase.Modified);
         }
@@ -311,7 +311,7 @@ export class Watcher<T extends GenericClass> {
       } else {
         // Otherwise, process the removed items
         for (const item of removedItems.values()) {
-          this.#events.emit(WatchEvent.CACHE_MISS, this.#latestRelistInterval);
+          this.#events.emit(WatchEvent.CACHE_MISS, this.#latestRelistWindow);
           void this.#process(item, WatchPhase.Deleted);
         }
       }
