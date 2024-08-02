@@ -160,7 +160,7 @@ async function readOrFetchCrd(opts: GenerateOptions): Promise<CustomResourceDefi
       const payload = fs.readFileSync(filePath, "utf8");
       return loadAllYaml(payload) as CustomResourceDefinition[];
     }
-  } catch (e) {
+  } catch {
     // Ignore errors
   }
 
