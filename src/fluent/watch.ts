@@ -133,7 +133,7 @@ export class Watcher<T extends GenericClass> {
       () => {
         this.#latestRelistWindow = new Date().toISOString();
         this.#events.emit(WatchEvent.INIT_CACHE_MISS, this.#latestRelistWindow);
-        this.#list;
+        void this.#list();
       },
       watchCfg.relistIntervalSec * 1000 + jitter,
     );
