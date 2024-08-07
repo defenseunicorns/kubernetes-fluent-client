@@ -208,7 +208,6 @@ export type ApplyCfg = {
 
 export type K8sInit<T extends GenericClass, K extends KubernetesObject> = K8sWithFilters<T, K> &
   K8sUnfilteredActions<K> & {
-    
     /**
      * Set the namespace filter.
      *
