@@ -52,6 +52,7 @@ export type GetFunction<K extends KubernetesObject> = {
 };
 
 export type K8sFilteredActions<T extends GenericClass, K extends KubernetesObject> = {
+
   /**
    * Gets the logs.
    *
@@ -59,6 +60,7 @@ export type K8sFilteredActions<T extends GenericClass, K extends KubernetesObjec
    * @returns array of logs
    */
   Logs: (name: string) => Promise<string[]>;
+
   /**
    * Get the resource or resources matching the filters.
    * If no filters are specified, all resources will be returned.
@@ -84,6 +86,7 @@ export type K8sFilteredActions<T extends GenericClass, K extends KubernetesObjec
 };
 
 export type K8sUnfilteredActions<K extends KubernetesObject> = {
+
   /**
    * Perform a server-side apply of the provided K8s resource.
    *
@@ -149,6 +152,7 @@ export type K8sWithFilters<T extends GenericClass, K extends KubernetesObject> =
   T,
   K
 > & {
+
   /**
    * Filter the query by the given field.
    * Note multiple calls to this method will result in an AND condition. e.g.
@@ -195,6 +199,7 @@ export type K8sWithFilters<T extends GenericClass, K extends KubernetesObject> =
  * Configuration for the apply function.
  */
 export type ApplyCfg = {
+
   /**
    * Force the apply to be a create.
    */
@@ -203,6 +208,7 @@ export type ApplyCfg = {
 
 export type K8sInit<T extends GenericClass, K extends KubernetesObject> = K8sWithFilters<T, K> &
   K8sUnfilteredActions<K> & {
+    
     /**
      * Set the namespace filter.
      *

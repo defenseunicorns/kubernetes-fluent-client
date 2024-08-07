@@ -14,6 +14,7 @@ import { k8sCfg, k8sExec } from "./utils";
 import { WatchCfg, Watcher } from "./watch";
 import { hasLogs } from "../helpers";
 import { Pod, type Service, type ReplicaSet } from "../upstream";
+
 /**
  * Kubernetes fluent API inspired by Kubectl. Pass in a model, then call filters and actions on it.
  *
@@ -89,6 +90,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
     }
   }
   async function Logs(name?: string): Promise<string[]>;
+
   /**
    * @inheritdoc
    * @see {@link K8sInit.Logs}
@@ -167,6 +169,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
   }
   async function Get(): Promise<KubernetesListObject<K>>;
   async function Get(name: string): Promise<K>;
+  
   /**
    * @inheritdoc
    * @see {@link K8sInit.Get}
