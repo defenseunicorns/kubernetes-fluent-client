@@ -152,7 +152,6 @@ export type K8sWithFilters<T extends GenericClass, K extends KubernetesObject> =
   T,
   K
 > & {
-
   /**
    * Filter the query by the given field.
    * Note multiple calls to this method will result in an AND condition. e.g.
