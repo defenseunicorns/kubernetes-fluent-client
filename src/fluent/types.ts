@@ -59,7 +59,6 @@ export type K8sFilteredActions<T extends GenericClass, K extends KubernetesObjec
    * @returns array of logs
    */
   Logs: (name: string) => Promise<string[]>;
-
   /**
    * Get the resource or resources matching the filters.
    * If no filters are specified, all resources will be returned.
