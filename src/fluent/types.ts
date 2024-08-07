@@ -52,7 +52,6 @@ export type GetFunction<K extends KubernetesObject> = {
 };
 
 export type K8sFilteredActions<T extends GenericClass, K extends KubernetesObject> = {
-
   /**
    * Gets the logs.
    *
