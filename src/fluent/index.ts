@@ -169,7 +169,6 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
   }
   async function Get(): Promise<KubernetesListObject<K>>;
   async function Get(name: string): Promise<K>;
-  
   /**
    * @inheritdoc
    * @see {@link K8sInit.Get}
