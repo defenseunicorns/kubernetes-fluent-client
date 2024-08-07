@@ -199,7 +199,6 @@ export type K8sWithFilters<T extends GenericClass, K extends KubernetesObject> =
  * Configuration for the apply function.
  */
 export type ApplyCfg = {
-
   /**
    * Force the apply to be a create.
    */
