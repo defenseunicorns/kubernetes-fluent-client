@@ -86,7 +86,6 @@ export type K8sFilteredActions<T extends GenericClass, K extends KubernetesObjec
 };
 
 export type K8sUnfilteredActions<K extends KubernetesObject> = {
-
   /**
    * Perform a server-side apply of the provided K8s resource.
    *
