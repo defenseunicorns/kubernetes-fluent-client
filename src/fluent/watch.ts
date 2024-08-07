@@ -12,7 +12,6 @@ import { Filters, WatchAction, WatchPhase } from "./types";
 import { k8sCfg, pathBuilder } from "./utils";
 
 export enum WatchEvent {
-  
   /** Watch is connected successfully */
   CONNECT = "connect",
   /** Network error occurs */
