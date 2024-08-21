@@ -373,7 +373,7 @@ export class Watcher<T extends GenericClass> {
       // Make the actual request
       const response = await fetch(url, { ...opts });
       response.body.on("socket", socket => {
-        socket.setKeepAlive(true, 1000);
+        socket.setKeepAlive(true, 30 * 1000);
       });
 
       // Reset the pending reconnect flag
