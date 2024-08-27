@@ -24,11 +24,13 @@ export async function k8sHttp2Cfg(method: FetchMethods) {
   kubeConfig.loadFromDefault();
 
   const cluster = kubeConfig.getCurrentCluster();
+  console.log("CLUSTER ",JSON.stringify(cluster, undefined, 2));
   if (!cluster) {
     throw new Error("No currently active cluster");
   }
 
   const user = kubeConfig.getCurrentUser();
+  console.log("USER ",JSON.stringify(user, undefined, 2));
   if (!user) {
     throw new Error("No user credentials found in kubeconfig");
   }

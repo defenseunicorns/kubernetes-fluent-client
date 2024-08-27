@@ -120,7 +120,7 @@ export async function http2Fetch<T>(
 
       req.on('end', () => {
         client.close();
-
+        console.log(`data `, JSON.stringify(responseData)); // Debug log
         const ok = status >= 200 && status < 300;
 
         if (contentType.includes('application/json')) {
