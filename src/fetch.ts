@@ -95,9 +95,9 @@ export async function http2Fetch<T>(
   let data = undefined as unknown as T;
 
   return new Promise((resolve, reject) => {
-    console.log('Connecting to URL:', url); // Debug log
-    console.log('Using TLS Options:', options.tlsOptions); // Debug log
-    console.log('Request Headers:', options.headers); // Debug log
+    console.log('Connecting to URL:', url); 
+    console.log('Using TLS Options:', options.tlsOptions);
+    console.log('Request Headers:', options.headers); 
 
     const client = http2.connect(new URL(url).origin, options.tlsOptions);
 
@@ -115,13 +115,11 @@ export async function http2Fetch<T>(
       const contentType = headers['content-type'] as string || '';
 
       req.on('data', (chunk) => {
-        console.log("chunk ", chunk); // Debug log
         responseData += chunk;
       });
 
       req.on('end', () => {
         client.close();
-        console.log(`data `, JSON.stringify(responseData)); // Debug log
         const ok = status >= 200 && status < 300;
 
         if (contentType.includes('application/json')) {
