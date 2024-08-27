@@ -385,7 +385,8 @@ export class Watcher<T extends GenericClass> {
   #watch = async () => {
     try {
       // Start with a list operation
-      await this.#list();
+      // Remove for now 
+      // await this.#list();
   
       // Build the URL and request options for HTTP/2
       const { opts, url } = await this.#buildHttp2URL(true, this.#resourceVersion);
@@ -451,6 +452,8 @@ export class Watcher<T extends GenericClass> {
         // Pipe the response data to the stream
         this.#stream.end(responseData);
       } else {
+        // just reconnect for now
+        this.#watch();
         throw new Error(`watch connect failed: ${response.status} ${response.statusText}`);
       }
     } catch (e) {
