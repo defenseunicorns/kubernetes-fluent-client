@@ -35,16 +35,16 @@ export async function k8sHttp2Cfg(method: FetchMethods) {
   if (!user) {
     throw new Error("No user credentials found in kubeconfig");
   }
-  const serviceAccountTokenPath = path.join('/var/run/secrets/kubernetes.io/serviceaccount/token');
-  let token;
-  try {
-    token = fs.readFileSync(serviceAccountTokenPath, 'utf-8');
-    console.log(`Service account token: ${token}`);
-    // Use the token for API calls
-  } catch (err) {
-    console.error('Error reading service account token:', err);
-    // Handle the error appropriately
-  }
+  // const serviceAccountTokenPath = path.join('/var/run/secrets/kubernetes.io/serviceaccount/token');
+  // let token;
+  // try {
+  //   token = fs.readFileSync(serviceAccountTokenPath, 'utf-8');
+  //   console.log(`Service account token: ${token}`);
+  //   // Use the token for API calls
+  // } catch (err) {
+  //   console.error('Error reading service account token:', err);
+  //   // Handle the error appropriately
+  // }
   // Load the CA certificate, user client certificate, and key if they are provided in the kubeconfig
   const tlsOptions: http2.SecureClientSessionOptions = {
     ca: cluster.caFile ? fs.readFileSync(cluster.caFile) : cluster.caData ? Buffer.from(cluster.caData, 'base64') : undefined,
@@ -67,7 +67,7 @@ export async function k8sHttp2Cfg(method: FetchMethods) {
   };
   console.log(`Access Token: ${user.token}`);
   if (user.token) {
-    headers["authorization"] = `Bearer ${token}`;
+    headers["authorization"] = `Bearer ${user.token}`;
   }
 
   return { opts: { headers, tlsOptions }, serverUrl: cluster.server };
