@@ -3,6 +3,7 @@
 
 import { StatusCodes } from "http-status-codes";
 import fetchRaw, { FetchError, RequestInfo, RequestInit } from "node-fetch";
+import * as http2 from "http2";
 
 export type FetchResponse<T> = {
   data: T;
@@ -67,4 +68,79 @@ export async function fetch<T>(
       statusText: "Unknown error",
     };
   }
+}
+
+/**
+ * Perform an async HTTP call and return the parsed JSON response, optionally
+ * as a specific type.
+ *
+ * @example
+ * ```ts
+ * @param options.headers
+ * @param options.tlsOptions
+ * fetch<string[]>("https://example.com/api/foo");
+ * ```
+ *
+ * @param url The URL or Request object to fetch
+ * @param options Additional options for the request
+ * @returns The parsed JSON response
+ */
+export async function http2Fetch<T>(
+  url: string,
+  options: {
+    headers: http2.OutgoingHttpHeaders;
+    tlsOptions: http2.SecureClientSessionOptions;
+  }
+): Promise<FetchResponse<T>> {
+  let data = undefined as unknown as T;
+
+  return new Promise((resolve, reject) => {
+    const client = http2.connect(new URL(url).origin, options.tlsOptions);
+
+    const req = client.request({
+      ...options.headers,
+      ":path": new URL(url).pathname + new URL(url).search,
+    });
+
+    let responseData = '';
+
+    req.on('response', (headers) => {
+      const status = headers[':status'] as number;
+      const contentType = headers['content-type'] as string || '';
+
+      req.on('data', (chunk) => {
+        responseData += chunk;
+      });
+
+      req.on('end', () => {
+        client.close();
+
+        const ok = status >= 200 && status < 300;
+
+        if (contentType.includes('application/json')) {
+          try {
+            data = JSON.parse(responseData) as T;
+          } catch (e) {
+            reject(new Error(`Failed to parse JSON response: ${e.message}`));
+          }
+        } else {
+          data = responseData as unknown as T;
+        }
+
+        resolve({
+          data,
+          ok,
+          status,
+          statusText: headers[':statusText'] as string || '',
+        });
+      });
+
+      req.on('error', (err) => {
+        client.close();
+        reject(err);
+      });
+    });
+
+    req.end();
+  });
 }

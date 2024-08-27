@@ -12,6 +12,48 @@ import { ApplyCfg, FetchMethods, Filters } from "./types";
 
 const SSA_CONTENT_TYPE = "application/apply-patch+yaml";
 
+import * as fs from 'fs';
+import * as http2 from 'http2';
+
+/**
+ *
+ * @param method
+ */
+export async function k8sHttp2Cfg(method: FetchMethods) {
+  const kubeConfig = new KubeConfig();
+  kubeConfig.loadFromDefault();
+
+  const cluster = kubeConfig.getCurrentCluster();
+  if (!cluster) {
+    throw new Error("No currently active cluster");
+  }
+
+  const user = kubeConfig.getCurrentUser();
+  if (!user) {
+    throw new Error("No user credentials found in kubeconfig");
+  }
+
+  // Prepare the TLS options
+  const tlsOptions: http2.SecureClientSessionOptions = {
+    ca: cluster.caFile ? fs.readFileSync(cluster.caFile) : undefined,
+    cert: user.certFile ? fs.readFileSync(user.certFile) : undefined,
+    key: user.keyFile ? fs.readFileSync(user.keyFile) : undefined,
+  };
+
+  // Prepare the headers for HTTP/2
+  const headers: http2.OutgoingHttpHeaders = {
+    ":method": method,
+    "content-type": "application/json",
+    "user-agent": "kubernetes-fluent-client",
+  };
+
+  if (user.token) {
+    headers["authorization"] = `Bearer ${user.token}`;
+  }
+
+  return { opts: { headers, tlsOptions }, serverUrl: cluster.server };
+}
+
 /**
  * Generate a path to a Kubernetes resource
  *

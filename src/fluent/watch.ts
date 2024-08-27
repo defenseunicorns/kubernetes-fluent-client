@@ -4,12 +4,10 @@
 import byline from "byline";
 import { createHash } from "crypto";
 import { EventEmitter } from "events";
-import fetch from "node-fetch";
-
-import { fetch as wrappedFetch } from "../fetch";
+import { http2Fetch, fetch as wrappedFetch } from "../fetch";
 import { GenericClass, KubernetesListObject } from "../types";
 import { Filters, WatchAction, WatchPhase } from "./types";
-import { k8sCfg, pathBuilder } from "./utils";
+import { k8sCfg, k8sHttp2Cfg, pathBuilder } from "./utils";
 
 export enum WatchEvent {
   /** Watch is connected successfully */
@@ -198,6 +196,36 @@ export class Watcher<T extends GenericClass> {
     return this.#events;
   }
 
+  #buildHttp2URL = async (isWatch: boolean, resourceVersion?: string, continueToken?: string) => {
+    // Build the path and query params for the resource, excluding the name
+    const { opts, serverUrl } = await k8sHttp2Cfg("GET");
+
+    const url = pathBuilder(serverUrl, this.#model, this.#filters, true);
+
+    // Enable the watch query param
+    if (isWatch) {
+      url.searchParams.set("watch", "true");
+    }
+
+    if (continueToken) {
+      url.searchParams.set("continue", continueToken);
+    }
+
+    // If a name is specified, add it to the query params
+    if (this.#filters.name) {
+      url.searchParams.set("fieldSelector", `metadata.name=${this.#filters.name}`);
+    }
+
+    // If a resource version is specified, add it to the query params
+    if (resourceVersion) {
+      url.searchParams.set("resourceVersion", resourceVersion);
+    }
+
+    // No abort signal needed for HTTP/2
+
+    return { opts, url };
+  };
+
   /**
    * Build the URL and request options for the watch.
    *
@@ -358,34 +386,35 @@ export class Watcher<T extends GenericClass> {
     try {
       // Start with a list operation
       await this.#list();
-
-      // Build the URL and request options
-      const { opts, url } = await this.#buildURL(true, this.#resourceVersion);
-
+  
+      // Build the URL and request options for HTTP/2
+      const { opts, url } = await this.#buildHttp2URL(true, this.#resourceVersion);
+  
       // Create a stream to read the response body
       this.#stream = byline.createStream();
-
+  
       // Bind the stream events
       this.#stream.on("error", this.#errHandler);
       this.#stream.on("close", this.#streamCleanup);
       this.#stream.on("finish", this.#streamCleanup);
-
-      // Make the actual request
-      const response = await fetch(url, { ...opts });
-
+  
+      // Make the actual request using http2Fetch
+      const response = await http2Fetch(url.toString(), opts);
+  
       // Reset the pending reconnect flag
       this.#pendingReconnect = false;
-
+  
       // If the request is successful, start listening for events
       if (response.ok) {
         this.#events.emit(WatchEvent.CONNECT, url.pathname);
-
-        const { body } = response;
-
+  
+        // Use the streamed response data
+        const responseData = response.data;
+  
         // Reset the retry count
         this.#resyncFailureCount = 0;
         this.#events.emit(WatchEvent.INC_RESYNC_FAILURE_COUNT, this.#resyncFailureCount);
-
+  
         // Listen for events and call the callback function
         this.#stream.on("data", async line => {
           try {
@@ -394,10 +423,10 @@ export class Watcher<T extends GenericClass> {
               type: WatchPhase;
               object: InstanceType<T>;
             };
-
+  
             // Update the last seen time
             this.#lastSeenTime = Date.now();
-
+  
             // If the watch is too old, remove the resourceVersion and reload the watch
             if (phase === WatchPhase.Error && payload.code === 410) {
               throw {
@@ -405,30 +434,22 @@ export class Watcher<T extends GenericClass> {
                 message: this.#resourceVersion!,
               };
             }
-
+  
             // Process the event payload, do not update the resource version as that is handled by the list operation
             await this.#process(payload, phase);
           } catch (err) {
             if (err.name === "TooOld") {
-              // Prevent any body events from firing
-              body.removeAllListeners();
-
               // Reload the watch
               void this.#errHandler(err);
               return;
             }
-
+  
             this.#events.emit(WatchEvent.DATA_ERROR, err);
           }
         });
-
-        // Bind the body events
-        body.on("error", this.#errHandler);
-        body.on("close", this.#streamCleanup);
-        body.on("finish", this.#streamCleanup);
-
-        // Pipe the response body to the stream
-        body.pipe(this.#stream);
+  
+        // Pipe the response data to the stream
+        this.#stream.end(responseData);
       } else {
         throw new Error(`watch connect failed: ${response.status} ${response.statusText}`);
       }
