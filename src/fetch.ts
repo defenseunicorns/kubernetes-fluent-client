@@ -115,6 +115,7 @@ export async function http2Fetch<T>(
       const contentType = headers['content-type'] as string || '';
 
       req.on('data', (chunk) => {
+        console.log("chunk ", chunk); // Debug log
         responseData += chunk;
       });
 
