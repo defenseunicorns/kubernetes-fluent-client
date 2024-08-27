@@ -95,6 +95,10 @@ export async function http2Fetch<T>(
   let data = undefined as unknown as T;
 
   return new Promise((resolve, reject) => {
+    console.log('Connecting to URL:', url); // Debug log
+    console.log('Using TLS Options:', options.tlsOptions); // Debug log
+    console.log('Request Headers:', options.headers); // Debug log
+
     const client = http2.connect(new URL(url).origin, options.tlsOptions);
 
     const req = client.request({
@@ -105,6 +109,8 @@ export async function http2Fetch<T>(
     let responseData = '';
 
     req.on('response', (headers) => {
+      console.log('Response Headers:', headers); // Debug log
+
       const status = headers[':status'] as number;
       const contentType = headers['content-type'] as string || '';
 
