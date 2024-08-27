@@ -33,12 +33,19 @@ export async function k8sHttp2Cfg(method: FetchMethods) {
     throw new Error("No user credentials found in kubeconfig");
   }
 
-  // Prepare the TLS options
+  // Load the CA certificate, user client certificate, and key if they are provided in the kubeconfig
   const tlsOptions: http2.SecureClientSessionOptions = {
     ca: cluster.caFile ? fs.readFileSync(cluster.caFile) : undefined,
     cert: user.certFile ? fs.readFileSync(user.certFile) : undefined,
     key: user.keyFile ? fs.readFileSync(user.keyFile) : undefined,
+    rejectUnauthorized: false, // Set to false for self-signed certificates; remove in production
   };
+
+  // Ensure `servername` is not set if using an IP address
+  const serverUrl = new URL(cluster.server);
+  if (serverUrl.hostname && !serverUrl.hostname.match(/^[0-9.]+$/)) {
+    tlsOptions.servername = serverUrl.hostname;
+  }
 
   // Prepare the headers for HTTP/2
   const headers: http2.OutgoingHttpHeaders = {
@@ -53,7 +60,6 @@ export async function k8sHttp2Cfg(method: FetchMethods) {
 
   return { opts: { headers, tlsOptions }, serverUrl: cluster.server };
 }
-
 /**
  * Generate a path to a Kubernetes resource
  *
