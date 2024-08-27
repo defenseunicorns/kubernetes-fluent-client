@@ -204,6 +204,9 @@ export async function http2Fetch<T>(
             data = responseData as unknown as T;
           }
 
+          //not tried yet
+          // makeRequest();
+
           resolve({
             data,
             ok,
@@ -224,8 +227,8 @@ export async function http2Fetch<T>(
         client.close();
         handleRetry(err);
       });
-
-      req.end();
+      // remove for now
+      // req.end();
     };
 
     const handleRetry = (err: Error) => {
