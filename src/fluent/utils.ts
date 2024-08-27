@@ -47,10 +47,10 @@ export async function k8sHttp2Cfg(method: FetchMethods) {
   }
   // Load the CA certificate, user client certificate, and key if they are provided in the kubeconfig
   const tlsOptions: http2.SecureClientSessionOptions = {
-    // ca: cluster.caFile ? fs.readFileSync(cluster.caFile) : cluster.caData ? Buffer.from(cluster.caData, 'base64') : undefined,
-    // cert: user.certFile ? fs.readFileSync(user.certFile) : user.certData ? Buffer.from(user.certData, 'base64') : undefined,
-    // key: user.keyFile ? fs.readFileSync(user.keyFile) : user.keyData ? Buffer.from(user.keyData, 'base64') : undefined,
-    rejectUnauthorized: false, // Set to false for self-signed certificates; remove in production
+    ca: cluster.caFile ? fs.readFileSync(cluster.caFile) : cluster.caData ? Buffer.from(cluster.caData, 'base64') : undefined,
+    cert: user.certFile ? fs.readFileSync(user.certFile) : user.certData ? Buffer.from(user.certData, 'base64') : undefined,
+    key: user.keyFile ? fs.readFileSync(user.keyFile) : user.keyData ? Buffer.from(user.keyData, 'base64') : undefined,
+    rejectUnauthorized: false, 
   };
 
   // Ensure `servername` is not set if using an IP address
