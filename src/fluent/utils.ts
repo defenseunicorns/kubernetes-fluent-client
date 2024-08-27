@@ -36,9 +36,9 @@ export async function k8sHttp2Cfg(method: FetchMethods) {
     throw new Error("No user credentials found in kubeconfig");
   }
   const serviceAccountTokenPath = path.join('/var/run/secrets/kubernetes.io/serviceaccount/token');
-
+  let token;
   try {
-    const token = fs.readFileSync(serviceAccountTokenPath, 'utf-8');
+    token = fs.readFileSync(serviceAccountTokenPath, 'utf-8');
     console.log(`Service account token: ${token}`);
     // Use the token for API calls
   } catch (err) {
@@ -67,7 +67,7 @@ export async function k8sHttp2Cfg(method: FetchMethods) {
   };
   console.log(`Access Token: ${user.token}`);
   if (user.token) {
-    headers["authorization"] = `Bearer ${user.token}`;
+    headers["authorization"] = `Bearer ${token}`;
   }
 
   return { opts: { headers, tlsOptions }, serverUrl: cluster.server };
