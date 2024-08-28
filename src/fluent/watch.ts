@@ -385,12 +385,10 @@ export class Watcher<T extends GenericClass> {
   #watch = async () => {
     try {
       // Start with a list operation
-      // Remove for now 
-      // await this.#list();
+      await this.#list();
   
       // Build the URL and request options for HTTP/2
-      const { opts, url } = await this.#buildHttp2URL(true, this.#resourceVersion);
-      console.log('Connecting to URL:', url.toString()); 
+      const { opts, url } = await this.#buildHttp2URL(true, this.#resourceVersion); 
       // Create a stream to read the response body
       this.#stream = byline.createStream();
   

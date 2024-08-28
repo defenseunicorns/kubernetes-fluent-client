@@ -164,10 +164,6 @@ export async function http2Fetch<T>(
 
   return new Promise((resolve, reject) => {
     const makeRequest = () => {
-      console.log('Connecting to URL:', url);
-      console.log('Using TLS Options:', options.tlsOptions);
-      console.log('Request Headers:', options.headers);
-
       let client: http2.ClientHttp2Session;
       let req: http2.ClientHttp2Stream;
 
@@ -180,8 +176,6 @@ export async function http2Fetch<T>(
       let responseData = '';
 
       req.on('response', (headers) => {
-        console.log('Response Headers:', headers);
-
         const status = headers[':status'] as number;
         const contentType = headers['content-type'] as string || '';
 
@@ -204,9 +198,6 @@ export async function http2Fetch<T>(
             data = responseData as unknown as T;
           }
 
-          //not tried yet
-          // makeRequest();
-
           resolve({
             data,
             ok,
@@ -227,8 +218,8 @@ export async function http2Fetch<T>(
         client.close();
         handleRetry(err);
       });
-      // remove for now
-      // req.end();
+
+      req.end();
     };
 
     const handleRetry = (err: Error) => {
