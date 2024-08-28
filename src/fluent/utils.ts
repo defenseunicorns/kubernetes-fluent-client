@@ -4,17 +4,15 @@
 import { KubeConfig, PatchStrategy } from "@kubernetes/client-node";
 import { Headers } from "node-fetch";
 import { URL } from "url";
-
 import { fetch } from "../fetch";
 import { modelToGroupVersionKind } from "../kinds";
 import { GenericClass } from "../types";
 import { ApplyCfg, FetchMethods, Filters } from "./types";
+import * as fs from 'fs';
+import * as http2 from 'http2';
 
 const SSA_CONTENT_TYPE = "application/apply-patch+yaml";
 
-import * as fs from 'fs';
-import * as http2 from 'http2';
-import path from "path";
 
 /**
  *
@@ -33,16 +31,6 @@ export async function k8sHttp2Cfg(method: FetchMethods) {
   if (!user) {
     throw new Error("No user credentials found in kubeconfig");
   }
-  // const serviceAccountTokenPath = path.join('/var/run/secrets/kubernetes.io/serviceaccount/token');
-  // let token;
-  // try {
-  //   token = fs.readFileSync(serviceAccountTokenPath, 'utf-8');
-  //   console.log(`Service account token: ${token}`);
-  //   // Use the token for API calls
-  // } catch (err) {
-  //   console.error('Error reading service account token:', err);
-  //   // Handle the error appropriately
-  // }
   // Load the CA certificate, user client certificate, and key if they are provided in the kubeconfig
   const tlsOptions: http2.SecureClientSessionOptions = {
     ca: cluster.caFile ? fs.readFileSync(cluster.caFile) : cluster.caData ? Buffer.from(cluster.caData, 'base64') : undefined,
@@ -50,12 +38,6 @@ export async function k8sHttp2Cfg(method: FetchMethods) {
     key: user.keyFile ? fs.readFileSync(user.keyFile) : user.keyData ? Buffer.from(user.keyData, 'base64') : undefined,
     rejectUnauthorized: false, 
   };
-
-  // Ensure `servername` is not set if using an IP address
-  const serverUrl = new URL(cluster.server);
-  // if (serverUrl.hostname && !serverUrl.hostname.match(/^[0-9.]+$/)) {
-  //   tlsOptions.servername = serverUrl.hostname;
-  // }
 
   // Prepare the headers for HTTP/2
   const headers: http2.OutgoingHttpHeaders = {
