@@ -15,8 +15,15 @@ const SSA_CONTENT_TYPE = "application/apply-patch+yaml";
 
 
 /**
+ * Sets up the kubeconfig and https agent for a request
  *
- * @param method
+ * A few notes:
+ * - The kubeconfig is loaded from the default location, and can check for in-cluster config
+ * - We have to create an agent to handle the TLS connection (for the custom CA + mTLS in some cases)
+ * - The K8s lib uses request instead of node-fetch today so the object is slightly different
+ *
+ * @param method - the HTTP method to use
+ * @returns the fetch options and server URL
  */
 export async function k8sHttp2Cfg(method: FetchMethods) {
   const kubeConfig = new KubeConfig();

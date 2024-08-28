@@ -451,7 +451,7 @@ export class Watcher<T extends GenericClass> {
         this.#stream.end(responseData);
       } else {
         // just reconnect for now
-        this.#watch();
+        void this.#watch();
         throw new Error(`watch connect failed: ${response.status} ${response.statusText}`);
       }
     } catch (e) {
