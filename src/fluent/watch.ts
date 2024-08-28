@@ -113,8 +113,8 @@ export class Watcher<T extends GenericClass> {
     // Set the retry delay to 5 seconds if not specified
     watchCfg.resyncDelaySec ??= 5;
 
-    // Set the relist interval to 30 minutes if not specified
-    watchCfg.relistIntervalSec ??= 1800;
+    // Set the relist interval to 10 minutes if not specified
+    watchCfg.relistIntervalSec ??= 600;
 
     // Set the resync interval to 10 minutes if not specified
     watchCfg.lastSeenLimitSeconds ??= 600;
