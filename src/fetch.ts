@@ -69,6 +69,15 @@ export async function fetch<T>(
     };
   }
 }
+/**
+ *
+ * @param url
+ * @param options
+ * @param options.headers
+ * @param options.tlsOptions
+ * @param options.maxRetries
+ * @param options.retryDelay
+ */
 export async function http2Fetch<T>(
   url: string,
   options: {
