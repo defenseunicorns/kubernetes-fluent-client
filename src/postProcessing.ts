@@ -26,7 +26,6 @@ export function writeFile(filePath: string, content: string): void {
   fs.writeFileSync(filePath, content, "utf8");
 }
 
-
 /**
  * Retrieves the properties of the GenericKind class, excluding the dynamic `[key: string]: any` property.
  *
@@ -37,7 +36,7 @@ export function getGenericKindProperties(): string[] {
   const properties = Object.getOwnPropertyNames(new GenericKind());
 
   // Filter out the dynamic `[key: string]: any` property
-  return properties.filter(prop => prop !== '[key: string]');
+  return properties.filter(prop => prop !== "[key: string]");
 }
 
 /**
@@ -50,9 +49,9 @@ export function getGenericKindProperties(): string[] {
  * @returns The modified file content.
  */
 export function processFile(content: string): string {
-  const lines = content.split('\n'); // Split the content into lines
+  const lines = content.split("\n"); // Split the content into lines
   const modifiedLines = [];
-  const genericKindProperties = getGenericKindProperties();  // Get properties of GenericKind
+  const genericKindProperties = getGenericKindProperties(); // Get properties of GenericKind
   let insideClass = false;
   let braceBalance = 0; // Track the balance of curly braces
   const foundInterfaces: Set<string> = new Set(); // Set to store interface names
@@ -72,7 +71,7 @@ export function processFile(content: string): string {
     let line = lines[i];
 
     // Check for the start of the class that extends GenericKind
-    if (line.includes('class') && line.includes('extends GenericKind')) {
+    if (line.includes("class") && line.includes("extends GenericKind")) {
       console.log(`Found class that extends GenericKind: ${line}`);
       insideClass = true;
 
@@ -87,12 +86,12 @@ export function processFile(content: string): string {
     // If we are inside the class, check for opening and closing braces
     if (insideClass) {
       // Count the opening braces
-      if (line.includes('{')) {
+      if (line.includes("{")) {
         braceBalance++;
       }
 
       // Count the closing braces
-      if (line.includes('}')) {
+      if (line.includes("}")) {
         braceBalance--;
 
         // If brace balance reaches 0, the class has ended
@@ -103,7 +102,7 @@ export function processFile(content: string): string {
 
       // Check if the line defines a property from GenericKind
       for (const property of genericKindProperties) {
-        const propertyPattern = new RegExp(`\\b${property}\\b\\s*\\?\\s*:|\\b${property}\\b\\s*:`);  // Regex to find the property definition
+        const propertyPattern = new RegExp(`\\b${property}\\b\\s*\\?\\s*:|\\b${property}\\b\\s*:`); // Regex to find the property definition
 
         if (propertyPattern.test(line)) {
           // Add `declare` before the property name
@@ -117,17 +116,20 @@ export function processFile(content: string): string {
       const match = line.match(propertyTypePattern);
       if (match) {
         const propertyType = match[1];
-        if (foundInterfaces.has(propertyType) && !line.includes('?')) {
+        if (foundInterfaces.has(propertyType) && !line.includes("?")) {
           // If the property type matches an interface and is not optional, make it optional
-          line = line.replace(':', '?:');
+          line = line.replace(":", "?:");
           console.log(`Making property of type ${propertyType} optional`);
         }
       }
 
       // Check if the line contains `[key: string]: any` and is not in GenericKind properties
-      if (line.includes('[key: string]: any') && !genericKindProperties.includes('[key: string]: any')) {
+      if (
+        line.includes("[key: string]: any") &&
+        !genericKindProperties.includes("[key: string]: any")
+      ) {
         // Add the eslint-disable comment on the line before
-        modifiedLines.push('    // eslint-disable-next-line @typescript-eslint/no-explicit-any');
+        modifiedLines.push("    // eslint-disable-next-line @typescript-eslint/no-explicit-any");
       }
 
       // Add the modified line to the output
@@ -139,7 +141,7 @@ export function processFile(content: string): string {
     modifiedLines.push(line);
   }
 
-  return modifiedLines.join('\n'); // Join the modified lines back into a string
+  return modifiedLines.join("\n"); // Join the modified lines back into a string
 }
 
 /**
