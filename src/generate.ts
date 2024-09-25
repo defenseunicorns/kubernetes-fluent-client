@@ -30,6 +30,8 @@ export interface GenerateOptions {
   npmPackage?: string;
   /** Log function callback */
   logFn: LogFn;
+  /** Enable post processing of the generated files */
+  post?: boolean;
 }
 
 /**
