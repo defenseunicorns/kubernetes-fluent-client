@@ -7,6 +7,7 @@ import { hideBin } from "yargs/helpers";
 import yargs from "yargs/yargs";
 import { GenerateOptions, generate } from "./generate";
 import { version } from "../package.json";
+import { PostProcessing } from "./postProcessing";
 
 void yargs(hideBin(process.argv))
   .version("version", "Display version number", `kubernetes-fluent-client v${version}`)
@@ -53,11 +54,15 @@ void yargs(hideBin(process.argv))
       // Pass the `post` flag to opts
       opts.post = argv.post;
 
+      if (opts.post) {
+
+        console.log("\n✅ Post-processing has been enabled.\n");
+      }
+
       try {
         await generate(opts);
         if (opts.post) {
-          // Add post-processing logic here
-          console.log("\n✅ Post-processing has been enabled.");
+          await PostProcessing(opts);
         }
       } catch (e) {
         console.log(`\n❌ ${e.message}`);
