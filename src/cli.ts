@@ -7,7 +7,7 @@ import { hideBin } from "yargs/helpers";
 import yargs from "yargs/yargs";
 import { GenerateOptions, generate } from "./generate";
 import { version } from "../package.json";
-import { PostProcessing } from "./postProcessing";
+import { postProcessing } from "./postProcessing";
 
 void yargs(hideBin(process.argv))
   .version("version", "Display version number", `kubernetes-fluent-client v${version}`)
@@ -60,7 +60,7 @@ void yargs(hideBin(process.argv))
       try {
         await generate(opts);
         if (opts.post) {
-          await PostProcessing(opts);
+          await postProcessing(opts);
         }
       } catch (e) {
         console.log(`\n❌ ${e.message}`);

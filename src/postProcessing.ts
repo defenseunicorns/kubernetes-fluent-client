@@ -10,7 +10,7 @@ import { GenerateOptions } from "./generate";
  *
  * @param opts The options to use for post-processing
  */
-export async function PostProcessing(opts: GenerateOptions) {
+export async function postProcessing(opts: GenerateOptions) {
   if (opts.directory) {
     const files = fs.readdirSync(opts.directory);
 
