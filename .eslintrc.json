@@ -22,5 +22,6 @@
   },
   "plugins": ["@typescript-eslint"],
   "ignorePatterns": ["node_modules", "dist", "__mocks__"],
-  "root": true
+  "root": true,
+  "include": ["e2e/**/*"]
 }
