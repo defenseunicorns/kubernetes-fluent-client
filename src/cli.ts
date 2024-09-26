@@ -42,7 +42,7 @@ void yargs(hideBin(process.argv))
           alias: "x",
           type: "boolean",
           default: false,
-          description: "enable post-processing after generating the types",
+          description: "disable post-processing after generating the types",
         })
         .demandOption(["source", "directory"]);
     },
@@ -53,13 +53,13 @@ void yargs(hideBin(process.argv))
       // Pass the `post` flag to opts
       opts.post = argv.post;
 
-      if (opts.post) {
-        console.log("\n✅ Post-processing has been enabled.\n");
+      if (!opts.post) {
+        console.log("\n✅ Post-processing is been enabled.\n");
       }
 
       try {
         await generate(opts);
-        if (opts.post) {
+        if (!opts.post) {
           await postProcessing(opts);
         }
       } catch (e) {
