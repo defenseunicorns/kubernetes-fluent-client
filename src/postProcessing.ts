@@ -40,24 +40,14 @@ export function getGenericKindProperties(): string[] {
 }
 
 /**
- * Process the file content to:
- * 1. Add `declare` to properties from `GenericKind`.
- * 2. Add `eslint-disable` comments for `[key: string]: any`.
- * 3. Make properties optional if their type matches one of the interfaces defined below the class.
+ * Collect interface names from the file content.
  *
- * @param content The file content to process.
- * @returns The modified file content.
+ * @param lines The lines of the file content.
+ * @returns A set of interface names found in the file.
  */
-export function processFile(content: string): string {
-  const lines = content.split("\n"); // Split the content into lines
-  const modifiedLines = [];
-  const genericKindProperties = getGenericKindProperties(); // Get properties of GenericKind
-  let insideClass = false;
-  let braceBalance = 0; // Track the balance of curly braces
-  const foundInterfaces: Set<string> = new Set(); // Set to store interface names
-
-  // Step 1: Collect interface names from the file (lines below the class)
+export function collectInterfaceNames(lines: string[]): Set<string> {
   const interfacePattern = /export interface (\w+)/;
+  const foundInterfaces: Set<string> = new Set();
 
   lines.forEach(line => {
     const match = line.match(interfacePattern);
@@ -66,82 +56,152 @@ export function processFile(content: string): string {
     }
   });
 
-  // Step 2: Process the class and its properties
-  for (let i = 0; i < lines.length; i++) {
-    let line = lines[i];
+  return foundInterfaces;
+}
 
-    // Check for the start of the class that extends GenericKind
-    if (line.includes("class") && line.includes("extends GenericKind")) {
-      console.log(`Found class that extends GenericKind: ${line}`);
+/**
+ * Processes the content of a file by modifying class properties that extend GenericKind:
+ * - Adds the `declare` keyword to properties from GenericKind.
+ * - Makes certain properties optional based on found interfaces.
+ * - Adds ESLint disable comments where necessary.
+ *
+ * @param content - The content of the file to process.
+ * @returns - The processed file content.
+ */
+export function processFile(content: string): string {
+  const lines = content.split("\n");
+  const modifiedLines: string[] = [];
+  const genericKindProperties = getGenericKindProperties();
+  const foundInterfaces = collectInterfaceNames(lines);
+
+  let insideClass = false;
+  let braceBalance = 0;
+
+  for (let line of lines) {
+    // Find start of class definition
+    if (isClassExtendingGenericKind(line)) {
       insideClass = true;
-
-      // Reset brace balance (expecting an opening brace soon)
-      braceBalance = 0;
-
-      // Add the class declaration line to the result without modification
+      braceBalance = 1;
       modifiedLines.push(line);
-      continue;
+      continue; // Skip processing the class definition line
     }
 
-    // If we are inside the class, check for opening and closing braces
     if (insideClass) {
-      // Count the opening braces
-      if (line.includes("{")) {
-        braceBalance++;
+      // Use brace balance to determine if we are still inside the class definition
+      braceBalance = updateBraceBalance(line, braceBalance);
+      if (braceBalance === 0) {
+        insideClass = false;
       }
 
-      // Count the closing braces
-      if (line.includes("}")) {
-        braceBalance--;
+      line = processPropertyDeclarations(line, genericKindProperties, foundInterfaces);
+      line = processEslintDisable(line, genericKindProperties);
 
-        // If brace balance reaches 0, the class has ended
-        if (braceBalance === 0) {
-          insideClass = false; // We're no longer inside the class
-        }
-      }
-
-      // Check if the line defines a property from GenericKind
-      for (const property of genericKindProperties) {
-        const propertyPattern = new RegExp(`\\b${property}\\b\\s*\\?\\s*:|\\b${property}\\b\\s*:`); // Regex to find the property definition
-
-        if (propertyPattern.test(line)) {
-          // Add `declare` before the property name
-          line = line.replace(property, `declare ${property}`);
-          console.log(`Adding declare modifier to property: ${property}`);
-        }
-      }
-
-      // Step 3: Check if the property type matches one of the collected interface names
-      const propertyTypePattern = /:\s*(\w+)\s*;/; // Match the property type
-      const match = line.match(propertyTypePattern);
-      if (match) {
-        const propertyType = match[1];
-        if (foundInterfaces.has(propertyType) && !line.includes("?")) {
-          // If the property type matches an interface and is not optional, make it optional
-          line = line.replace(":", "?:");
-          console.log(`Making property of type ${propertyType} optional`);
-        }
-      }
-
-      // Check if the line contains `[key: string]: any` and is not in GenericKind properties
-      if (
-        line.includes("[key: string]: any") &&
-        !genericKindProperties.includes("[key: string]: any")
-      ) {
-        // Add the eslint-disable comment on the line before
-        modifiedLines.push("    // eslint-disable-next-line @typescript-eslint/no-explicit-any");
-      }
-
-      // Add the modified line to the output
       modifiedLines.push(line);
       continue;
     }
 
-    // If not inside a class, just add the line as it is
-    modifiedLines.push(line);
+    modifiedLines.push(line); // Not inside class, so add line as is
   }
 
-  return modifiedLines.join("\n"); // Join the modified lines back into a string
+  return modifiedLines.join("\n");
+}
+
+/**
+ * Checks whether the line contains a class that extends GenericKind.
+ *
+ * @param line - The line of code to check.
+ * @returns - True if the line defines a class that extends GenericKind, false otherwise.
+ */
+function isClassExtendingGenericKind(line: string): boolean {
+  return line.includes("class") && line.includes("extends GenericKind");
+}
+
+/**
+ * Updates the balance of curly braces to track whether we are inside a class definition.
+ *
+ * @param line - The current line of code.
+ * @param braceBalance - The current brace balance (number of unclosed opening braces).
+ * @returns - The updated brace balance.
+ */
+function updateBraceBalance(line: string, braceBalance: number): number {
+  if (line.includes("{")) braceBalance++;
+  if (line.includes("}")) braceBalance--;
+  return braceBalance;
+}
+
+/**
+ * Processes the property declarations in the class:
+ * - Adds the `declare` modifier to properties from GenericKind.
+ * - Makes properties optional if their type matches any of the found interfaces.
+ *
+ * @param line - The current line of code.
+ * @param genericKindProperties - The list of properties from GenericKind.
+ * @param foundInterfaces - The set of found interfaces in the file.
+ * @returns - The modified line, if applicable.
+ */
+function processPropertyDeclarations(
+  line: string,
+  genericKindProperties: string[],
+  foundInterfaces: Set<string>,
+): string {
+  line = addDeclareToGenericKindProperties(line, genericKindProperties);
+  line = makePropertiesOptional(line, foundInterfaces);
+  return line;
+}
+
+/**
+ * Adds the `declare` keyword to properties that belong to GenericKind.
+ *
+ * @param line - The current line of code.
+ * @param genericKindProperties - The list of properties from GenericKind.
+ * @returns - The modified line with the `declare` keyword, if applicable.
+ */
+function addDeclareToGenericKindProperties(line: string, genericKindProperties: string[]): string {
+  for (const property of genericKindProperties) {
+    const propertyPattern = new RegExp(`\\b${property}\\b\\s*\\?\\s*:|\\b${property}\\b\\s*:`);
+
+    if (propertyPattern.test(line)) {
+      return line.replace(property, `declare ${property}`);
+    }
+  }
+  return line;
+}
+
+/**
+ * Makes a property optional if its type matches one of the found interfaces and it isn't already optional.
+ *
+ * @param line - The current line of code.
+ * @param foundInterfaces - The set of found interfaces in the file.
+ * @returns - The modified line with the optional `?`, if applicable.
+ */
+function makePropertiesOptional(line: string, foundInterfaces: Set<string>): string {
+  const propertyTypePattern = /:\s*(\w+)\s*;/;
+  const match = line.match(propertyTypePattern);
+
+  if (match) {
+    const propertyType = match[1];
+    if (foundInterfaces.has(propertyType) && !line.includes("?")) {
+      return line.replace(":", "?:");
+    }
+  }
+  return line;
+}
+
+/**
+ * Adds an ESLint disable comment for the `[key: string]: any` property if it's not in GenericKind.
+ *
+ * @param line - The current line of code.
+ * @param genericKindProperties - The list of properties from GenericKind.
+ * @returns - The modified line with the ESLint disable comment, if applicable.
+ */
+function processEslintDisable(line: string, genericKindProperties: string[]): string {
+  if (
+    line.includes("[key: string]: any") &&
+    !genericKindProperties.includes("[key: string]: any")
+  ) {
+    return `    // eslint-disable-next-line @typescript-eslint/no-explicit-any\n${line}`;
+  }
+  return line;
 }
 
 /**
