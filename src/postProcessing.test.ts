@@ -1,7 +1,14 @@
 import * as fs from "fs";
-import { readFile, writeFile, getGenericKindProperties, collectInterfaceNames, processFile, postProcessing } from "./postProcessing";
+import {
+  readFile,
+  writeFile,
+  getGenericKindProperties,
+  collectInterfaceNames,
+  processFile,
+  postProcessing,
+} from "./postProcessing";
 import { GenericKind } from "./types"; // Mock the GenericKind class
-import { jest, describe, beforeEach, test, expect } from '@jest/globals';
+import { jest, describe, beforeEach, test, expect } from "@jest/globals";
 
 jest.mock("fs");
 jest.mock("./types");
@@ -39,7 +46,7 @@ describe("getGenericKindProperties", () => {
       apiVersion: "",
       kind: "",
       metadata: {},
-      "[key: string]": "any"
+      "[key: string]": "any",
     }));
 
     const properties = getGenericKindProperties();
@@ -49,10 +56,7 @@ describe("getGenericKindProperties", () => {
 
 describe("collectInterfaceNames", () => {
   test("should collect interface names from file content", () => {
-    const fileContent = [
-      "export interface TestInterface1 {",
-      "export interface TestInterface2 {",
-    ];
+    const fileContent = ["export interface TestInterface1 {", "export interface TestInterface2 {"];
 
     const interfaces = collectInterfaceNames(fileContent);
     expect(interfaces).toEqual(new Set(["TestInterface1", "TestInterface2"]));
@@ -90,7 +94,9 @@ describe("processFile", () => {
       }
     `;
     const modifiedContent = processFile(content);
-    expect(modifiedContent).toContain("// eslint-disable-next-line @typescript-eslint/no-explicit-any");
+    expect(modifiedContent).toContain(
+      "// eslint-disable-next-line @typescript-eslint/no-explicit-any",
+    );
   });
 });
 
@@ -110,7 +116,7 @@ describe("postProcessing", () => {
     const opts = {
       directory: mockDirectory,
       logFn: mockLogFn,
-      source: "test-source.yaml"
+      source: "test-source.yaml",
     };
 
     await postProcessing(opts);
@@ -125,7 +131,7 @@ describe("postProcessing", () => {
     const opts = {
       directory: mockDirectory,
       logFn: mockLogFn,
-      source: "test-source.yaml"
+      source: "test-source.yaml",
     };
 
     await postProcessing(opts);
