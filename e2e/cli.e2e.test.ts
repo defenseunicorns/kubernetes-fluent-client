@@ -4,7 +4,10 @@ import * as path from "path";
 import { describe, beforeEach, test, expect, afterEach } from "@jest/globals";
 
 // Utility function to execute the CLI command
-const runCliCommand = (args: string[], callback: (error: Error | null, stdout: string, stderr: string) => void) => {
+const runCliCommand = (
+  args: string[],
+  callback: (error: Error | null, stdout: string, stderr: string) => void,
+) => {
   execFile("node", ["./dist/cli.js", ...args], callback); // Path to your built CLI JS file
 };
 
