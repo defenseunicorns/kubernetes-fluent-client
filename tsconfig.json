@@ -13,6 +13,6 @@
     "target": "ES2022",
     "useUnknownInCatchVariables": false
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }
