@@ -28,7 +28,7 @@ export interface GenerateOptions {
 }
 
 /**
- * Converts a CRD to TypeScript types based on the provided options.
+ * Converts a CustomResourceDefinition to TypeScript types
  *
  * @param crd - The CustomResourceDefinition object to convert.
  * @param opts - The options for generating the TypeScript types.
@@ -38,12 +38,16 @@ async function convertCRDtoTS(
   crd: CustomResourceDefinition,
   opts: GenerateOptions,
 ): Promise<Record<string, string[]>> {
+  // Get the name of the kind
   const name = crd.spec.names.kind;
+
   const results: Record<string, string[]> = {};
 
-  for (const versionObj of crd.spec.versions) {
-    const version = versionObj.name;
-    const schema = JSON.stringify(versionObj.schema?.openAPIV3Schema);
+  for (const match of crd.spec.versions) {
+    const version = match.name;
+
+    // Get the schema from the matched version
+    const schema = JSON.stringify(match.schema?.openAPIV3Schema);
 
     opts.logFn(`- Generating ${crd.spec.group}/${version} types for ${name}`);
 
@@ -68,10 +72,16 @@ async function convertCRDtoTS(
  * @returns A promise that resolves to the input data for quicktype.
  */
 async function prepareInputData(name: string, schema: string): Promise<InputData> {
+  // Create a new JSONSchemaInput
   const schemaInput = new JSONSchemaInput(new FetchingJSONSchemaStore());
+
+  // Add the schema to the input
   await schemaInput.addSource({ name, schema });
+
+  // Create a new InputData object
   const inputData = new InputData();
   inputData.addInput(schemaInput);
+
   return inputData;
 }
 
@@ -83,12 +93,16 @@ async function prepareInputData(name: string, schema: string): Promise<InputData
  * @returns A promise that resolves to an array of generated TypeScript type lines.
  */
 async function generateTypes(inputData: InputData, opts: GenerateOptions): Promise<string[]> {
+  // If the language is not specified, default to TypeScript
   const language = opts.language || "ts";
+
+  // Generate the types
   const out = await quicktype({
     inputData,
     lang: language,
     rendererOptions: { "just-types": "true" },
   });
+
   return out.lines;
 }
 
@@ -273,16 +287,20 @@ export async function generate(opts: GenerateOptions): Promise<Record<string, st
   opts.logFn("");
 
   for (const crd of crds) {
+    // Skip non-CRD objects
     if (crd.kind !== "CustomResourceDefinition" || !crd.spec?.versions?.length) {
       opts.logFn(`Skipping ${crd?.metadata?.name}, it does not appear to be a CRD`);
+      // Ignore empty and non-CRD objects
       continue;
     }
 
+    // Add the conversion results to the record
     const out = await convertCRDtoTS(crd, opts);
     Object.assign(results, out);
   }
 
   if (opts.directory) {
+    // Notify the user that the files have been generated
     opts.logFn(
       `\n✅ Generated ${Object.keys(results).length} files in the ${opts.directory} directory`,
     );
