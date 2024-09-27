@@ -38,7 +38,7 @@ void yargs(hideBin(process.argv))
           description:
             "the language to generate types in, see https://github.com/glideapps/quicktype#target-languages for a list of supported languages",
         })
-        .option("post", {
+        .option("noPost", {
           alias: "x",
           type: "boolean",
           default: false,
@@ -51,15 +51,15 @@ void yargs(hideBin(process.argv))
       opts.logFn = console.log;
 
       // Pass the `post` flag to opts
-      opts.post = argv.post;
+      opts.noPost = argv.noPost as boolean;
 
-      if (!opts.post) {
+      if (!opts.noPost) {
         console.log("\n✅ Post-processing is been enabled.\n");
       }
 
       try {
         await generate(opts);
-        if (!opts.post) {
+        if (!opts.noPost) {
           await postProcessing(opts);
         }
       } catch (e) {

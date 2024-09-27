@@ -105,6 +105,30 @@ Promise.all([
   });
 ```
 
+### Generating TypeScript Definitions from CRDs
+
+The Kubernetes Fluent Client can generate TypeScript definitions from Custom Resource Definitions (CRDs) using the `generate` command. This command will generate TypeScript interfaces for the CRDs in the cluster and save them to a file.
+
+To generate TypeScript definitions from CRDs, run the following command:
+
+```bash
+kubernetes-fluent-client crd /path/to/input.yaml /path/to/output/folder
+```
+
+If you have a CRD in a file named `crd.yaml` and you want to generate TypeScript definitions in a folder named `types`, you can run the following command:
+
+```bash
+kubernetes-fluent-client crd crd.yaml types
+```
+
+This will generate TypeScript interfaces for the CRD in the `crd.yaml` file and save them to the `types` folder.
+
+By default, the generated TypeScript interfaces will be post-processed to make them more user-friendly. If you want to disable this post-processing, you can use the `--noPost` flag:
+
+```bash
+kubernetes-fluent-client crd crd.yaml types --noPost
+```
+
 ### Community
 
 To chat with other users & see some examples of the fluent client in active use, go to [Kubernetes Slack](https://communityinviter.com/apps/kubernetes/community) and join `#pepr` channel.

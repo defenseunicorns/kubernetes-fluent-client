@@ -24,17 +24,23 @@ const compareGeneratedToExpected = (generatedFile: string, expectedFile: string)
 };
 
 describe("End-to-End CLI tests with multiple test files", () => {
-  const testFolder = path.join(__dirname, "test.yaml"); // Directory containing .test.yaml files
+  const testFolder = path.join(__dirname, "crds/test.yaml"); // Directory containing .test.yaml files
 
   // Get all .test.yaml files in the test folder
   const testFiles = fs.readdirSync(testFolder).filter(file => file.endsWith(".test.yaml"));
 
   testFiles.forEach(testFile => {
-    const name = path.basename(testFile, ".test.yaml"); // Extract NAME from the filename
+    const name = path.basename(testFile, ".test.yaml"); // Extract name from the filename
     const mockYamlPath = path.join(testFolder, testFile); // Full path to the test YAML file
-    const mockDir = path.join(__dirname, name); // Output directory based on NAME
-    const expectedDir = path.join(__dirname, `${name}.default.expected`); // Expected default directory
-    const expectedPostDir = path.join(__dirname, `${name}.post.expected`); // Expected post-processing directory
+    const mockDir = path.join(__dirname, "crds/", name); // Output directory based on name
+    const expectedDir = path.join(__dirname, `crds/${name}.default.expected`); // Expected default directory
+    const expectedPostDir = path.join(__dirname, `crds/${name}.no.post.expected`); // Expected post-processing directory
+
+    console.log(`Running tests for ${name}`);
+    console.log(`Test file: ${mockYamlPath}`);
+    console.log(`Output directory: ${mockDir}`);
+    console.log(`Expected directory: ${expectedDir}`);
+    console.log(`Expected post-processing directory: ${expectedPostDir}`);
 
     beforeEach(() => {
       // Ensure the output directory is clean
@@ -77,9 +83,9 @@ describe("End-to-End CLI tests with multiple test files", () => {
       });
     });
 
-    test(`should skip post-processing for ${name} when --post is disabled`, done => {
-      // Run the CLI command without the --post flag
-      runCliCommand(["crd", mockYamlPath, mockDir, "--post"], (error, stdout) => {
+    test(`should skip post-processing for ${name} when using --noPost`, done => {
+      // Run the CLI command without the --noPost flag
+      runCliCommand(["crd", mockYamlPath, mockDir, "--noPost"], (error, stdout) => {
         expect(error).toBeNull(); // Ensure no errors occurred
 
         // Ensure post-processing was not run (stdout should reflect this)
@@ -90,9 +96,9 @@ describe("End-to-End CLI tests with multiple test files", () => {
       });
     });
 
-    test(`should skip post-processing for ${name} when --post is disabled`, done => {
+    test(`should skip post-processing for ${name} when using --noPost`, done => {
       // Run the CLI command without post-processing
-      runCliCommand(["crd", mockYamlPath, mockDir, "--post"], (error, stdout) => {
+      runCliCommand(["crd", mockYamlPath, mockDir, "--noPost"], (error, stdout) => {
         expect(error).toBeNull(); // Ensure no errors occurred
 
         // Get the list of generated files

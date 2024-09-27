@@ -199,7 +199,7 @@ function processEslintDisable(line: string, genericKindProperties: string[]): st
     line.includes("[key: string]: any") &&
     !genericKindProperties.includes("[key: string]: any")
   ) {
-    return `    // eslint-disable-next-line @typescript-eslint/no-explicit-any\n${line}`;
+    return `  // eslint-disable-next-line @typescript-eslint/no-explicit-any\n${line}`;
   }
   return line;
 }

@@ -9,8 +9,9 @@
     "prebuild": "rm -rf dist",
     "build": "tsc",
     "semantic-release": "semantic-release",
-    "test": "jest src --coverage",
+    "test": "jest src --coverage && jest e2e",
     "test:e2e": "jest e2e",
+    "test:unit": "jest src --coverage",
     "format:check": "eslint src && prettier . --check",
     "format:fix": "eslint --fix src && prettier . --write"
   },

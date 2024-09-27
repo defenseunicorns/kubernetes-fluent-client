@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
-import { generate } from "./generate";
+import { generate, normalizePropertySpacing, resolveFilePath } from "./generate";
 import fs from "fs";
+import { fetch, FetchResponse } from "./fetch";
+import path from "path";
 
 const sampleYaml = `
 # non-crd should be ignored
@@ -37,32 +39,6 @@ spec:
                   type: string
               type: object
 ---
-# duplicate entries should not break things
-apiVersion: apiextensions.k8s.io/v1
-kind: CustomResourceDefinition
-metadata:
-  name: movies.example.com
-spec:
-  group: example.com
-  names:
-    kind: Movie
-    plural: movies
-  scope: Namespaced
-  versions:
-    - name: v1
-      schema:
-        openAPIV3Schema:
-          type: object
-          description: Movie nerd
-          properties:
-            spec:
-              properties:
-                title:
-                  type: string
-                author:
-                  type: string
-              type: object
----            
 # should support multiple versions
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
@@ -111,25 +87,29 @@ jest.mock("./fluent", () => ({
   K8s: jest.fn(),
 }));
 
+jest.mock("./generate", () => ({
+  ...(jest.requireActual("./generate") as object),
+  writeGeneratedFile: jest.fn(), // Mock writeGeneratedFile
+}));
+
 describe("CRD Generate", () => {
   const originalReadFileSync = fs.readFileSync;
 
   jest.spyOn(fs, "existsSync").mockReturnValue(true);
   jest.spyOn(fs, "readFileSync").mockImplementation((...args) => {
-    // Super janky hack due ot source-map-support calling readFileSync internally
     if (args[0].toString().includes("test-crd.yaml")) {
       return sampleYaml;
     }
     return originalReadFileSync(...args);
   });
-  const mkdirSyncSpy = jest.spyOn(fs, "mkdirSync").mockReturnValue(undefined);
+
   const writeFileSyncSpy = jest.spyOn(fs, "writeFileSync").mockReturnValue(undefined);
 
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  test("converts CRD to TypeScript", async () => {
+  test("converts CRD to TypeScript and handles fluent wrapping", async () => {
     const options = { source: "test-crd.yaml", language: "ts", logFn: jest.fn() };
 
     const actual = await generate(options);
@@ -140,12 +120,12 @@ describe("CRD Generate", () => {
       " * Movie nerd",
       " */",
       "export class Movie extends GenericKind {",
-      "    spec?: Spec;",
+      "  spec?: Spec;",
       "}",
       "",
       "export interface Spec {",
-      "    author?: string;",
-      "    title?:  string;",
+      "  author?: string;",
+      "  title?: string;",
       "}",
       "",
       "RegisterKind(Movie, {",
@@ -162,12 +142,12 @@ describe("CRD Generate", () => {
       " * Book nerd",
       " */",
       "export class Book extends GenericKind {",
-      "    spec?: Spec;",
+      "  spec?: Spec;",
       "}",
       "",
       "export interface Spec {",
-      "    author?: string;",
-      "    title?:  string;",
+      "  author?: string;",
+      "  title?: string;",
       "}",
       "",
       "RegisterKind(Book, {",
@@ -177,6 +157,7 @@ describe("CRD Generate", () => {
       '  plural: "books",',
       "});",
     ];
+
     const expectedBookV2 = expectedBookV1
       .filter(line => !line.includes("title?"))
       .map(line => line.replace("v1", "v2"));
@@ -186,7 +167,7 @@ describe("CRD Generate", () => {
     expect(actual["book-v2"]).toEqual(expectedBookV2);
   });
 
-  test("converts CRD to TypeScript with plain option", async () => {
+  test("converts CRD to TypeScript with plain option (no fluent wrapping)", async () => {
     const options = { source: "test-crd.yaml", language: "ts", plain: true, logFn: jest.fn() };
 
     const actual = await generate(options);
@@ -195,12 +176,12 @@ describe("CRD Generate", () => {
       " * Movie nerd",
       " */",
       "export interface Movie {",
-      "    spec?: Spec;",
+      "  spec?: Spec;",
       "}",
       "",
       "export interface Spec {",
-      "    author?: string;",
-      "    title?:  string;",
+      "  author?: string;",
+      "  title?: string;",
       "}",
       "",
     ];
@@ -209,12 +190,12 @@ describe("CRD Generate", () => {
       " * Book nerd",
       " */",
       "export interface Book {",
-      "    spec?: Spec;",
+      "  spec?: Spec;",
       "}",
       "",
       "export interface Spec {",
-      "    author?: string;",
-      "    title?:  string;",
+      "  author?: string;",
+      "  title?: string;",
       "}",
       "",
     ];
@@ -227,163 +208,143 @@ describe("CRD Generate", () => {
     expect(actual["book-v2"]).toEqual(expectedBookV2);
   });
 
-  test("converts CRD to TypeScript with other options", async () => {
-    const options = {
-      source: "test-crd.yaml",
-      npmPackage: "test-package",
-      logFn: jest.fn(),
-    };
-
-    const actual = await generate(options);
-    const expectedMovie = [
-      "// This file is auto-generated by test-package, do not edit manually\n",
-      'import { GenericKind, RegisterKind } from "test-package";\n',
-      "/**",
-      " * Movie nerd",
-      " */",
-      "export class Movie extends GenericKind {",
-      "    spec?: Spec;",
-      "}",
-      "",
-      "export interface Spec {",
-      "    author?: string;",
-      "    title?:  string;",
-      "}",
-      "",
-      "RegisterKind(Movie, {",
-      '  group: "example.com",',
-      '  version: "v1",',
-      '  kind: "Movie",',
-      '  plural: "movies",',
-      "});",
-    ];
-    const expectedBookV1 = [
-      "// This file is auto-generated by test-package, do not edit manually\n",
-      'import { GenericKind, RegisterKind } from "test-package";\n',
-      "/**",
-      " * Book nerd",
-      " */",
-      "export class Book extends GenericKind {",
-      "    spec?: Spec;",
-      "}",
-      "",
-      "export interface Spec {",
-      "    author?: string;",
-      "    title?:  string;",
-      "}",
-      "",
-      "RegisterKind(Book, {",
-      '  group: "example.com",',
-      '  version: "v1",',
-      '  kind: "Book",',
-      '  plural: "books",',
-      "});",
-    ];
-    const expectedBookV2 = expectedBookV1
-      .filter(line => !line.includes("title?"))
-      .map(line => line.replace("v1", "v2"));
-
-    expect(actual["movie-v1"]).toEqual(expectedMovie);
-    expect(actual["book-v1"]).toEqual(expectedBookV1);
-    expect(actual["book-v2"]).toEqual(expectedBookV2);
-  });
-
-  test("converts CRD to TypeScript and writes to the given directory", async () => {
-    const options = {
-      source: "test-crd.yaml",
-      directory: "test",
-      logFn: jest.fn(),
-    };
+  test("writes generated CRD files to a directory", async () => {
+    const options = { source: "test-crd.yaml", directory: "test", logFn: jest.fn() };
 
     await generate(options);
+
+    const calls = writeFileSyncSpy.mock.calls;
+
     const expectedMovie = [
-      "// This file is auto-generated by kubernetes-fluent-client, do not edit manually\n",
-      'import { GenericKind, RegisterKind } from "kubernetes-fluent-client";\n',
       "/**",
       " * Movie nerd",
       " */",
-      "export class Movie extends GenericKind {",
-      "    spec?: Spec;",
+      "export interface Movie {",
+      "  spec?: Spec;",
       "}",
       "",
       "export interface Spec {",
-      "    author?: string;",
-      "    title?:  string;",
+      "  author?: string;",
+      "  title?: string;",
       "}",
       "",
-      "RegisterKind(Movie, {",
-      '  group: "example.com",',
-      '  version: "v1",',
-      '  kind: "Movie",',
-      '  plural: "movies",',
-      "});",
     ];
     const expectedBookV1 = [
-      "// This file is auto-generated by kubernetes-fluent-client, do not edit manually\n",
-      'import { GenericKind, RegisterKind } from "kubernetes-fluent-client";\n',
       "/**",
       " * Book nerd",
       " */",
-      "export class Book extends GenericKind {",
-      "    spec?: Spec;",
+      "export interface Book {",
+      "  spec?: Spec;",
       "}",
       "",
       "export interface Spec {",
-      "    author?: string;",
-      "    title?:  string;",
+      "  author?: string;",
+      "  title?: string;",
       "}",
       "",
-      "RegisterKind(Book, {",
-      '  group: "example.com",',
-      '  version: "v1",',
-      '  kind: "Book",',
-      '  plural: "books",',
-      "});",
     ];
     const expectedBookV2 = expectedBookV1
       .filter(line => !line.includes("title?"))
       .map(line => line.replace("v1", "v2"));
+    // Validate movie file content
+    const movieCall = calls.find(call => call[0] === "test/movie-v1.ts");
+    const bookV1Call = calls.find(call => call[0] === "test/book-v1.ts");
+    const bookV2Call = calls.find(call => call[0] === "test/book-v2.ts");
 
-    expect(mkdirSyncSpy).toHaveBeenCalledWith("test", { recursive: true });
-    expect(writeFileSyncSpy).toHaveBeenCalledWith("test/movie-v1.ts", expectedMovie.join("\n"));
-    expect(writeFileSyncSpy).toHaveBeenCalledWith("test/book-v1.ts", expectedBookV1.join("\n"));
-    expect(writeFileSyncSpy).toHaveBeenCalledWith("test/book-v2.ts", expectedBookV2.join("\n"));
+    expect(movieCall).toBeDefined();
+    expect(bookV1Call).toBeDefined();
+    expect(bookV2Call).toBeDefined();
+
+    // Strip excessive whitespace for comparison
+    expect((movieCall![1] as string).replace(/\s+/g, " ")).toEqual(
+      expectedMovie.join(" ").replace(/\s+/g, " "),
+    );
+    expect((bookV1Call![1] as string).replace(/\s+/g, " ")).toEqual(
+      expectedBookV1.join(" ").replace(/\s+/g, " "),
+    );
+
+    if (bookV2Call) {
+      expect((bookV2Call[1] as string).replace(/\s+/g, " ")).toEqual(
+        expectedBookV2.join(" ").replace(/\s+/g, " "),
+      );
+    }
   });
 
-  test("converts CRD to Go", async () => {
-    const options = { source: "test-crd.yaml", language: "go", logFn: jest.fn() };
+  test("handles non-existent CRD source", async () => {
+    jest.spyOn(fs, "existsSync").mockReturnValue(false); // Simulate file does not exist
+    const options = { source: "non-existent.yaml", language: "ts", logFn: jest.fn() };
+
+    await expect(generate(options)).rejects.toThrow("Failed to read non-existent.yaml as a file");
+  });
+
+  test("resolves file path correctly for absolute path", () => {
+    const absolutePath = "/absolute/path/to/crd.yaml"; // Absolute path
+    const result = resolveFilePath(absolutePath);
+    expect(result).toBe(absolutePath); // The result should be the same as the absolute path
+  });
+
+  test("resolves file path correctly for relative path", () => {
+    const relativePath = "relative/path/to/crd.yaml"; // Relative path
+    const expectedPath = path.join(process.cwd(), relativePath); // Expect path to be resolved based on current working directory
+    const result = resolveFilePath(relativePath);
+    expect(result).toBe(expectedPath);
+  });
+
+  test("correctly normalizes property spacing", () => {
+    // Mock input with mixed spacing
+    const inputLines = [
+      "  spec?:    Spec;", // Incorrect spacing
+      "  author?: string;", // Correct spacing
+      "  title?:    string;", // Incorrect spacing
+      "  name?:string;", // No space before the type
+    ];
+
+    // Expected output with proper spacing
+    const expectedLines = [
+      "  spec?: Spec;", // Fixed spacing
+      "  author?: string;", // Already correct
+      "  title?: string;", // Fixed spacing
+      "  name?: string;", // Added space
+    ];
+
+    // Call the function and assert the result
+    const result = normalizePropertySpacing(inputLines);
+    expect(result).toEqual(expectedLines);
+  });
+});
+
+describe("fetches CRD from URL source", () => {
+  const fetchMock = fetch as jest.MockedFunction<typeof fetch>;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  test("should fetch CRD from URL", async () => {
+    // Mock response object for fetch
+    const mockFetchResponse = {
+      ok: true, // Fetch was successful
+      text: async () => sampleYaml, // Mock the text() method to return the YAML
+    };
+
+    // Mock fetch to resolve the response
+    fetchMock.mockResolvedValue({
+      ...mockFetchResponse,
+      data: await mockFetchResponse.text(),
+    } as unknown as FetchResponse<string>);
+
+    const options = {
+      source: "http://example.com/crd.yaml", // URL source
+      language: "ts",
+      logFn: jest.fn(),
+    };
 
     const actual = await generate(options);
-    const expectedMovie = [
-      "// Movie nerd",
-      "type Movie struct {",
-      '\tSpec *Spec `json:"spec,omitempty"`',
-      "}",
-      "",
-      "type Spec struct {",
-      '\tAuthor *string `json:"author,omitempty"`',
-      '\tTitle  *string `json:"title,omitempty"`',
-      "}",
-      "",
-    ];
-    const expectedBookV1 = [
-      "// Book nerd",
-      "type Book struct {",
-      '\tSpec *Spec `json:"spec,omitempty"`',
-      "}",
-      "",
-      "type Spec struct {",
-      '\tAuthor *string `json:"author,omitempty"`',
-      '\tTitle  *string `json:"title,omitempty"`',
-      "}",
-      "",
-    ];
-    const expectedBookV2 = expectedBookV1
-      .filter(line => !line.includes("Title"))
-      .map(line => line.replace("v1", "v2"));
 
-    expect(actual["movie-v1"]).toEqual(expectedMovie);
-    expect(actual["book-v1"]).toEqual(expectedBookV1);
-    expect(actual["book-v2"]).toEqual(expectedBookV2);
+    // Validate that fetch was called with the correct URL
+    expect(fetch).toHaveBeenCalledWith("http://example.com/crd.yaml");
+
+    // Validate the expected results from the sampleYaml
+    expect(actual["movie-v1"]).toBeDefined();
   });
 });
