@@ -9,6 +9,8 @@ import {
 } from "./postProcessing";
 import { GenericKind } from "./types"; // Mock the GenericKind class
 import { jest, describe, beforeEach, test, expect } from "@jest/globals";
+import { GenerateOptions } from './generate';
+import { CustomResourceDefinition } from './upstream';
 
 jest.mock("fs");
 jest.mock("./types");
@@ -18,6 +20,53 @@ const mockLogFn = jest.fn();
 // Mock the `fs` functions
 const mockReadFileSync = fs.readFileSync as jest.Mock;
 const mockReaddirSync = fs.readdirSync as jest.Mock;
+
+// Sample CRD for tests
+const mockCRD: CustomResourceDefinition = {
+  apiVersion: "apiextensions.k8s.io/v1",
+  kind: "CustomResourceDefinition",
+  metadata: {
+    name: "movies.example.com",
+  },
+  spec: {
+    group: "example.com",
+    names: {
+      kind: "Movie",
+      plural: "movies",
+    },
+    scope: "Namespaced",
+    versions: [
+      {
+        name: "v1",
+        schema: {
+          openAPIV3Schema: {
+            type: "object",
+            description: "Movie nerd",
+            properties: {
+              spec: {
+                properties: {
+                  title: { type: "string" },
+                  author: { type: "string" },
+                },
+              },
+            },
+          },
+        },
+        served: false,
+        storage: false
+      },
+    ],
+  },
+};
+
+// Mock GenerateOptions for tests
+const mockOpts: GenerateOptions = {
+  directory: 'test-directory',
+  language: 'ts',
+  logFn: mockLogFn,
+  plain: false,
+  source: 'test-source.yaml',
+};
 
 describe("File I/O functions", () => {
   const mockFilePath = "test-file.ts";
@@ -80,7 +129,7 @@ describe("processFile", () => {
       export interface Scope {}
     `;
 
-    const modifiedContent = processFile(content);
+    const modifiedContent = processFile(content, "Movie", mockCRD, "v1", mockOpts);
     expect(modifiedContent).toContain("declare apiVersion: string;");
     expect(modifiedContent).toContain("declare kind: string;");
     expect(modifiedContent).toContain("results?: Result;");
@@ -93,7 +142,7 @@ describe("processFile", () => {
         [key: string]: any;
       }
     `;
-    const modifiedContent = processFile(content);
+    const modifiedContent = processFile(content, "Movie", mockCRD, "v1", mockOpts);
     expect(modifiedContent).toContain(
       "// eslint-disable-next-line @typescript-eslint/no-explicit-any",
     );
@@ -101,7 +150,7 @@ describe("processFile", () => {
 });
 
 describe("postProcessing", () => {
-  const mockDirectory = "testDir";
+  const mockDirectory = "test-directory";
   const mockFile = "testFile.ts";
   const mockFilePath = `${mockDirectory}/${mockFile}`;
   const mockFileContent = "export class TestClass extends GenericKind {}";
@@ -113,13 +162,7 @@ describe("postProcessing", () => {
   });
 
   test("should process all files in the directory", async () => {
-    const opts = {
-      directory: mockDirectory,
-      logFn: mockLogFn,
-      source: "test-source.yaml",
-    };
-
-    await postProcessing(opts);
+    await postProcessing("Movie", mockCRD, "v1", mockOpts);
 
     expect(fs.readdirSync).toHaveBeenCalledWith(mockDirectory);
     expect(fs.readFileSync).toHaveBeenCalledWith(mockFilePath, "utf8");
@@ -128,13 +171,7 @@ describe("postProcessing", () => {
   });
 
   test("should log post-processing steps correctly", async () => {
-    const opts = {
-      directory: mockDirectory,
-      logFn: mockLogFn,
-      source: "test-source.yaml",
-    };
-
-    await postProcessing(opts);
+    await postProcessing("Movie", mockCRD, "v1", mockOpts);
 
     expect(mockLogFn).toHaveBeenCalledWith("\n🔧 Post-processing started...");
     expect(mockLogFn).toHaveBeenCalledWith(expect.stringContaining("Post processing file:"));

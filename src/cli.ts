@@ -58,9 +58,17 @@ void yargs(hideBin(process.argv))
       }
 
       try {
-        await generate(opts);
+        // Capture the results returned by generate
+        const allResults = await generate(opts);
+
+        // If noPost is false, run post-processing
         if (!opts.noPost) {
-          await postProcessing(opts);
+          console.log("\n✅ Post-processing is enabled.");
+
+          // Loop through each result and call postProcessing
+          for (const { name, crd, version } of allResults) {
+            await postProcessing(name, crd, version, opts);
+          }
         }
       } catch (e) {
         console.log(`\n❌ ${e.message}`);

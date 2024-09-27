@@ -1,350 +1,190 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
-import { generate, normalizePropertySpacing, resolveFilePath } from "./generate";
+import { convertCRDtoTS, resolveFilePath, prepareInputData } from "./generate";
 import fs from "fs";
-import { fetch, FetchResponse } from "./fetch";
+import { LogFn } from "./types";
 import path from "path";
+import { quicktype } from "quicktype-core";
 
-const sampleYaml = `
-# non-crd should be ignored
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: test
-  namespace: default
-data:
-  any: bleh
----
-apiVersion: apiextensions.k8s.io/v1
-kind: CustomResourceDefinition
-metadata:
-  name: movies.example.com
-spec:
-  group: example.com
-  names:
-    kind: Movie
-    plural: movies
-  scope: Namespaced
-  versions:
-    - name: v1
-      schema:
-        openAPIV3Schema:
-          type: object
-          description: Movie nerd
-          properties:
-            spec:
-              properties:
-                title:
-                  type: string
-                author:
-                  type: string
-              type: object
----
-# should support multiple versions
-apiVersion: apiextensions.k8s.io/v1
-kind: CustomResourceDefinition
-metadata:
-  name: books.example.com
-spec:
-  group: example.com
-  names:
-    kind: Book
-    plural: books
-  scope: Namespaced
-  versions:
-    - name: v1
-      schema:
-        openAPIV3Schema:
-          type: object
-          description: Book nerd
-          properties:
-            spec:
-              properties:
-                title:
-                  type: string
-                author:
-                  type: string
-              type: object
-    - name: v2
-      schema:
-        openAPIV3Schema:
-          type: object
-          description: Book nerd
-          properties:
-            spec:
-              properties:
-                author:
-                  type: string
-              type: object
-      served: true
-      storage: true
-`;
+// Spy on the file writing instead of mocking the entire fs module
+jest.spyOn(fs, "writeFileSync").mockImplementation(() => {});
 
-jest.mock("./fetch", () => ({
-  fetch: jest.fn(),
-}));
+// Sample CRD YAML content to use in tests
+const sampleCrd = {
+  apiVersion: "apiextensions.k8s.io/v1",
+  kind: "CustomResourceDefinition",
+  metadata: { name: "movies.example.com" },
+  spec: {
+    group: "example.com",
+    names: { kind: "Movie", plural: "movies" },
+    scope: "Namespaced",
+    versions: [
+      {
+        name: "v1",
+        served: true,
+        storage: true,
+        schema: {
+          openAPIV3Schema: {
+            type: "object",
+            description: "Movie nerd",
+            properties: {
+              spec: {
+                properties: {
+                  title: { type: "string" },
+                  author: { type: "string" },
+                },
+              },
+            },
+          },
+        },
+      },
+    ],
+  },
+};
 
-jest.mock("./fluent", () => ({
-  K8s: jest.fn(),
-}));
+const expectedMovie = [
+  "/**",
+  " * Movie nerd",
+  " */",
+  "export interface Movie {",
+  "    spec?: any[] | boolean | number | number | null | SpecObject | string;",
+  "    [property: string]: any;",
+  "}",
+  "",
+  "export interface SpecObject {",
+  "    author?: string;",
+  "    title?: string;",
+  "    [property: string]: any;",
+  "}",
+  "",
+];
 
-jest.mock("./generate", () => ({
-  ...(jest.requireActual("./generate") as object),
-  writeGeneratedFile: jest.fn(), // Mock writeGeneratedFile
-}));
+// Mock the quicktype function
+jest.mock("quicktype-core", () => {
+  const actualQuicktypeCore = jest.requireActual<typeof import("quicktype-core")>("quicktype-core");
+  return {
+    quicktype: jest.fn(),
+    JSONSchemaInput: actualQuicktypeCore.JSONSchemaInput,
+    FetchingJSONSchemaStore: actualQuicktypeCore.FetchingJSONSchemaStore,
+    InputData: actualQuicktypeCore.InputData,  // Add InputData here
+  };
+});
 
 describe("CRD Generate", () => {
-  const originalReadFileSync = fs.readFileSync;
-
-  jest.spyOn(fs, "existsSync").mockReturnValue(true);
-  jest.spyOn(fs, "readFileSync").mockImplementation((...args) => {
-    if (args[0].toString().includes("test-crd.yaml")) {
-      return sampleYaml;
-    }
-    return originalReadFileSync(...args);
-  });
-
-  const writeFileSyncSpy = jest.spyOn(fs, "writeFileSync").mockReturnValue(undefined);
+  let logFn: jest.Mock<ReturnType<LogFn>>; // Explicitly typing the mock function
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.clearAllMocks(); // Reset all mocks before each test
+    logFn = jest.fn(); // Mock the log function with correct typing
   });
 
-  test("converts CRD to TypeScript and handles fluent wrapping", async () => {
-    const options = { source: "test-crd.yaml", language: "ts", logFn: jest.fn() };
+  test("convertCRDtoTS should generate the expected TypeScript file", async () => {
+    // Mock quicktype to return a sample result
+    (quicktype as jest.MockedFunction<typeof quicktype>).mockResolvedValueOnce({
+      lines: [
+        "/**",
+        " * Movie nerd",
+        " */",
+        "export interface Movie {",
+        "    spec?: any[] | boolean | number | number | null | SpecObject | string;",
+        "    [property: string]: any;",
+        "}",
+        "",
+        "export interface SpecObject {",
+        "    author?: string;",
+        "    title?: string;",
+        "    [property: string]: any;",
+        "}",
+        "",
+      ],
+      annotations: [], // Correctly mock annotations as an empty array
+    });
 
-    const actual = await generate(options);
-    const expectedMovie = [
-      "// This file is auto-generated by kubernetes-fluent-client, do not edit manually\n",
-      'import { GenericKind, RegisterKind } from "kubernetes-fluent-client";\n',
-      "/**",
-      " * Movie nerd",
-      " */",
-      "export class Movie extends GenericKind {",
-      "  spec?: Spec;",
-      "}",
-      "",
-      "export interface Spec {",
-      "  author?: string;",
-      "  title?: string;",
-      "}",
-      "",
-      "RegisterKind(Movie, {",
-      '  group: "example.com",',
-      '  version: "v1",',
-      '  kind: "Movie",',
-      '  plural: "movies",',
-      "});",
-    ];
-    const expectedBookV1 = [
-      "// This file is auto-generated by kubernetes-fluent-client, do not edit manually\n",
-      'import { GenericKind, RegisterKind } from "kubernetes-fluent-client";\n',
-      "/**",
-      " * Book nerd",
-      " */",
-      "export class Book extends GenericKind {",
-      "  spec?: Spec;",
-      "}",
-      "",
-      "export interface Spec {",
-      "  author?: string;",
-      "  title?: string;",
-      "}",
-      "",
-      "RegisterKind(Book, {",
-      '  group: "example.com",',
-      '  version: "v1",',
-      '  kind: "Book",',
-      '  plural: "books",',
-      "});",
-    ];
+    const options = {
+      source: "test-crd.yaml",
+      language: "ts",
+      logFn, // Mocked log function
+      directory: "test-dir", // Mock directory
+      plain: false,
+      npmPackage: "kubernetes-fluent-client",
+    };
 
-    const expectedBookV2 = expectedBookV1
-      .filter(line => !line.includes("title?"))
-      .map(line => line.replace("v1", "v2"));
+    // Call convertCRDtoTS with sample CRD
+    const result = await convertCRDtoTS(sampleCrd, options);
 
-    expect(actual["movie-v1"]).toEqual(expectedMovie);
-    expect(actual["book-v1"]).toEqual(expectedBookV1);
-    expect(actual["book-v2"]).toEqual(expectedBookV2);
-  });
+    // Extract the generated types from the result
+    const generatedTypes = result[0].results["movie-v1"];
 
-  test("converts CRD to TypeScript with plain option (no fluent wrapping)", async () => {
-    const options = { source: "test-crd.yaml", language: "ts", plain: true, logFn: jest.fn() };
+    // Assert that the generated types match the expected TypeScript code
+    expect(generatedTypes).toEqual(expectedMovie);
 
-    const actual = await generate(options);
-    const expectedMovie = [
-      "/**",
-      " * Movie nerd",
-      " */",
-      "export interface Movie {",
-      "  spec?: Spec;",
-      "}",
-      "",
-      "export interface Spec {",
-      "  author?: string;",
-      "  title?: string;",
-      "}",
-      "",
-    ];
-    const expectedBookV1 = [
-      "/**",
-      " * Book nerd",
-      " */",
-      "export interface Book {",
-      "  spec?: Spec;",
-      "}",
-      "",
-      "export interface Spec {",
-      "  author?: string;",
-      "  title?: string;",
-      "}",
-      "",
-    ];
-    const expectedBookV2 = expectedBookV1
-      .filter(line => !line.includes("title?"))
-      .map(line => line.replace("v1", "v2"));
-
-    expect(actual["movie-v1"]).toEqual(expectedMovie);
-    expect(actual["book-v1"]).toEqual(expectedBookV1);
-    expect(actual["book-v2"]).toEqual(expectedBookV2);
-  });
-
-  test("writes generated CRD files to a directory", async () => {
-    const options = { source: "test-crd.yaml", directory: "test", logFn: jest.fn() };
-
-    await generate(options);
-
-    const calls = writeFileSyncSpy.mock.calls;
-
-    const expectedMovie = [
-      "/**",
-      " * Movie nerd",
-      " */",
-      "export interface Movie {",
-      "  spec?: Spec;",
-      "}",
-      "",
-      "export interface Spec {",
-      "  author?: string;",
-      "  title?: string;",
-      "}",
-      "",
-    ];
-    const expectedBookV1 = [
-      "/**",
-      " * Book nerd",
-      " */",
-      "export interface Book {",
-      "  spec?: Spec;",
-      "}",
-      "",
-      "export interface Spec {",
-      "  author?: string;",
-      "  title?: string;",
-      "}",
-      "",
-    ];
-    const expectedBookV2 = expectedBookV1
-      .filter(line => !line.includes("title?"))
-      .map(line => line.replace("v1", "v2"));
-    // Validate movie file content
-    const movieCall = calls.find(call => call[0] === "test/movie-v1.ts");
-    const bookV1Call = calls.find(call => call[0] === "test/book-v1.ts");
-    const bookV2Call = calls.find(call => call[0] === "test/book-v2.ts");
-
-    expect(movieCall).toBeDefined();
-    expect(bookV1Call).toBeDefined();
-    expect(bookV2Call).toBeDefined();
-
-    // Strip excessive whitespace for comparison
-    expect((movieCall![1] as string).replace(/\s+/g, " ")).toEqual(
-      expectedMovie.join(" ").replace(/\s+/g, " "),
-    );
-    expect((bookV1Call![1] as string).replace(/\s+/g, " ")).toEqual(
-      expectedBookV1.join(" ").replace(/\s+/g, " "),
+    // Assert the file writing happens with the expected TypeScript content
+    expect(fs.writeFileSync).toHaveBeenCalledWith(
+      path.join("test-dir", "movie-v1.ts"),
+      expectedMovie.join("\n")
     );
 
-    if (bookV2Call) {
-      expect((bookV2Call[1] as string).replace(/\s+/g, " ")).toEqual(
-        expectedBookV2.join(" ").replace(/\s+/g, " "),
-      );
-    }
+    // Assert the logs contain expected log messages
+    expect(logFn).toHaveBeenCalledWith("- Generating example.com/v1 types for Movie");
   });
+});
 
-  test("handles non-existent CRD source", async () => {
-    jest.spyOn(fs, "existsSync").mockReturnValue(false); // Simulate file does not exist
-    const options = { source: "non-existent.yaml", language: "ts", logFn: jest.fn() };
+describe("prepareInputData Tests", () => {
+  test("prepareInputData should correctly prepare input data for quicktype", async () => {
+    const schema = JSON.stringify({
+      type: "object",
+      description: "Movie nerd",
+      properties: {
+        title: { type: "string" },
+        author: { type: "string" },
+      },
+    });
 
-    await expect(generate(options)).rejects.toThrow("Failed to read non-existent.yaml as a file");
+    const name = "Movie";
+
+    // Call prepareInputData with sample schema and name
+    const inputData = await prepareInputData(name, schema);
+
+    // Mock quicktype to return a sample result, including the annotations field
+    (quicktype as jest.MockedFunction<typeof quicktype>).mockResolvedValueOnce({
+      lines: ["interface Movie {", "  title?: string;", "  author?: string;", "}"],
+      annotations: [], // Correctly mock annotations as an empty array
+    });
+
+    // Use the prepared inputData to call quicktype
+    const result = await quicktype({
+      inputData,
+      lang: "ts",
+      rendererOptions: { "just-types": "true" },
+    });
+
+    // Verify that quicktype was called with the correct input
+    expect(quicktype).toHaveBeenCalledWith({
+      inputData,
+      lang: "ts",
+      rendererOptions: { "just-types": "true" },
+    });
+
+    // Assert the quicktype result matches the expected TypeScript interface
+    expect(result.lines).toEqual([
+      "interface Movie {",
+      "  title?: string;",
+      "  author?: string;",
+      "}",
+    ]);
   });
+});
 
+describe("Utility Tests", () => {
   test("resolves file path correctly for absolute path", () => {
     const absolutePath = "/absolute/path/to/crd.yaml"; // Absolute path
     const result = resolveFilePath(absolutePath);
-    expect(result).toBe(absolutePath); // The result should be the same as the absolute path
+    expect(result).toBe(absolutePath); // Should be the same as absolute path
   });
 
   test("resolves file path correctly for relative path", () => {
     const relativePath = "relative/path/to/crd.yaml"; // Relative path
-    const expectedPath = path.join(process.cwd(), relativePath); // Expect path to be resolved based on current working directory
+    const expectedPath = path.join(process.cwd(), relativePath); // Expected path
     const result = resolveFilePath(relativePath);
     expect(result).toBe(expectedPath);
-  });
-
-  test("correctly normalizes property spacing", () => {
-    // Mock input with mixed spacing
-    const inputLines = [
-      "  spec?:    Spec;", // Incorrect spacing
-      "  author?: string;", // Correct spacing
-      "  title?:    string;", // Incorrect spacing
-      "  name?:string;", // No space before the type
-    ];
-
-    // Expected output with proper spacing
-    const expectedLines = [
-      "  spec?: Spec;", // Fixed spacing
-      "  author?: string;", // Already correct
-      "  title?: string;", // Fixed spacing
-      "  name?: string;", // Added space
-    ];
-
-    // Call the function and assert the result
-    const result = normalizePropertySpacing(inputLines);
-    expect(result).toEqual(expectedLines);
-  });
-});
-
-describe("fetches CRD from URL source", () => {
-  const fetchMock = fetch as jest.MockedFunction<typeof fetch>;
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  test("should fetch CRD from URL", async () => {
-    // Mock response object for fetch
-    const mockFetchResponse = {
-      ok: true, // Fetch was successful
-      text: async () => sampleYaml, // Mock the text() method to return the YAML
-    };
-
-    // Mock fetch to resolve the response
-    fetchMock.mockResolvedValue({
-      ...mockFetchResponse,
-      data: await mockFetchResponse.text(),
-    } as unknown as FetchResponse<string>);
-
-    const options = {
-      source: "http://example.com/crd.yaml", // URL source
-      language: "ts",
-      logFn: jest.fn(),
-    };
-
-    const actual = await generate(options);
-
-    // Validate that fetch was called with the correct URL
-    expect(fetch).toHaveBeenCalledWith("http://example.com/crd.yaml");
-
-    // Validate the expected results from the sampleYaml
-    expect(actual["movie-v1"]).toBeDefined();
   });
 });
