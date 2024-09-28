@@ -44,12 +44,14 @@ export function getGenericKindProperties(): string[] {
  * @returns A set of found interface names.
  */
 export function collectInterfaceNames(lines: string[]): Set<string> {
-  const interfacePattern = /export interface (\w+)/;
+  const interfacePattern = /export interface (?<interfaceName>\w+)/;
   const foundInterfaces = new Set<string>();
 
   for (const line of lines) {
     const match = line.match(interfacePattern);
-    if (match) foundInterfaces.add(match[1]);
+    if (match?.groups?.interfaceName) {
+      foundInterfaces.add(match.groups.interfaceName);
+    }
   }
 
   return foundInterfaces;
@@ -121,11 +123,11 @@ function addDeclareToGenericKindProperties(line: string, genericKindProperties: 
  * @returns The modified line with the optional `?` symbol.
  */
 function makePropertiesOptional(line: string, foundInterfaces: Set<string>): string {
-  const propertyTypePattern = /:\s*(\w+)\s*;/;
+  const propertyTypePattern = /:\s*(?<propertyType>\w+)\s*;/;
   const match = line.match(propertyTypePattern);
 
-  if (match) {
-    const propertyType = match[1];
+  if (match?.groups?.propertyType) {
+    const { propertyType } = match.groups;
     if (foundInterfaces.has(propertyType) && !line.includes("?")) {
       return line.replace(":", "?:");
     }
