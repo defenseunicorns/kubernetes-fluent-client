@@ -54,7 +54,7 @@ void yargs(hideBin(process.argv))
       opts.noPost = argv.noPost as boolean;
 
       if (!opts.noPost) {
-        console.log("\n✅ Post-processing is been enabled.\n");
+        console.log("\n✅ Post-processing has been enabled.\n");
       }
 
       try {
@@ -63,12 +63,7 @@ void yargs(hideBin(process.argv))
 
         // If noPost is false, run post-processing
         if (!opts.noPost) {
-          console.log("\n✅ Post-processing is enabled.");
-
-          // Loop through each result and call postProcessing
-          for (const { name, crd, version } of allResults) {
-            await postProcessing(name, crd, version, opts);
-          }
+          await postProcessing(allResults, opts);
         }
       } catch (e) {
         console.log(`\n❌ ${e.message}`);

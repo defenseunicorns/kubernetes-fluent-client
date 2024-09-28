@@ -8,7 +8,7 @@ const runCliCommand = (
   args: string[],
   callback: (error: Error | null, stdout: string, stderr: string) => void,
 ) => {
-  execFile("node", ["./dist/cli.js", ...args], callback); // Path to your built CLI JS file
+  execFile("node", ["./dist/cli.js", ...args], callback); // Path to built CLI JS file
 };
 
 // Utility function to compare generated files to expected files

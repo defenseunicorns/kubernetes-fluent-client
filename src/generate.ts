@@ -56,6 +56,7 @@ export async function convertCRDtoTS(
     version: string;
   }[] = [];
 
+  // Generate types for each version of the CRD
   for (const match of crd.spec.versions) {
     const version = match.name;
 
@@ -209,9 +210,7 @@ export function tryParseUrl(source: string): URL | null {
  * @param opts - The options for generating the TypeScript types.
  * @returns A promise that resolves to a record of generated TypeScript types.
  */
-export async function generate(
-  opts: GenerateOptions,
-): Promise<
+export async function generate(opts: GenerateOptions): Promise<
   {
     results: Record<string, string[]>;
     name: string;
@@ -230,15 +229,13 @@ export async function generate(
   opts.logFn("");
 
   for (const crd of crds) {
-    // Skip non-CRD objects
     if (crd.kind !== "CustomResourceDefinition" || !crd.spec?.versions?.length) {
       opts.logFn(`Skipping ${crd?.metadata?.name}, it does not appear to be a CRD`);
+      // Ignore empty and non-CRD objects
       continue;
     }
 
-    // Add the conversion results along with name, crd, and version
-    const result = await convertCRDtoTS(crd, opts);
-    allResults.push(...result);
+    allResults.push(...(await convertCRDtoTS(crd, opts)));
   }
 
   if (opts.directory) {

@@ -8,6 +8,22 @@ import { quicktype } from "quicktype-core";
 // Spy on the file writing instead of mocking the entire fs module
 jest.spyOn(fs, "writeFileSync").mockImplementation(() => {});
 
+// Mock the file system and fetch functions
+jest.mock("fs");
+jest.mock("./fetch");
+jest.mock("./fluent");
+
+// Mock the quicktype function
+jest.mock("quicktype-core", () => {
+  const actualQuicktypeCore = jest.requireActual<typeof import("quicktype-core")>("quicktype-core");
+  return {
+    quicktype: jest.fn(),
+    JSONSchemaInput: actualQuicktypeCore.JSONSchemaInput,
+    FetchingJSONSchemaStore: actualQuicktypeCore.FetchingJSONSchemaStore,
+    InputData: actualQuicktypeCore.InputData, // Add InputData here
+  };
+});
+
 // Sample CRD YAML content to use in tests
 const sampleCrd = {
   apiVersion: "apiextensions.k8s.io/v1",
@@ -57,17 +73,6 @@ const expectedMovie = [
   "}",
   "",
 ];
-
-// Mock the quicktype function
-jest.mock("quicktype-core", () => {
-  const actualQuicktypeCore = jest.requireActual<typeof import("quicktype-core")>("quicktype-core");
-  return {
-    quicktype: jest.fn(),
-    JSONSchemaInput: actualQuicktypeCore.JSONSchemaInput,
-    FetchingJSONSchemaStore: actualQuicktypeCore.FetchingJSONSchemaStore,
-    InputData: actualQuicktypeCore.InputData,  // Add InputData here
-  };
-});
 
 describe("CRD Generate", () => {
   let logFn: jest.Mock<ReturnType<LogFn>>; // Explicitly typing the mock function
@@ -120,7 +125,7 @@ describe("CRD Generate", () => {
     // Assert the file writing happens with the expected TypeScript content
     expect(fs.writeFileSync).toHaveBeenCalledWith(
       path.join("test-dir", "movie-v1.ts"),
-      expectedMovie.join("\n")
+      expectedMovie.join("\n"),
     );
 
     // Assert the logs contain expected log messages
@@ -144,10 +149,10 @@ describe("prepareInputData Tests", () => {
     // Call prepareInputData with sample schema and name
     const inputData = await prepareInputData(name, schema);
 
-    // Mock quicktype to return a sample result, including the annotations field
+    // Mock quicktype to return a sample result
     (quicktype as jest.MockedFunction<typeof quicktype>).mockResolvedValueOnce({
       lines: ["interface Movie {", "  title?: string;", "  author?: string;", "}"],
-      annotations: [], // Correctly mock annotations as an empty array
+      annotations: [],
     });
 
     // Use the prepared inputData to call quicktype
