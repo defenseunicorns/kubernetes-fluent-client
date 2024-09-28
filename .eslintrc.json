@@ -21,6 +21,6 @@
     "jsdoc/tag-lines": ["error", "any", { "startLines": 1 }]
   },
   "plugins": ["@typescript-eslint"],
-  "ignorePatterns": ["node_modules", "dist", "__mocks__"],
+  "ignorePatterns": ["node_modules", "dist", "__mocks__", "e2e/crds", "e2e/crds"],
   "root": true
 }
