@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
-import { convertCRDtoTS, resolveFilePath, prepareInputData } from "./generate";
+import { convertCRDtoTS, resolveFilePath, prepareInputData, tryParseUrl } from "./generate";
 import fs from "fs";
 import { LogFn } from "./types";
 import path from "path";
@@ -191,5 +191,22 @@ describe("Utility Tests", () => {
     const expectedPath = path.join(process.cwd(), relativePath); // Expected path
     const result = resolveFilePath(relativePath);
     expect(result).toBe(expectedPath);
+  });
+});
+
+describe("tryParseUrl", () => {
+  test("should return a URL object when given a valid URL", () => {
+    const validUrl = "https://example.com";
+    const result = tryParseUrl(validUrl);
+
+    expect(result).toBeInstanceOf(URL);
+    expect(result?.href).toBe("https://example.com/");
+  });
+
+  test("should return null when given an invalid URL", () => {
+    const invalidUrl = "invalid-url";
+    const result = tryParseUrl(invalidUrl);
+
+    expect(result).toBeNull();
   });
 });

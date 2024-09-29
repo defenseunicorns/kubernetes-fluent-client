@@ -67,6 +67,14 @@ export function mapFilesToCRD(allResults: CRDResult[]): Record<string, CRDResult
   return fileResultMap;
 }
 
+/**
+ * Processes the list of files, applying CRD post-processing to each.
+ *
+ * @param files - The list of file names to process.
+ * @param fileResultMap - A map linking file names to their corresponding CRD results.
+ * @param opts - Options for the generation process.
+ * @param fileSystem - The file system interface for reading and writing files.
+ */
 export async function processFiles(
   files: string[],
   fileResultMap: Record<string, CRDResult>,
@@ -174,42 +182,6 @@ export function applyCRDPostProcessing(
     throw new Error(`Error while applying post-processing for ${name}: ${error.message}`);
   }
 }
-
-/**
- * Conditionally wraps the content with the fluent client if needed.
- *
- * @param lines - The lines of the file content.
- * @param name - The name of the schema.
- * @param crd - The CustomResourceDefinition object.
- * @param version - The version of the CRD.
- * @param opts - The options for post-processing.
- * @returns The potentially wrapped lines of the file content.
- */
-/* export function conditionallyWrapWithFluentClient(
-  lines: CodeLines,
-  name: string,
-  crd: CustomResourceDefinition,
-  version: string,
-  opts: GenerateOptions,
-): string[] {
-  console.log("conditionallyWrapWithFluentClient...");
-  console.log("lines:", lines);
-    try {
-      console.log("Calling shouldWrapWithFluentClient...");
-      const shouldWrapResult = shouldWrapWithFluentClient(opts);
-      console.log("shouldWrapWithFluentClient result:", shouldWrapResult);
-
-      if (!shouldWrapResult) return lines;
-
-      console.log("Calling wrapWithFluentClient...");
-      console.log("wrapWithFluentClient params:", name, crd, version, opts.npmPackage);
-      console.log("wrapWithFluentClient result:", wrapWithFluentClient(lines, name, crd, version, opts.npmPackage));
-      return wrapWithFluentClient(lines, name, crd, version, opts.npmPackage);
-    } catch (error) {
-      opts.logFn(`❌ Error wrapping ${name} with fluent client: ${error.message}`);
-    }
-  return lines;
-} */
 
 /**
  * Reads the content of a file from disk.

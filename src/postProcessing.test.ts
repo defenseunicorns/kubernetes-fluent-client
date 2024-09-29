@@ -5,7 +5,7 @@ import * as postProcessingModule from "./postProcessing";
 import { NodeFileSystem } from "./fileSystem";
 import { GenerateOptions } from "./generate";
 import { jest, beforeEach, test, expect, describe, afterEach } from "@jest/globals";
-import { SpyInstance } from 'jest-mock';
+//import { SpyInstance } from "jest-mock";
 import { CustomResourceDefinition } from "./upstream";
 import * as fs from "fs"; // We'll mock fs
 
@@ -33,6 +33,15 @@ jest.mock("./types", () => ({
   })),
 }));
 
+jest.mock("./postProcessing", () => {
+  const originalModule = jest.requireActual("./postProcessing");
+  return {
+    ...(typeof originalModule === "object" ? originalModule : {}),
+    processAndModifySingleFile: jest.fn(), // Mock the specific function
+    mapFilesToCRD: jest.fn(), // Mock mapFilesToCRD to avoid conflict
+  };
+});
+
 const mockFileSystem = new NodeFileSystem();
 
 const mockCRDResults = [
@@ -41,7 +50,7 @@ const mockCRDResults = [
     crd: {
       spec: {
         group: "test.group",
-        names: { kind: "TestKind", plural: "testkind" },
+        names: { kind: "TestKind", plural: "TestKinds" },
         scope: "Namespaced",
         versions: [{ name: "v1", served: true, storage: true }],
       },
@@ -50,9 +59,8 @@ const mockCRDResults = [
   },
 ];
 
-
 // Define the mock data
-const mockLines = ["line1", "line2"];
+/* const mockLines = ["line1", "line2"];
 const mockName = "TestKind";
 const mockCRD: CustomResourceDefinition = {
   spec: {
@@ -62,10 +70,10 @@ const mockCRD: CustomResourceDefinition = {
     versions: [{ name: "v1", served: true, storage: true }],
   },
 };
-const mockVersion = "v1";
+const mockVersion = "v1"; */
 const mockOpts: GenerateOptions = {
   directory: "mockDir",
-  logFn: jest.fn(),  // Mock logging function
+  logFn: jest.fn(), // Mock logging function
   language: "ts",
   plain: false,
   npmPackage: "mockPackage",
@@ -126,6 +134,36 @@ describe("postProcessing", () => {
       "❌ Error processing file: mockDir/TestKind-v1.ts - File read error",
     );
   });
+
+  test("should log start and completion messages", async () => {
+    jest.spyOn(mockFileSystem, "readdirSync").mockReturnValue(["TestKind-v1.ts"]);
+    jest
+      .spyOn(postProcessingModule, "mapFilesToCRD")
+      .mockReturnValue({ "TestKind-v1.ts": mockCRDResults[0] });
+    //jest.spyOn(postProcessingModule, "processFiles").mockImplementation(() => Promise.resolve());
+
+    await postProcessingModule.postProcessing(mockCRDResults, mockOpts, mockFileSystem);
+
+    // Verify the start message was logged
+    expect(mockOpts.logFn).toHaveBeenCalledWith("\n🔧 Post-processing started...");
+
+    // Verify the completion message was logged
+    expect(mockOpts.logFn).toHaveBeenCalledWith("🔧 Post-processing completed.\n");
+  });
+
+  test("should handle readdirSync error gracefully", async () => {
+    // Simulate an error when reading the directory
+    jest.spyOn(mockFileSystem, "readdirSync").mockImplementation(() => {
+      throw new Error("Directory read error");
+    });
+
+    await expect(
+      postProcessingModule.postProcessing(mockCRDResults, mockOpts, mockFileSystem),
+    ).rejects.toThrow("Directory read error");
+
+    // Ensure the process is not continued after the error
+    expect(mockOpts.logFn).not.toHaveBeenCalledWith("🔧 Post-processing completed.\n");
+  });
 });
 
 describe("mapFilesToCRD", () => {
@@ -140,8 +178,19 @@ describe("mapFilesToCRD", () => {
   test("should map files to corresponding CRD results", () => {
     const result = postProcessingModule.mapFilesToCRD(mockCRDResults);
     expect(result).toEqual({
-      "testkind-v1.ts": mockCRDResults[0],
+      "TestKind-v1.ts": mockCRDResults[0],
     });
+  });
+
+  test("should log a warning if no matching CRD result found for a file", async () => {
+    const mockFiles = ["NonExistingKind.ts"];
+    const mockFileResultMap = {};
+
+    await postProcessingModule.processFiles(mockFiles, mockFileResultMap, mockOpts, mockFileSystem);
+
+    expect(mockOpts.logFn).toHaveBeenCalledWith(
+      "⚠️ Warning: No matching CRD result found for file: mockDir/NonExistingKind.ts",
+    );
   });
 });
 
@@ -189,12 +238,11 @@ describe("applyCRDPostProcessing", () => {
     expect(result).toContain("mock content");
     // Add more assertions based on what is expected after processing
   });
-
-
-
 });
 
 describe("processFiles", () => {
+  const mockOptsWithoutDirectory = { ...mockOpts, directory: undefined };
+
   beforeEach(() => {
     jest.clearAllMocks(); // Clear mocks before each test
   });
@@ -219,17 +267,23 @@ describe("processFiles", () => {
     expect(mockFileSystem.writeFile).toHaveBeenCalled();
   });
 
-  test("should log warning if no matching CRD result found", async () => {
-    await postProcessingModule.processFiles(["NonExistingKind.ts"], {}, mockOpts, mockFileSystem);
+  test("should throw an error if directory is not defined", async () => {
+    const mockFiles = ["TestKind-v1.ts"];
+    const mockFileResultMap = { "TestKind-v1.ts": mockCRDResults[0] };
 
-    expect(mockOpts.logFn).toHaveBeenCalledWith(
-      "⚠️ Warning: No matching CRD result found for file: mockDir/NonExistingKind.ts",
-    );
+    await expect(
+      postProcessingModule.processFiles(
+        mockFiles,
+        mockFileResultMap,
+        mockOptsWithoutDirectory,
+        mockFileSystem,
+      ),
+    ).rejects.toThrow("Directory is not defined");
   });
 });
 
 describe("wrapWithFluentClient", () => {
-  const mockLines = ["line1", "line2"];
+  /*   const mockLines = ["line1", "line2"];
   const mockName = "TestKind";
   const mockCRD = {
     spec: {
@@ -247,7 +301,7 @@ describe("wrapWithFluentClient", () => {
     plain: false,
     npmPackage: "mockPackage",
     source: "",
-  };
+  }; */
 
   beforeEach(() => {
     jest.clearAllMocks(); // Clear mocks before each test
@@ -287,7 +341,6 @@ describe("wrapWithFluentClient", () => {
 
     expect(result).toEqual(expectedOutputLines);
   });
-
 });
 
 describe("getGenericKindProperties", () => {

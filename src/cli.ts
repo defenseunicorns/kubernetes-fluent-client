@@ -8,7 +8,7 @@ import yargs from "yargs/yargs";
 import { GenerateOptions, generate } from "./generate";
 import { version } from "../package.json";
 import { postProcessing } from "./postProcessing";
-import { NodeFileSystem } from './fileSystem'; // Import your new file system
+import { NodeFileSystem } from "./fileSystem"; // Import your new file system
 
 void yargs(hideBin(process.argv))
   .version("version", "Display version number", `kubernetes-fluent-client v${version}`)

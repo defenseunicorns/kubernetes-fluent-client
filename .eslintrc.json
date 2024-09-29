@@ -17,14 +17,8 @@
     "class-methods-use-this": "warn",
     "consistent-this": "warn",
     "no-invalid-this": "warn",
-    "@typescript-eslint/no-floating-promises": ["warn"],
-    "jsdoc/tag-lines": ["error", "any", { "startLines": 1 }],
-    "rules": {
-      "@typescript-eslint/no-unused-vars": [
-        "error",
-        { "argsIgnorePattern": "^_" }
-      ]
-    }
+    "@typescript-eslint/no-floating-promises": ["warn", { "ignoreVoid": true }],
+    "jsdoc/tag-lines": ["error", "any", { "startLines": 1 }]
   },
   "plugins": ["@typescript-eslint"],
   "ignorePatterns": ["node_modules", "dist", "__mocks__", "e2e/crds", "e2e/crds"],

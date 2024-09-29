@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
 
-import * as fs from 'fs';
+import * as fs from "fs";
 
 export interface FileSystem {
   readFile(filePath: string): string;
@@ -9,6 +9,7 @@ export interface FileSystem {
   readdirSync(directory: string): string[];
 }
 
+/* eslint class-methods-use-this: "off" */
 export class NodeFileSystem implements FileSystem {
   readFile(filePath: string): string {
     return fs.readFileSync(filePath, "utf8");
