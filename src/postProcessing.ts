@@ -228,6 +228,7 @@ export function getGenericKindProperties(): string[] {
  * @returns A set of found interface names.
  */
 export function collectInterfaceNames(lines: CodeLines): Set<string> {
+  // https://regex101.com/r/S6w8pW/1
   const interfacePattern = /export interface (?<interfaceName>\w+)/;
   const foundInterfaces = new Set<string>();
 
@@ -338,6 +339,7 @@ export function addDeclareToGenericKindProperties(
  * @returns The modified line with the optional `?` symbol.
  */
 export function makePropertiesOptional(line: string, foundInterfaces: Set<string>): string {
+  // https://regex101.com/r/kX8TCj/1
   const propertyTypePattern = /:\s*(?<propertyType>\w+)\s*;/;
   const match = line.match(propertyTypePattern);
 
@@ -429,6 +431,7 @@ export function normalizeLineIndentation(line: string): string {
  * @returns The lines with normalized property spacing.
  */
 export function normalizePropertySpacing(lines: CodeLines): string[] {
+  // https://regex101.com/r/XEv3pL/1
   return lines.map(line => line.replace(/\s*\?\s*:\s*/, "?: "));
 }
 
