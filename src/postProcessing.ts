@@ -6,7 +6,7 @@ import * as path from "path";
 import { GenerateOptions } from "./generate";
 import { GenericKind } from "./types";
 import { CustomResourceDefinition } from "./upstream";
-import { FileSystem, NodeFileSystem } from "./fileSystem"; // Import FileSystem type
+import { FileSystem, NodeFileSystem } from "./fileSystem";
 
 type CRDResult = {
   name: string;
@@ -116,14 +116,14 @@ export function processAndModifySingleFile(
   filePath: string,
   fileResult: CRDResult,
   opts: GenerateOptions,
-  fileSystem: FileSystem, // Injected file system
+  fileSystem: FileSystem,
 ) {
   opts.logFn(`🔍 Processing file: ${filePath}`);
   const { name, crd, version } = fileResult;
 
   let fileContent;
   try {
-    fileContent = fileSystem.readFile(filePath); // Use injected file system
+    fileContent = fileSystem.readFile(filePath);
   } catch (error) {
     logError(error, filePath, opts.logFn);
     return;
@@ -138,7 +138,7 @@ export function processAndModifySingleFile(
   }
 
   try {
-    fileSystem.writeFile(filePath, modifiedContent); // Use injected file system
+    fileSystem.writeFile(filePath, modifiedContent);
     opts.logFn(`✅ Successfully processed and wrote file: ${filePath}`);
   } catch (error) {
     logError(error, filePath, opts.logFn);
@@ -323,7 +323,7 @@ export function addDeclareToGenericKindProperties(
   genericKindProperties: string[],
 ): string {
   for (const prop of genericKindProperties) {
-    const propertyPattern = getPropertyPattern(prop); // Use the helper function
+    const propertyPattern = getPropertyPattern(prop);
     if (propertyPattern.test(line)) {
       return line.replace(prop, `declare ${prop}`);
     }
@@ -476,7 +476,6 @@ export function processLines(
   let braceBalance = 0;
 
   return lines.map(line => {
-    // Delegate the logic to processClassContext
     const result = processClassContext(
       line,
       insideClass,
