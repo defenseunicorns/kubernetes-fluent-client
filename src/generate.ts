@@ -45,9 +45,7 @@ export async function convertCRDtoTS(
     version: string;
   }[]
 > {
-  // Get the name of the kind
   const name = crd.spec.names.kind;
-
   const results: Record<string, string[]> = {};
   const output: {
     results: Record<string, string[]>;
@@ -56,29 +54,37 @@ export async function convertCRDtoTS(
     version: string;
   }[] = [];
 
-  // Generate types for each version of the CRD
+  // Check for missing versions or empty schema
+  if (!crd.spec.versions || crd.spec.versions.length === 0) {
+    opts.logFn(`Skipping ${crd.metadata?.name}, it does not appear to be a CRD`);
+    return [];
+  }
+
+  // Iterate through each version of the CRD
   for (const match of crd.spec.versions) {
-    const version = match.name;
+    if (!match.schema?.openAPIV3Schema) {
+      opts.logFn(`Skipping ${crd.metadata?.name ?? 'unknown'}, it does not appear to have a valid schema`);
+      continue;
+    }
 
-    // Get the schema from the matched version
-    const schema = JSON.stringify(match.schema?.openAPIV3Schema);
-
-    opts.logFn(`- Generating ${crd.spec.group}/${version} types for ${name}`);
+    const schema = JSON.stringify(match.schema.openAPIV3Schema);
+    opts.logFn(`- Generating ${crd.spec.group}/${match.name} types for ${name}`);
 
     const inputData = await prepareInputData(name, schema);
     const generatedTypes = await generateTypes(inputData, opts);
 
-    const fileName = `${name.toLowerCase()}-${version.toLowerCase()}`;
+    const fileName = `${name.toLowerCase()}-${match.name.toLowerCase()}`;
     writeGeneratedFile(fileName, opts.directory || "", generatedTypes, opts.language || "ts");
 
     results[fileName] = generatedTypes;
-
-    // Add the result, name, crd, and version for post-processing
-    output.push({ results, name, crd, version });
+    output.push({ results, name, crd, version: match.name });
   }
 
   return output;
 }
+
+
+
 /**
  * Prepares the input data for quicktype from the provided schema.
  *

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
-import { convertCRDtoTS, prepareInputData, GenerateOptions, readOrFetchCrd } from "./generate";
+import { convertCRDtoTS, prepareInputData, GenerateOptions, readOrFetchCrd, generate } from "./generate";
 import fs from "fs";
 import path from "path";
 import { quicktype } from "quicktype-core";
@@ -263,7 +263,9 @@ describe("readOrFetchCrd from Kubernetes cluster", () => {
   test("should load CRD from Kubernetes cluster", async () => {
     // Mock K8s to return a mocked CRD from the Kubernetes cluster
     const mockCrd = { kind: "CustomResourceDefinition" } as CustomResourceDefinition;
-    const mockK8sGet = jest.fn<() => Promise<CustomResourceDefinition>>().mockResolvedValue(mockCrd);
+    const mockK8sGet = jest
+      .fn<() => Promise<CustomResourceDefinition>>()
+      .mockResolvedValue(mockCrd);
     (K8s as jest.Mock).mockReturnValue({ Get: mockK8sGet });
 
     // Call the function
@@ -277,7 +279,9 @@ describe("readOrFetchCrd from Kubernetes cluster", () => {
     expect(result).toEqual([mockCrd]);
 
     // Assert log function was called with correct message
-    expect(mockOpts.logFn).toHaveBeenCalledWith("Attempting to read my-crd from the Kubernetes cluster");
+    expect(mockOpts.logFn).toHaveBeenCalledWith(
+      "Attempting to read my-crd from the Kubernetes cluster",
+    );
   });
 
   test("should log an error if Kubernetes cluster read fails", async () => {
@@ -288,7 +292,7 @@ describe("readOrFetchCrd from Kubernetes cluster", () => {
 
     // Call the function and assert that it throws an error
     await expect(readOrFetchCrd(mockOpts)).rejects.toThrowError(
-      `Failed to read my-crd as a file, URL, or Kubernetes CRD`
+      `Failed to read my-crd as a file, URL, or Kubernetes CRD`,
     );
 
     // Assert log function was called with error message
@@ -297,5 +301,116 @@ describe("readOrFetchCrd from Kubernetes cluster", () => {
     // Assert K8s.Get was called with the correct source
     expect(K8s).toHaveBeenCalledWith(CustomResourceDefinition);
     expect(mockK8sGet).toHaveBeenCalledWith("my-crd");
+  });
+});
+
+describe("readOrFetchCrd error handling", () => {
+  let mockOpts: GenerateOptions;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockOpts = {
+      source: "mock-source",
+      logFn: jest.fn(),
+    };
+  });
+
+  test("should throw an error if file reading fails", async () => {
+    (fs.existsSync as jest.Mock).mockReturnValue(true);
+    (fs.readFileSync as jest.Mock).mockImplementation(() => {
+      throw new Error("File read error");
+    });
+
+    await expect(readOrFetchCrd(mockOpts)).rejects.toThrowError(
+      "Failed to read mock-source as a file, URL, or Kubernetes CRD",
+    );
+
+    expect(mockOpts.logFn).toHaveBeenCalledWith("Error loading CRD: File read error");
+  });
+});
+
+describe("convertCRDtoTS with invalid CRD", () => {
+  const invalidCrd = {
+    ...sampleCrd,
+    spec: {
+      ...sampleCrd.spec,
+      versions: [],
+    },
+  };
+
+  const options = {
+    source: "test-crd.yaml",
+    language: "ts",
+    logFn: jest.fn(),
+    directory: "test-dir",
+    plain: false,
+    npmPackage: "kubernetes-fluent-client",
+  };
+
+  test("should skip CRD with no versions", async () => {
+    const invalidCrd = {
+      ...sampleCrd,
+      spec: {
+        ...sampleCrd.spec,
+        versions: [], // CRD with no versions
+      },
+    };
+
+    const options = {
+      source: "mock-source",
+      language: "ts",
+      logFn: jest.fn(), // Ensure the mock log function is set
+      directory: "test-dir",
+      plain: false,
+      npmPackage: "kubernetes-fluent-client",
+    };
+
+    const result = await convertCRDtoTS(invalidCrd, options);
+
+    // Assert that result is empty due to invalid CRD
+    expect(result).toEqual([]);
+
+    // Assert the log function is called with the correct message
+    expect(options.logFn).toHaveBeenCalledWith(
+      "Skipping movies.example.com, it does not appear to be a CRD",
+    );
+  });
+
+  test("should handle schema with no OpenAPI schema", async () => {
+    // Modify the sampleCrd to simulate the invalid CRD
+    const invalidCrd = {
+      ...sampleCrd,
+      spec: {
+        ...sampleCrd.spec,
+        versions: [
+          {
+            name: "v1",
+            served: true,
+            storage: true,
+            schema: undefined, // No OpenAPI schema
+          },
+        ],
+      },
+    };
+
+    const options = {
+      source: "mock-source",
+      language: "ts",
+      logFn: jest.fn(), // Mock log function
+      directory: "test-dir",
+      plain: false,
+      npmPackage: "kubernetes-fluent-client",
+    };
+
+    // Call the convertCRDtoTS function with the invalid CRD
+    const result = await convertCRDtoTS(invalidCrd, options);
+
+    // Assert that result is empty due to invalid schema
+    expect(result).toEqual([]);
+
+    // Assert that the log function was called with the appropriate message
+    expect(options.logFn).toHaveBeenCalledWith(
+      "Skipping movies.example.com, it does not appear to have a valid schema",
+    );
   });
 });
