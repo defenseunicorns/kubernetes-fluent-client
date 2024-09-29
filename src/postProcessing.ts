@@ -6,6 +6,203 @@ import * as path from "path";
 import { GenerateOptions } from "./generate";
 import { GenericKind } from "./types";
 import { CustomResourceDefinition } from "./upstream";
+import { FileSystem } from './fileSystem'; // Import FileSystem type
+
+type CRDResult = {
+  name: string;
+  crd: CustomResourceDefinition;
+  version: string;
+};
+
+type CodeLines = string[];
+
+type ClassContextResult = { line: string; insideClass: boolean; braceBalance: number };
+
+const genericKindProperties = getGenericKindProperties();
+
+/**
+ * Performs post-processing on generated TypeScript files.
+ *
+ * @param allResults The array of CRD results.
+ * @param opts The options for post-processing.
+ * @param fileSystem The file system interface for reading and writing files.
+ */
+export async function postProcessing(
+  allResults: CRDResult[],
+  opts: GenerateOptions,
+  fileSystem: FileSystem
+) {
+  if (!opts.directory) {
+    opts.logFn("⚠️ Error: Directory is not defined.");
+    return;
+  }
+
+  const files = fileSystem.readdirSync(opts.directory);
+  opts.logFn("\n🔧 Post-processing started...");
+
+  const fileResultMap = mapFilesToCRD(allResults);
+  await processFiles(files, fileResultMap, opts, fileSystem);
+
+  opts.logFn("🔧 Post-processing completed.\n");
+}
+
+
+/**
+ * Creates a map linking each file to its corresponding CRD result.
+ *
+ * @param allResults - The array of CRD results.
+ * @returns A map linking file names to their corresponding CRD results.
+ */
+function mapFilesToCRD(
+  allResults: CRDResult[],
+): Record<string, CRDResult> {
+  const fileResultMap: Record<
+    string,
+    CRDResult
+  > = {};
+
+  for (const { name, crd, version } of allResults) {
+    const expectedFileName = `${name.toLowerCase()}-${version.toLowerCase()}.ts`;
+    fileResultMap[expectedFileName] = { name, crd, version };
+  }
+
+  if (Object.keys(fileResultMap).length === 0) {
+    console.warn("⚠️ Warning: No CRD results were mapped to files.");
+  }
+
+  return fileResultMap;
+}
+
+async function processFiles(files: string[], fileResultMap: Record<string, CRDResult>, opts: GenerateOptions, fileSystem: FileSystem) {
+  for (const file of files) {
+    if (!opts.directory) {
+      throw new Error("Directory is not defined.");
+    }
+    const filePath = path.join(opts.directory, file);
+    const fileResult = fileResultMap[file];
+
+    if (!fileResult) {
+      opts.logFn(`⚠️ Warning: No matching CRD result found for file: ${filePath}`);
+      continue;
+    }
+
+    try {
+      processAndModifySingleFile(filePath, fileResult, opts, fileSystem);
+    } catch (error) {
+      logError(error, filePath, opts.logFn);
+    }
+  }
+}
+
+
+/**
+ * Handles the processing of a single file: reading, modifying, and writing back to disk.
+ *
+ * @param filePath - The path to the file to be processed.
+ * @param fileResult - The associated CRD result for this file.
+ * @param fileResult.name - The name of the schema.
+ * @param fileResult.crd - The CustomResourceDefinition object.
+ * @param fileResult.version - The version of the CRD.
+ * @param opts - Options for the generation process.
+ * @param fileSystem - The file system interface for reading and writing files.
+ */
+function processAndModifySingleFile(
+  filePath: string,
+  fileResult: CRDResult,
+  opts: GenerateOptions,
+  fileSystem: FileSystem // Injected file system
+) {
+  opts.logFn(`🔍 Processing file: ${filePath}`);
+  const { name, crd, version } = fileResult;
+
+  let fileContent;
+  try {
+    fileContent = fileSystem.readFile(filePath); // Use injected file system
+  } catch (error) {
+    logError(error, filePath, opts.logFn);
+    return;
+  }
+
+  let modifiedContent;
+  try {
+    modifiedContent = applyCRDPostProcessing(fileContent, name, crd, version, opts);
+  } catch (error) {
+    logError(error, filePath, opts.logFn);
+    return;
+  }
+
+  try {
+    fileSystem.writeFile(filePath, modifiedContent); // Use injected file system
+    opts.logFn(`✅ Successfully processed and wrote file: ${filePath}`);
+  } catch (error) {
+    logError(error, filePath, opts.logFn);
+  }
+}
+
+
+/**
+ * Processes the TypeScript file content, applying wrapping and property modifications.
+ *
+ * @param content The content of the TypeScript file.
+ * @param name The name of the schema.
+ * @param crd The CustomResourceDefinition object.
+ * @param version The version of the CRD.
+ * @param opts The options for processing.
+ * @returns The processed TypeScript file content.
+ */
+export function applyCRDPostProcessing(
+  content: string,
+  name: string,
+  crd: CustomResourceDefinition,
+  version: string,
+  opts: GenerateOptions,
+): string {
+  try {
+    let lines = content.split("\n");
+
+    // Conditionally wrap with the fluent client if needed
+    lines = conditionallyWrapWithFluentClient(lines, name, crd, version, opts);
+
+    const foundInterfaces = collectInterfaceNames(lines);
+
+    // Process the lines, focusing on classes extending `GenericKind`
+    const processedLines = processLines(lines, genericKindProperties, foundInterfaces);
+
+    // Normalize the final output
+    const normalizedLines = normalizeIndentationAndSpacing(processedLines, opts);
+
+    return normalizedLines.join("\n");
+  } catch (error) {
+    throw new Error(`Error while applying post-processing for ${name}: ${error.message}`);
+  }
+}
+
+/**
+ * Conditionally wraps the content with the fluent client if needed.
+ *
+ * @param lines - The lines of the file content.
+ * @param name - The name of the schema.
+ * @param crd - The CustomResourceDefinition object.
+ * @param version - The version of the CRD.
+ * @param opts - The options for post-processing.
+ * @returns The potentially wrapped lines of the file content.
+ */
+function conditionallyWrapWithFluentClient(
+  lines: CodeLines,
+  name: string,
+  crd: CustomResourceDefinition,
+  version: string,
+  opts: GenerateOptions,
+): string[] {
+  try {
+    if (!shouldWrapWithFluentClient(opts)) return lines;
+
+    return wrapWithFluentClient(lines, name, crd, version, opts.npmPackage);
+  } catch (error) {
+    console.error(`❌ Error wrapping ${name} with fluent client: ${error.message}`);
+    return lines;
+  }
+}
 
 /**
  * Reads the content of a file from disk.
@@ -14,7 +211,11 @@ import { CustomResourceDefinition } from "./upstream";
  * @returns The file contents as a string.
  */
 export function readFile(filePath: string): string {
-  return fs.readFileSync(filePath, "utf8");
+  try {
+    return fs.readFileSync(filePath, "utf8");
+  } catch (error) {
+    throw new Error(`Failed to read file at ${filePath}: ${error.message}`);
+  }
 }
 
 /**
@@ -24,7 +225,11 @@ export function readFile(filePath: string): string {
  * @param content The modified content to write.
  */
 export function writeFile(filePath: string, content: string): void {
-  fs.writeFileSync(filePath, content, "utf8");
+  try {
+    fs.writeFileSync(filePath, content, "utf8");
+  } catch (error) {
+    throw new Error(`Failed to write file at ${filePath}: ${error.message}`);
+  }
 }
 
 /**
@@ -43,7 +248,7 @@ export function getGenericKindProperties(): string[] {
  * @param lines The lines of the file content.
  * @returns A set of found interface names.
  */
-export function collectInterfaceNames(lines: string[]): Set<string> {
+export function collectInterfaceNames(lines: CodeLines): Set<string> {
   const interfacePattern = /export interface (?<interfaceName>\w+)/;
   const foundInterfaces = new Set<string>();
 
@@ -79,25 +284,53 @@ function updateBraceBalance(line: string, braceBalance: number): number {
 }
 
 /**
- * Modifies property declarations within class definitions:
- * - Adds the `declare` keyword to properties of `GenericKind`.
- * - Makes properties optional if their type matches an interface name.
+ * Generates a regular expression to match a property pattern in TypeScript.
+ *
+ * @param prop The property name to match.
+ * @returns A regular expression to match the property pattern.
+ */
+function getPropertyPattern(prop: string): RegExp {
+  // For prop="kind", the pattern will match "kind ? :" or "kind :"
+  // https://regex101.com/r/mF8kXn/1
+  return new RegExp(`\\b${prop}\\b\\s*\\?\\s*:|\\b${prop}\\b\\s*:`);
+}
+
+/**
+ * Applies ESLint and property modifiers to a line of code.
+ *
+ * @param line - The current line of code.
+ * @param genericKindProperties - The list of properties from `GenericKind`.
+ * @param foundInterfaces - The set of found interfaces in the file.
+ * @returns The modified line.
+ */
+function modifyPropertiesAndAddEslintDirective(
+  line: string,
+  genericKindProperties: string[],
+  foundInterfaces: Set<string>,
+): string {
+  line = addDeclareAndOptionalModifiersToProperties(line, genericKindProperties, foundInterfaces);
+  line = processEslintDisable(line, genericKindProperties);
+  return line;
+}
+
+/**
+ * Applies property modifiers to a line of code.
  *
  * @param line The current line of code.
  * @param genericKindProperties The list of properties from `GenericKind`.
  * @param foundInterfaces The set of found interfaces in the file.
  * @returns The modified line.
  */
-function processPropertyDeclarations(
+function addDeclareAndOptionalModifiersToProperties(
   line: string,
   genericKindProperties: string[],
   foundInterfaces: Set<string>,
 ): string {
   line = addDeclareToGenericKindProperties(line, genericKindProperties);
   line = makePropertiesOptional(line, foundInterfaces);
+  line = normalizeLineIndentation(line);
   return line;
 }
-
 /**
  * Adds the `declare` keyword to `GenericKind` properties.
  *
@@ -106,10 +339,10 @@ function processPropertyDeclarations(
  * @returns The modified line with the `declare` keyword, if applicable.
  */
 function addDeclareToGenericKindProperties(line: string, genericKindProperties: string[]): string {
-  for (const property of genericKindProperties) {
-    const propertyPattern = new RegExp(`\\b${property}\\b\\s*\\?\\s*:|\\b${property}\\b\\s*:`);
+  for (const prop of genericKindProperties) {
+    const propertyPattern = getPropertyPattern(prop); // Use the helper function
     if (propertyPattern.test(line)) {
-      return line.replace(property, `declare ${property}`);
+      return line.replace(prop, `declare ${prop}`);
     }
   }
   return line;
@@ -160,7 +393,7 @@ function processEslintDisable(line: string, genericKindProperties: string[]): st
  * @returns The processed TypeScript lines.
  */
 function wrapWithFluentClient(
-  lines: string[],
+  lines: CodeLines,
   name: string,
   crd: CustomResourceDefinition,
   version: string,
@@ -193,7 +426,7 @@ function wrapWithFluentClient(
  * @param lines The generated TypeScript lines.
  * @returns The lines with normalized indentation.
  */
-function normalizeIndentation(lines: string[]): string[] {
+function normalizeIndentation(lines: CodeLines): string[] {
   return lines.map(line => line.replace(/^ {4}/, "  "));
 }
 
@@ -213,7 +446,7 @@ function normalizeLineIndentation(line: string): string {
  * @param lines The generated TypeScript lines.
  * @returns The lines with normalized property spacing.
  */
-export function normalizePropertySpacing(lines: string[]): string[] {
+export function normalizePropertySpacing(lines: CodeLines): string[] {
   return lines.map(line => line.replace(/\?\s*:\s*/, "?: "));
 }
 
@@ -224,7 +457,7 @@ export function normalizePropertySpacing(lines: string[]): string[] {
  * @param opts The options for processing.
  * @returns The lines with `[property: string]: any;` removed.
  */
-export function removePropertyStringAny(lines: string[], opts: GenerateOptions): string[] {
+export function removePropertyStringAny(lines: CodeLines, opts: GenerateOptions): string[] {
   if (opts.language === "ts" || opts.language === "typescript") {
     return lines.filter(line => !line.includes("[property: string]: any;"));
   }
@@ -232,125 +465,120 @@ export function removePropertyStringAny(lines: string[], opts: GenerateOptions):
 }
 
 /**
- * Processes the TypeScript file content, applying wrapping and property modifications.
+ * Determines if the content should be wrapped with the fluent client.
  *
- * @param content The content of the TypeScript file.
- * @param name The name of the schema.
- * @param crd The CustomResourceDefinition object.
- * @param version The version of the CRD.
- * @param opts The options for processing.
- * @returns The processed TypeScript file content.
+ * @param opts The options for generating the content.
+ * @returns True if the content should be wrapped with the fluent client, false otherwise.
  */
-export function processFile(
-  content: string,
-  name: string,
-  crd: CustomResourceDefinition,
-  version: string,
-  opts: GenerateOptions,
-): string {
-  let lines = content.split("\n");
-  const genericKindProperties = getGenericKindProperties();
-  const foundInterfaces = collectInterfaceNames(lines);
-
-  // Track whether we are inside a class definition
-  let insideClass = false;
-  let braceBalance = 0;
-
-  // If the language is TypeScript and post-processing is enabled, wrap with the fluent client.
-  if (opts.language === "ts" && !opts.plain) {
-    lines = wrapWithFluentClient(lines, name, crd, version, opts.npmPackage);
-  }
-
-  // Iterate over the lines and apply processing logic
-  const modifiedLines = lines.map(line => {
-    // Detect if we are entering a class that extends GenericKind
-    if (isClassExtendingGenericKind(line)) {
-      insideClass = true;
-      braceBalance = 0; // We opened a class, so increase brace balance
-    }
-
-    // While inside the class, modify the lines
-    if (insideClass) {
-      // Adjust the brace balance based on opening and closing braces
-      braceBalance = updateBraceBalance(line, braceBalance);
-
-      // Apply property declaration changes only inside the class
-      line = processPropertyDeclarations(line, genericKindProperties, foundInterfaces);
-
-      // Remove extra whitespace from the line
-      line = normalizeLineIndentation(line);
-
-      // Add ESLint disable comment for [key: string]: any if needed
-      line = processEslintDisable(line, genericKindProperties);
-
-      // If we have reached the closing brace of the class, exit class context
-      if (braceBalance === 0) {
-        insideClass = false;
-      }
-
-      return line;
-    }
-
-    // Return the line unmodified if not inside a class
-    return line;
-  });
-
-  // Normalize indentation and spacing after processing the lines
-  let normalizedLines = normalizeIndentation(modifiedLines);
-  normalizedLines = normalizePropertySpacing(normalizedLines);
-
-  // Call the new function to remove `[property: string]: any;` for TypeScript files
-  normalizedLines = removePropertyStringAny(normalizedLines, opts);
-
-  return normalizedLines.join("\n");
+function shouldWrapWithFluentClient(opts: GenerateOptions): boolean {
+  return opts.language === "ts" && !opts.plain;
 }
 
 /**
- * Performs post-processing on generated TypeScript files.
+ * Processes the lines of the TypeScript file, focusing on classes extending `GenericKind`.
  *
- * @param allResults The array of CRD results.
- * @param opts The options for post-processing.
+ * @param lines The lines of the file content.
+ * @param genericKindProperties The list of properties from `GenericKind`.
+ * @param foundInterfaces The set of found interfaces in the file.
+ * @returns The processed lines.
  */
-export async function postProcessing(
-  allResults: {
-    name: string;
-    crd: CustomResourceDefinition;
-    version: string;
-  }[],
-  opts: GenerateOptions,
-) {
-  if (opts.directory) {
-    const files = fs.readdirSync(opts.directory);
-    opts.logFn("\n🔧 Post-processing started...");
+function processLines(
+  lines: CodeLines,
+  genericKindProperties: string[],
+  foundInterfaces: Set<string>,
+): string[] {
+  let insideClass = false;
+  let braceBalance = 0;
 
-    // Create a map that links each file to its corresponding result
-    const fileResultMap: Record<
-      string,
-      { name: string; crd: CustomResourceDefinition; version: string }
-    > = {};
+  return lines.map(line => {
+    // Delegate the logic to processClassContext
+    const result = processClassContext(
+      line,
+      insideClass,
+      braceBalance,
+      genericKindProperties,
+      foundInterfaces,
+    );
+    insideClass = result.insideClass;
+    braceBalance = result.braceBalance;
 
-    for (const { name, crd, version } of allResults) {
-      const expectedFileName = `${name.toLowerCase()}-${version.toLowerCase()}.ts`;
-      fileResultMap[expectedFileName] = { name, crd, version };
-    }
+    return result.line;
+  });
+}
 
-    // Loop through each file only once
-    for (const file of files) {
-      const filePath = path.join(opts.directory, file);
-      opts.logFn(`Post-processing file: ${filePath}`);
-
-      const fileResult = fileResultMap[file]; // Find the corresponding result for the file
-
-      if (fileResult) {
-        const { name, crd, version } = fileResult;
-        const fileContent = readFile(filePath);
-        const modifiedContent = processFile(fileContent, name, crd, version, opts);
-        writeFile(filePath, modifiedContent);
-      } else {
-        opts.logFn(`No matching CRD result found for file: ${filePath}`);
-      }
-    }
-
-    opts.logFn("🔧 Post-processing completed.\n");
+/**
+ * Processes a single line inside a class extending `GenericKind`.
+ *
+ * @param line The current line of code.
+ * @param insideClass Whether we are inside a class context.
+ * @param braceBalance The current brace balance to detect when we exit the class.
+ * @param genericKindProperties The list of properties from `GenericKind`.
+ * @param foundInterfaces The set of found interfaces in the file.
+ * @returns An object containing the updated line, updated insideClass flag, and braceBalance.
+ */
+function processClassContext(
+  line: string,
+  insideClass: boolean,
+  braceBalance: number,
+  genericKindProperties: string[],
+  foundInterfaces: Set<string>
+): ClassContextResult {
+  if (isClassExtendingGenericKind(line)) {
+    insideClass = true;
+    braceBalance = 0;
   }
+
+  if (!insideClass) return { line, insideClass, braceBalance };
+
+  braceBalance = updateBraceBalance(line, braceBalance);
+  line = modifyAndNormalizeClassProperties(line, genericKindProperties, foundInterfaces);
+
+  if (braceBalance === 0) {
+    insideClass = false;
+  }
+
+  return { line, insideClass, braceBalance };
+}
+
+/**
+ * Processes a single line inside a class extending `GenericKind`.
+ *
+ * @param line The current line of code.
+ * @param genericKindProperties The list of properties from `GenericKind`.
+ * @param foundInterfaces The set of found interfaces in the file.
+ * @returns The modified line.
+ */
+function modifyAndNormalizeClassProperties(
+  line: string,
+  genericKindProperties: string[],
+  foundInterfaces: Set<string>,
+): string {
+  line = modifyPropertiesAndAddEslintDirective(line, genericKindProperties, foundInterfaces);
+  line = normalizeLineIndentation(line);
+  return line;
+}
+
+/**
+ * Normalizes lines after processing, including indentation, spacing, and removing unnecessary lines.
+ *
+ * @param lines The lines of the file content.
+ * @param opts The options for processing.
+ * @returns The normalized lines.
+ */
+function normalizeIndentationAndSpacing(lines: CodeLines, opts: GenerateOptions): string[] {
+  let normalizedLines = normalizeIndentation(lines);
+  normalizedLines = normalizePropertySpacing(normalizedLines);
+  return removePropertyStringAny(normalizedLines, opts);
+}
+
+/**
+ * Handles logging for errors with stack trace.
+ *
+ * @param error The error object to log.
+ * @param filePath The path of the file being processed.
+ * @param logFn The logging function.
+ */
+function logError(error: Error, filePath: string, logFn: (msg: string) => void) {
+  logFn(`❌ Error processing file: ${filePath} - ${error.message}`);
+  logFn(`Stack trace: ${error.stack}`);
 }
