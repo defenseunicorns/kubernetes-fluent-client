@@ -6,7 +6,7 @@ import * as path from "path";
 import { GenerateOptions } from "./generate";
 import { GenericKind } from "./types";
 import { CustomResourceDefinition } from "./upstream";
-import { FileSystem } from './fileSystem'; // Import FileSystem type
+import { FileSystem } from "./fileSystem"; // Import FileSystem type
 
 type CRDResult = {
   name: string;
@@ -30,7 +30,7 @@ const genericKindProperties = getGenericKindProperties();
 export async function postProcessing(
   allResults: CRDResult[],
   opts: GenerateOptions,
-  fileSystem: FileSystem
+  fileSystem: FileSystem,
 ) {
   if (!opts.directory) {
     opts.logFn("⚠️ Error: Directory is not defined.");
@@ -46,20 +46,14 @@ export async function postProcessing(
   opts.logFn("🔧 Post-processing completed.\n");
 }
 
-
 /**
  * Creates a map linking each file to its corresponding CRD result.
  *
  * @param allResults - The array of CRD results.
  * @returns A map linking file names to their corresponding CRD results.
  */
-function mapFilesToCRD(
-  allResults: CRDResult[],
-): Record<string, CRDResult> {
-  const fileResultMap: Record<
-    string,
-    CRDResult
-  > = {};
+export function mapFilesToCRD(allResults: CRDResult[]): Record<string, CRDResult> {
+  const fileResultMap: Record<string, CRDResult> = {};
 
   for (const { name, crd, version } of allResults) {
     const expectedFileName = `${name.toLowerCase()}-${version.toLowerCase()}.ts`;
@@ -73,7 +67,12 @@ function mapFilesToCRD(
   return fileResultMap;
 }
 
-async function processFiles(files: string[], fileResultMap: Record<string, CRDResult>, opts: GenerateOptions, fileSystem: FileSystem) {
+export async function processFiles(
+  files: string[],
+  fileResultMap: Record<string, CRDResult>,
+  opts: GenerateOptions,
+  fileSystem: FileSystem,
+) {
   for (const file of files) {
     if (!opts.directory) {
       throw new Error("Directory is not defined.");
@@ -94,7 +93,6 @@ async function processFiles(files: string[], fileResultMap: Record<string, CRDRe
   }
 }
 
-
 /**
  * Handles the processing of a single file: reading, modifying, and writing back to disk.
  *
@@ -106,11 +104,11 @@ async function processFiles(files: string[], fileResultMap: Record<string, CRDRe
  * @param opts - Options for the generation process.
  * @param fileSystem - The file system interface for reading and writing files.
  */
-function processAndModifySingleFile(
+export function processAndModifySingleFile(
   filePath: string,
   fileResult: CRDResult,
   opts: GenerateOptions,
-  fileSystem: FileSystem // Injected file system
+  fileSystem: FileSystem, // Injected file system
 ) {
   opts.logFn(`🔍 Processing file: ${filePath}`);
   const { name, crd, version } = fileResult;
@@ -138,7 +136,6 @@ function processAndModifySingleFile(
     logError(error, filePath, opts.logFn);
   }
 }
-
 
 /**
  * Processes the TypeScript file content, applying wrapping and property modifications.
@@ -187,7 +184,7 @@ export function applyCRDPostProcessing(
  * @param opts - The options for post-processing.
  * @returns The potentially wrapped lines of the file content.
  */
-function conditionallyWrapWithFluentClient(
+export function conditionallyWrapWithFluentClient(
   lines: CodeLines,
   name: string,
   crd: CustomResourceDefinition,
@@ -268,7 +265,7 @@ export function collectInterfaceNames(lines: CodeLines): Set<string> {
  * @param line The current line of code.
  * @returns True if the line defines a class that extends `GenericKind`, false otherwise.
  */
-function isClassExtendingGenericKind(line: string): boolean {
+export function isClassExtendingGenericKind(line: string): boolean {
   return line.includes("class") && line.includes("extends GenericKind");
 }
 
@@ -279,7 +276,7 @@ function isClassExtendingGenericKind(line: string): boolean {
  * @param braceBalance The current balance of curly braces.
  * @returns The updated brace balance.
  */
-function updateBraceBalance(line: string, braceBalance: number): number {
+export function updateBraceBalance(line: string, braceBalance: number): number {
   return braceBalance + (line.includes("{") ? 1 : 0) - (line.includes("}") ? 1 : 0);
 }
 
@@ -289,7 +286,7 @@ function updateBraceBalance(line: string, braceBalance: number): number {
  * @param prop The property name to match.
  * @returns A regular expression to match the property pattern.
  */
-function getPropertyPattern(prop: string): RegExp {
+export function getPropertyPattern(prop: string): RegExp {
   // For prop="kind", the pattern will match "kind ? :" or "kind :"
   // https://regex101.com/r/mF8kXn/1
   return new RegExp(`\\b${prop}\\b\\s*\\?\\s*:|\\b${prop}\\b\\s*:`);
@@ -303,7 +300,7 @@ function getPropertyPattern(prop: string): RegExp {
  * @param foundInterfaces - The set of found interfaces in the file.
  * @returns The modified line.
  */
-function modifyPropertiesAndAddEslintDirective(
+export function modifyPropertiesAndAddEslintDirective(
   line: string,
   genericKindProperties: string[],
   foundInterfaces: Set<string>,
@@ -321,7 +318,7 @@ function modifyPropertiesAndAddEslintDirective(
  * @param foundInterfaces The set of found interfaces in the file.
  * @returns The modified line.
  */
-function addDeclareAndOptionalModifiersToProperties(
+export function addDeclareAndOptionalModifiersToProperties(
   line: string,
   genericKindProperties: string[],
   foundInterfaces: Set<string>,
@@ -338,7 +335,10 @@ function addDeclareAndOptionalModifiersToProperties(
  * @param genericKindProperties The list of properties from `GenericKind`.
  * @returns The modified line with the `declare` keyword, if applicable.
  */
-function addDeclareToGenericKindProperties(line: string, genericKindProperties: string[]): string {
+export function addDeclareToGenericKindProperties(
+  line: string,
+  genericKindProperties: string[],
+): string {
   for (const prop of genericKindProperties) {
     const propertyPattern = getPropertyPattern(prop); // Use the helper function
     if (propertyPattern.test(line)) {
@@ -355,7 +355,7 @@ function addDeclareToGenericKindProperties(line: string, genericKindProperties: 
  * @param foundInterfaces The set of found interfaces in the file.
  * @returns The modified line with the optional `?` symbol.
  */
-function makePropertiesOptional(line: string, foundInterfaces: Set<string>): string {
+export function makePropertiesOptional(line: string, foundInterfaces: Set<string>): string {
   const propertyTypePattern = /:\s*(?<propertyType>\w+)\s*;/;
   const match = line.match(propertyTypePattern);
 
@@ -375,7 +375,7 @@ function makePropertiesOptional(line: string, foundInterfaces: Set<string>): str
  * @param genericKindProperties The list of properties from `GenericKind`.
  * @returns The modified line with the ESLint disable comment.
  */
-function processEslintDisable(line: string, genericKindProperties: string[]): string {
+export function processEslintDisable(line: string, genericKindProperties: string[]): string {
   if (line.includes("[key: string]: any") && !genericKindProperties.includes("[key: string]")) {
     return `  // eslint-disable-next-line @typescript-eslint/no-explicit-any\n${line}`;
   }
@@ -392,7 +392,7 @@ function processEslintDisable(line: string, genericKindProperties: string[]): st
  * @param npmPackage The NPM package name for the fluent client.
  * @returns The processed TypeScript lines.
  */
-function wrapWithFluentClient(
+export function wrapWithFluentClient(
   lines: CodeLines,
   name: string,
   crd: CustomResourceDefinition,
@@ -426,7 +426,7 @@ function wrapWithFluentClient(
  * @param lines The generated TypeScript lines.
  * @returns The lines with normalized indentation.
  */
-function normalizeIndentation(lines: CodeLines): string[] {
+export function normalizeIndentation(lines: CodeLines): string[] {
   return lines.map(line => line.replace(/^ {4}/, "  "));
 }
 
@@ -436,7 +436,7 @@ function normalizeIndentation(lines: CodeLines): string[] {
  * @param line The line of code to normalize.
  * @returns The line with normalized indentation.
  */
-function normalizeLineIndentation(line: string): string {
+export function normalizeLineIndentation(line: string): string {
   return line.replace(/^ {4}/, "  ");
 }
 
@@ -447,8 +447,9 @@ function normalizeLineIndentation(line: string): string {
  * @returns The lines with normalized property spacing.
  */
 export function normalizePropertySpacing(lines: CodeLines): string[] {
-  return lines.map(line => line.replace(/\?\s*:\s*/, "?: "));
+  return lines.map(line => line.replace(/\s*\?\s*:\s*/, '?: '));
 }
+
 
 /**
  * Removes lines containing `[property: string]: any;` from TypeScript files.
@@ -470,7 +471,7 @@ export function removePropertyStringAny(lines: CodeLines, opts: GenerateOptions)
  * @param opts The options for generating the content.
  * @returns True if the content should be wrapped with the fluent client, false otherwise.
  */
-function shouldWrapWithFluentClient(opts: GenerateOptions): boolean {
+export function shouldWrapWithFluentClient(opts: GenerateOptions): boolean {
   return opts.language === "ts" && !opts.plain;
 }
 
@@ -482,7 +483,7 @@ function shouldWrapWithFluentClient(opts: GenerateOptions): boolean {
  * @param foundInterfaces The set of found interfaces in the file.
  * @returns The processed lines.
  */
-function processLines(
+export function processLines(
   lines: CodeLines,
   genericKindProperties: string[],
   foundInterfaces: Set<string>,
@@ -516,12 +517,12 @@ function processLines(
  * @param foundInterfaces The set of found interfaces in the file.
  * @returns An object containing the updated line, updated insideClass flag, and braceBalance.
  */
-function processClassContext(
+export function processClassContext(
   line: string,
   insideClass: boolean,
   braceBalance: number,
   genericKindProperties: string[],
-  foundInterfaces: Set<string>
+  foundInterfaces: Set<string>,
 ): ClassContextResult {
   if (isClassExtendingGenericKind(line)) {
     insideClass = true;
@@ -548,7 +549,7 @@ function processClassContext(
  * @param foundInterfaces The set of found interfaces in the file.
  * @returns The modified line.
  */
-function modifyAndNormalizeClassProperties(
+export function modifyAndNormalizeClassProperties(
   line: string,
   genericKindProperties: string[],
   foundInterfaces: Set<string>,
@@ -565,7 +566,7 @@ function modifyAndNormalizeClassProperties(
  * @param opts The options for processing.
  * @returns The normalized lines.
  */
-function normalizeIndentationAndSpacing(lines: CodeLines, opts: GenerateOptions): string[] {
+export function normalizeIndentationAndSpacing(lines: CodeLines, opts: GenerateOptions): string[] {
   let normalizedLines = normalizeIndentation(lines);
   normalizedLines = normalizePropertySpacing(normalizedLines);
   return removePropertyStringAny(normalizedLines, opts);
@@ -578,7 +579,7 @@ function normalizeIndentationAndSpacing(lines: CodeLines, opts: GenerateOptions)
  * @param filePath The path of the file being processed.
  * @param logFn The logging function.
  */
-function logError(error: Error, filePath: string, logFn: (msg: string) => void) {
+export function logError(error: Error, filePath: string, logFn: (msg: string) => void) {
   logFn(`❌ Error processing file: ${filePath} - ${error.message}`);
   logFn(`Stack trace: ${error.stack}`);
 }
