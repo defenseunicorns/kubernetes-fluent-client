@@ -6,7 +6,7 @@ import * as path from "path";
 import { GenerateOptions } from "./generate";
 import { GenericKind } from "./types";
 import { CustomResourceDefinition } from "./upstream";
-import { FileSystem } from "./fileSystem"; // Import FileSystem type
+import { FileSystem, NodeFileSystem } from "./fileSystem"; // Import FileSystem type
 
 type CRDResult = {
   name: string;
@@ -30,7 +30,7 @@ const genericKindProperties = getGenericKindProperties();
 export async function postProcessing(
   allResults: CRDResult[],
   opts: GenerateOptions,
-  fileSystem: FileSystem,
+  fileSystem: FileSystem = new NodeFileSystem(),
 ) {
   if (!opts.directory) {
     opts.logFn("⚠️ Error: Directory is not defined.");
@@ -157,9 +157,10 @@ export function applyCRDPostProcessing(
   try {
     let lines = content.split("\n");
 
-    // Conditionally wrap with the fluent client if needed
-    lines = conditionallyWrapWithFluentClient(lines, name, crd, version, opts);
-
+    // Wraps with the fluent client if needed
+    if (shouldWrapWithFluentClient(opts)) {
+      lines = wrapWithFluentClient(lines, name, crd, version, opts.npmPackage);
+    }
     const foundInterfaces = collectInterfaceNames(lines);
 
     // Process the lines, focusing on classes extending `GenericKind`
@@ -184,22 +185,31 @@ export function applyCRDPostProcessing(
  * @param opts - The options for post-processing.
  * @returns The potentially wrapped lines of the file content.
  */
-export function conditionallyWrapWithFluentClient(
+/* export function conditionallyWrapWithFluentClient(
   lines: CodeLines,
   name: string,
   crd: CustomResourceDefinition,
   version: string,
   opts: GenerateOptions,
 ): string[] {
-  try {
-    if (!shouldWrapWithFluentClient(opts)) return lines;
+  console.log("conditionallyWrapWithFluentClient...");
+  console.log("lines:", lines);
+    try {
+      console.log("Calling shouldWrapWithFluentClient...");
+      const shouldWrapResult = shouldWrapWithFluentClient(opts);
+      console.log("shouldWrapWithFluentClient result:", shouldWrapResult);
 
-    return wrapWithFluentClient(lines, name, crd, version, opts.npmPackage);
-  } catch (error) {
-    console.error(`❌ Error wrapping ${name} with fluent client: ${error.message}`);
-    return lines;
-  }
-}
+      if (!shouldWrapResult) return lines;
+
+      console.log("Calling wrapWithFluentClient...");
+      console.log("wrapWithFluentClient params:", name, crd, version, opts.npmPackage);
+      console.log("wrapWithFluentClient result:", wrapWithFluentClient(lines, name, crd, version, opts.npmPackage));
+      return wrapWithFluentClient(lines, name, crd, version, opts.npmPackage);
+    } catch (error) {
+      opts.logFn(`❌ Error wrapping ${name} with fluent client: ${error.message}`);
+    }
+  return lines;
+} */
 
 /**
  * Reads the content of a file from disk.
@@ -447,9 +457,8 @@ export function normalizeLineIndentation(line: string): string {
  * @returns The lines with normalized property spacing.
  */
 export function normalizePropertySpacing(lines: CodeLines): string[] {
-  return lines.map(line => line.replace(/\s*\?\s*:\s*/, '?: '));
+  return lines.map(line => line.replace(/\s*\?\s*:\s*/, "?: "));
 }
-
 
 /**
  * Removes lines containing `[property: string]: any;` from TypeScript files.
