@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
-import { convertCRDtoTS, prepareInputData, GenerateOptions, readOrFetchCrd, generate } from "./generate";
+import { convertCRDtoTS, GenerateOptions, readOrFetchCrd } from "./generate";
 import fs from "fs";
 import path from "path";
 import { quicktype } from "quicktype-core";
@@ -330,23 +330,6 @@ describe("readOrFetchCrd error handling", () => {
 });
 
 describe("convertCRDtoTS with invalid CRD", () => {
-  const invalidCrd = {
-    ...sampleCrd,
-    spec: {
-      ...sampleCrd.spec,
-      versions: [],
-    },
-  };
-
-  const options = {
-    source: "test-crd.yaml",
-    language: "ts",
-    logFn: jest.fn(),
-    directory: "test-dir",
-    plain: false,
-    npmPackage: "kubernetes-fluent-client",
-  };
-
   test("should skip CRD with no versions", async () => {
     const invalidCrd = {
       ...sampleCrd,

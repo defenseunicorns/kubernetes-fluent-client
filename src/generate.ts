@@ -63,7 +63,9 @@ export async function convertCRDtoTS(
   // Iterate through each version of the CRD
   for (const match of crd.spec.versions) {
     if (!match.schema?.openAPIV3Schema) {
-      opts.logFn(`Skipping ${crd.metadata?.name ?? 'unknown'}, it does not appear to have a valid schema`);
+      opts.logFn(
+        `Skipping ${crd.metadata?.name ?? "unknown"}, it does not appear to have a valid schema`,
+      );
       continue;
     }
 
@@ -82,8 +84,6 @@ export async function convertCRDtoTS(
 
   return output;
 }
-
-
 
 /**
  * Prepares the input data for quicktype from the provided schema.
@@ -186,7 +186,6 @@ export async function readOrFetchCrd(opts: GenerateOptions): Promise<CustomResou
   }
 }
 
-
 /**
  * Resolves the source file path, treating relative paths as local files.
  *
@@ -248,6 +247,9 @@ export async function generate(opts: GenerateOptions): Promise<
   if (opts.directory) {
     // Notify the user that the files have been generated
     opts.logFn(`\n✅ Generated ${allResults.length} files in the ${opts.directory} directory`);
+  } else {
+    // Log a message about the number of generated files even when no directory is provided
+    opts.logFn(`\n✅ Generated ${allResults.length} files`);
   }
 
   return allResults;
