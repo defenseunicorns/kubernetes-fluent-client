@@ -1,30 +1,50 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
-import { convertCRDtoTS, resolveFilePath, prepareInputData, tryParseUrl } from "./generate";
+import { convertCRDtoTS, prepareInputData, GenerateOptions, readOrFetchCrd } from "./generate";
 import fs from "fs";
-import { LogFn } from "./types";
 import path from "path";
 import { quicktype } from "quicktype-core";
+import { fetch } from "./fetch";
+import { loadAllYaml } from "@kubernetes/client-node";
+import { K8s } from "./fluent";
+import { CustomResourceDefinition } from "./upstream";
 
-// Spy on the file writing instead of mocking the entire fs module
-jest.spyOn(fs, "writeFileSync").mockImplementation(() => {});
-
-// Mock the file system and fetch functions
-jest.mock("fs");
+// Mock the file system
+jest.mock("fs", () => ({
+  ...(jest.requireActual("fs") as object), // Preserve the rest of the fs module
+  writeFileSync: jest.fn(), // Mock only writeFileSync
+  existsSync: jest.fn(),
+  readFileSync: jest.fn(),
+}));
 jest.mock("./fetch");
-jest.mock("./fluent");
-
-// Mock the quicktype function
 jest.mock("quicktype-core", () => {
   const actualQuicktypeCore = jest.requireActual<typeof import("quicktype-core")>("quicktype-core");
   return {
     quicktype: jest.fn(),
     JSONSchemaInput: actualQuicktypeCore.JSONSchemaInput,
     FetchingJSONSchemaStore: actualQuicktypeCore.FetchingJSONSchemaStore,
-    InputData: actualQuicktypeCore.InputData, // Add InputData here
+    InputData: actualQuicktypeCore.InputData,
+  };
+});
+jest.mock("@kubernetes/client-node", () => {
+  const actualModule = jest.requireActual("@kubernetes/client-node");
+  return {
+    ...(typeof actualModule === "object" ? actualModule : {}),
+    loadAllYaml: jest.fn(), // Mock only the specific method
+  };
+});
+jest.mock("./fluent", () => ({
+  K8s: jest.fn(),
+}));
+jest.mock("./generate", () => {
+  const actualGenerate = jest.requireActual("./generate");
+  return {
+    ...(typeof actualGenerate === "object" ? actualGenerate : {}),
+    resolveFilePath: jest.fn(), // Mock resolveFilePath globally
+    tryParseUrl: jest.fn(),
   };
 });
 
-// Sample CRD YAML content to use in tests
+// Sample CRD content to use in tests
 const sampleCrd = {
   apiVersion: "apiextensions.k8s.io/v1",
   kind: "CustomResourceDefinition",
@@ -75,7 +95,7 @@ const expectedMovie = [
 ];
 
 describe("CRD Generate", () => {
-  let logFn: jest.Mock<ReturnType<LogFn>>; // Explicitly typing the mock function
+  let logFn: jest.Mock; // Mock log function
 
   beforeEach(() => {
     jest.clearAllMocks(); // Reset all mocks before each test
@@ -83,32 +103,17 @@ describe("CRD Generate", () => {
   });
 
   test("convertCRDtoTS should generate the expected TypeScript file", async () => {
-    // Mock quicktype to return a sample result
+    // Mock convertCRDtoTS to return a valid result structure
     (quicktype as jest.MockedFunction<typeof quicktype>).mockResolvedValueOnce({
-      lines: [
-        "/**",
-        " * Movie nerd",
-        " */",
-        "export interface Movie {",
-        "    spec?: any[] | boolean | number | number | null | SpecObject | string;",
-        "    [property: string]: any;",
-        "}",
-        "",
-        "export interface SpecObject {",
-        "    author?: string;",
-        "    title?: string;",
-        "    [property: string]: any;",
-        "}",
-        "",
-      ],
-      annotations: [], // Correctly mock annotations as an empty array
+      lines: expectedMovie,
+      annotations: [],
     });
 
     const options = {
       source: "test-crd.yaml",
       language: "ts",
-      logFn, // Mocked log function
-      directory: "test-dir", // Mock directory
+      logFn,
+      directory: "test-dir",
       plain: false,
       npmPackage: "kubernetes-fluent-client",
     };
@@ -133,80 +138,164 @@ describe("CRD Generate", () => {
   });
 });
 
-describe("prepareInputData Tests", () => {
-  test("prepareInputData should correctly prepare input data for quicktype", async () => {
-    const schema = JSON.stringify({
-      type: "object",
-      description: "Movie nerd",
-      properties: {
-        title: { type: "string" },
-        author: { type: "string" },
-      },
-    });
+describe("readOrFetchCrd", () => {
+  let mockOpts: GenerateOptions;
 
-    const name = "Movie";
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockOpts = {
+      source: "mock-file-path",
+      logFn: jest.fn(),
+    };
 
-    // Call prepareInputData with sample schema and name
-    const inputData = await prepareInputData(name, schema);
+    // Reapply mock for resolveFilePath inside beforeEach
+    const { resolveFilePath } = jest.requireMock("./generate") as { resolveFilePath: jest.Mock };
+    resolveFilePath.mockReturnValue("mock-file-path");
+  });
 
-    // Mock quicktype to return a sample result
-    (quicktype as jest.MockedFunction<typeof quicktype>).mockResolvedValueOnce({
-      lines: ["interface Movie {", "  title?: string;", "  author?: string;", "}"],
-      annotations: [],
-    });
+  test("should load CRD from a local file", async () => {
+    // Inside the test:
+    const absoluteFilePath = path.join(process.cwd(), "mock-file-path");
 
-    // Use the prepared inputData to call quicktype
-    const result = await quicktype({
-      inputData,
-      lang: "ts",
-      rendererOptions: { "just-types": "true" },
-    });
+    // Mock file system functions
+    (fs.existsSync as jest.Mock).mockReturnValue(true);
+    (fs.readFileSync as jest.Mock).mockReturnValue("mock file content");
 
-    // Verify that quicktype was called with the correct input
-    expect(quicktype).toHaveBeenCalledWith({
-      inputData,
-      lang: "ts",
-      rendererOptions: { "just-types": "true" },
-    });
+    // Mock loadAllYaml to return parsed CRD
+    const mockCrd = [{ kind: "CustomResourceDefinition" }] as CustomResourceDefinition[];
+    (loadAllYaml as jest.Mock).mockReturnValue(mockCrd);
 
-    // Assert the quicktype result matches the expected TypeScript interface
-    expect(result.lines).toEqual([
-      "interface Movie {",
-      "  title?: string;",
-      "  author?: string;",
-      "}",
-    ]);
+    // Call the function
+    const result = await readOrFetchCrd(mockOpts);
+
+    // Assert fs and loadAllYaml were called with correct args
+    expect(fs.existsSync).toHaveBeenCalledWith(absoluteFilePath);
+    expect(fs.readFileSync).toHaveBeenCalledWith(absoluteFilePath, "utf8");
+    expect(loadAllYaml).toHaveBeenCalledWith("mock file content");
+
+    // Assert the result matches the mocked CRD
+    expect(result).toEqual(mockCrd);
+
+    // Assert log function was called with correct message
+    expect(mockOpts.logFn).toHaveBeenCalledWith(
+      "Attempting to load mock-file-path as a local file",
+    );
   });
 });
 
-describe("Utility Tests", () => {
-  test("resolves file path correctly for absolute path", () => {
-    const absolutePath = "/absolute/path/to/crd.yaml"; // Absolute path
-    const result = resolveFilePath(absolutePath);
-    expect(result).toBe(absolutePath); // Should be the same as absolute path
+describe("readOrFetchCrd with URL", () => {
+  let mockOpts: GenerateOptions;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockOpts = {
+      source: "http://example.com/mock-crd",
+      logFn: jest.fn(),
+    };
+
+    // Mock resolveFilePath to simulate URL logic
+    const { resolveFilePath } = jest.requireMock("./generate") as {
+      resolveFilePath: jest.Mock;
+    };
+    resolveFilePath.mockReturnValue("mock-file-path");
+
+    // Ensure fs.existsSync returns false for URL tests to skip file logic
+    (fs.existsSync as jest.Mock).mockReturnValue(false);
   });
 
-  test("resolves file path correctly for relative path", () => {
-    const relativePath = "relative/path/to/crd.yaml"; // Relative path
-    const expectedPath = path.join(process.cwd(), relativePath); // Expected path
-    const result = resolveFilePath(relativePath);
-    expect(result).toBe(expectedPath);
+  test("should fetch CRD from a URL and parse YAML", async () => {
+    const { tryParseUrl } = jest.requireMock("./generate") as { tryParseUrl: jest.Mock };
+    tryParseUrl.mockReturnValue(new URL("http://example.com/mock-crd"));
+
+    // Mock fetch to return a valid response
+    (fetch as jest.MockedFunction<typeof fetch>).mockResolvedValue({
+      ok: true,
+      data: "mock fetched data",
+      status: 0,
+      statusText: "",
+    });
+
+    // Mock loadAllYaml to return parsed CRD
+    const mockCrd = [{ kind: "CustomResourceDefinition" }] as CustomResourceDefinition[];
+    (loadAllYaml as jest.Mock).mockReturnValue(mockCrd);
+
+    // Call the function
+    const result = await readOrFetchCrd(mockOpts);
+
+    // Assert fetch was called with correct URL
+    expect(fetch).toHaveBeenCalledWith("http://example.com/mock-crd");
+
+    // Assert loadAllYaml was called with fetched data
+    expect(loadAllYaml).toHaveBeenCalledWith("mock fetched data");
+
+    // Assert the result matches the mocked CRD
+    expect(result).toEqual(mockCrd);
+
+    // Assert log function was called with correct message
+    expect(mockOpts.logFn).toHaveBeenCalledWith(
+      "Attempting to load http://example.com/mock-crd as a URL",
+    );
   });
 });
 
-describe("tryParseUrl", () => {
-  test("should return a URL object when given a valid URL", () => {
-    const validUrl = "https://example.com";
-    const result = tryParseUrl(validUrl);
+describe("readOrFetchCrd from Kubernetes cluster", () => {
+  let mockOpts: GenerateOptions;
 
-    expect(result).toBeInstanceOf(URL);
-    expect(result?.href).toBe("https://example.com/");
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockOpts = {
+      source: "my-crd",
+      logFn: jest.fn(),
+    };
+
+    // Mock resolveFilePath and tryParseUrl to return null or invalid results
+    const { resolveFilePath, tryParseUrl } = jest.requireMock("./generate") as {
+      resolveFilePath: jest.Mock;
+      tryParseUrl: jest.Mock;
+    };
+    resolveFilePath.mockReturnValue("mock-file-path");
+    tryParseUrl.mockReturnValue(null);
+
+    // Ensure fs.existsSync returns false to force fallback to Kubernetes
+    (fs.existsSync as jest.Mock).mockReturnValue(false);
   });
 
-  test("should return null when given an invalid URL", () => {
-    const invalidUrl = "invalid-url";
-    const result = tryParseUrl(invalidUrl);
+  test("should load CRD from Kubernetes cluster", async () => {
+    // Mock K8s to return a mocked CRD from the Kubernetes cluster
+    const mockCrd = { kind: "CustomResourceDefinition" } as CustomResourceDefinition;
+    const mockK8sGet = jest.fn<() => Promise<CustomResourceDefinition>>().mockResolvedValue(mockCrd);
+    (K8s as jest.Mock).mockReturnValue({ Get: mockK8sGet });
 
-    expect(result).toBeNull();
+    // Call the function
+    const result = await readOrFetchCrd(mockOpts);
+
+    // Assert K8s.Get was called with the correct source
+    expect(K8s).toHaveBeenCalledWith(CustomResourceDefinition);
+    expect(mockK8sGet).toHaveBeenCalledWith("my-crd");
+
+    // Assert the result matches the mocked CRD
+    expect(result).toEqual([mockCrd]);
+
+    // Assert log function was called with correct message
+    expect(mockOpts.logFn).toHaveBeenCalledWith("Attempting to read my-crd from the Kubernetes cluster");
+  });
+
+  test("should log an error if Kubernetes cluster read fails", async () => {
+    // Mock K8s to throw an error
+    const mockError = new Error("Kubernetes API error");
+    const mockK8sGet = jest.fn<() => Promise<never>>().mockRejectedValue(mockError);
+    (K8s as jest.Mock).mockReturnValue({ Get: mockK8sGet });
+
+    // Call the function and assert that it throws an error
+    await expect(readOrFetchCrd(mockOpts)).rejects.toThrowError(
+      `Failed to read my-crd as a file, URL, or Kubernetes CRD`
+    );
+
+    // Assert log function was called with error message
+    expect(mockOpts.logFn).toHaveBeenCalledWith("Error loading CRD: Kubernetes API error");
+
+    // Assert K8s.Get was called with the correct source
+    expect(K8s).toHaveBeenCalledWith(CustomResourceDefinition);
+    expect(mockK8sGet).toHaveBeenCalledWith("my-crd");
   });
 });

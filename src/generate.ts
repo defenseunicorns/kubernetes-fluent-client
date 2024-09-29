@@ -180,6 +180,7 @@ export async function readOrFetchCrd(opts: GenerateOptions): Promise<CustomResou
   }
 }
 
+
 /**
  * Resolves the source file path, treating relative paths as local files.
  *
