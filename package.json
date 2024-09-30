@@ -10,6 +10,7 @@
     "build": "tsc",
     "semantic-release": "semantic-release",
     "test": "jest src --coverage",
+    "test:e2e": "jest e2e",
     "format:check": "eslint src && prettier . --check",
     "format:fix": "eslint --fix src && prettier . --write"
   },
