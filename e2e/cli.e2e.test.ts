@@ -45,7 +45,7 @@ describe("End-to-End CLI tests with multiple test files", () => {
     beforeEach(() => {
       // Ensure the output directory is clean
       if (fs.existsSync(mockDir)) {
-        fs.rmdirSync(mockDir, { recursive: true });
+        fs.rmSync(mockDir, { recursive: true });
       }
 
       // Recreate the output directory
@@ -55,7 +55,7 @@ describe("End-to-End CLI tests with multiple test files", () => {
     afterEach(() => {
       // Cleanup the output directory after each test
       if (fs.existsSync(mockDir)) {
-        fs.rmdirSync(mockDir, { recursive: true });
+        fs.rmSync(mockDir, { recursive: true });
       }
     });
 
