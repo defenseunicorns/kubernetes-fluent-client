@@ -42,9 +42,9 @@ describe("End-to-End CLI tests with multiple test files", () => {
                         Output directory: ${mockDir}
                       Expected directory: ${expectedDir}
       Expected post-processing directory: ${expectedPostDir}
-    `
+    `;
 
-    console.log(testInfoMessage)
+    console.log(testInfoMessage);
 
     beforeEach(() => {
       // Ensure the output directory is clean
