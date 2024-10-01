@@ -36,16 +36,20 @@ describe("End-to-End CLI tests with multiple test files", () => {
     const expectedDir = path.join(__dirname, `crds/${name}.default.expected`); // Expected default directory
     const expectedPostDir = path.join(__dirname, `crds/${name}.no.post.expected`); // Expected post-processing directory
 
-    console.log(`Running tests for ${name}`);
-    console.log(`Test file: ${mockYamlPath}`);
-    console.log(`Output directory: ${mockDir}`);
-    console.log(`Expected directory: ${expectedDir}`);
-    console.log(`Expected post-processing directory: ${expectedPostDir}`);
+    const testInfoMessage = `
+      Running tests for ${name}
+                               Test file: ${mockYamlPath}
+                        Output directory: ${mockDir}
+                      Expected directory: ${expectedDir}
+      Expected post-processing directory: ${expectedPostDir}
+    `;
+
+    console.log(testInfoMessage);
 
     beforeEach(() => {
       // Ensure the output directory is clean
       if (fs.existsSync(mockDir)) {
-        fs.rmdirSync(mockDir, { recursive: true });
+        fs.rmSync(mockDir, { recursive: true });
       }
 
       // Recreate the output directory
@@ -55,7 +59,7 @@ describe("End-to-End CLI tests with multiple test files", () => {
     afterEach(() => {
       // Cleanup the output directory after each test
       if (fs.existsSync(mockDir)) {
-        fs.rmdirSync(mockDir, { recursive: true });
+        fs.rmSync(mockDir, { recursive: true });
       }
     });
 
