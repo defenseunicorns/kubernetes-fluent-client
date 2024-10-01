@@ -3,7 +3,6 @@ on:
   push:
     branches:
       - main
-      - 392-e2e-in-ci
 
 permissions:
   contents: read # for checkout
