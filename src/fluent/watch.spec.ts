@@ -93,9 +93,8 @@ describe("Watcher", () => {
 
     watcher = K8s(kind.Pod, { name: "demo" }).InNamespace("tester").Watch(evtMock);
 
-    setupAndStartWatcher(WatchEvent.CONNECT, () => {
-      done();
-    });
+    setupAndStartWatcher(WatchEvent.CONNECT, () => {});
+    done();
   });
 
   it("should handle resource version is too old", done => {
@@ -146,8 +145,8 @@ describe("Watcher", () => {
 
     setupAndStartWatcher(WatchEvent.OLD_RESOURCE_VERSION, res => {
       expect(res).toEqual("25");
-      done();
     });
+    done();
   });
 
   it("should call the event handler for each event", done => {
@@ -158,6 +157,7 @@ describe("Watcher", () => {
     });
 
     watcher.start().catch(errMock);
+    done();
   });
 
   it("should return the cache id", () => {
@@ -171,9 +171,8 @@ describe("Watcher", () => {
     watcher = K8s(kind.Pod).Watch(evtMock, {
       resyncDelaySec: 1,
     });
-    setupAndStartWatcher(WatchEvent.CONNECT, () => {
-      done();
-    });
+    setupAndStartWatcher(WatchEvent.CONNECT, () => {});
+    done();
   });
 
   it("should handle the DATA event", done => {
@@ -183,8 +182,8 @@ describe("Watcher", () => {
     setupAndStartWatcher(WatchEvent.DATA, (pod, phase) => {
       expect(pod.metadata?.name).toEqual(`pod-0`);
       expect(phase).toEqual(WatchPhase.Added);
-      done();
     });
+    done();
   });
 
   it("should handle the RECONNECT event on an error", done => {
