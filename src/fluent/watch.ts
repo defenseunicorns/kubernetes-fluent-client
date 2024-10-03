@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
 
-import byline from "byline";
 import { createHash } from "crypto";
 import { EventEmitter } from "events";
 import https from "https";
@@ -10,8 +9,8 @@ import { fetch as wrappedFetch } from "../fetch";
 import { GenericClass, KubernetesListObject } from "../types";
 import { Filters, WatchAction, WatchPhase } from "./types";
 import { k8sCfg, pathBuilder } from "./utils";
-import { Readable } from 'stream';
-import fs from 'fs';
+import { Readable } from "stream";
+import fs from "fs";
 
 export enum WatchEvent {
   /** Watch is connected successfully */
@@ -58,9 +57,7 @@ export type WatchCfg = {
 
 const NONE = 50;
 const OVERRIDE = 100;
-const key = fs.readFileSync('/etc/certs/tls.key');
-const cert = fs.readFileSync('/etc/certs/tls.crt');
-const token = fs.readFileSync('/var/run/secrets/kubernetes.io/serviceaccount/token')
+
 /** A wrapper around the Kubernetes watch API. */
 export class Watcher<T extends GenericClass> {
   // User-provided properties
@@ -81,7 +78,7 @@ export class Watcher<T extends GenericClass> {
   #resyncFailureCount = 0;
 
   // Create a stream to read the response body
-  #stream?: byline.LineStream;
+  #stream?: Readable;
 
   // Create an EventEmitter to emit events
   #events = new EventEmitter();
@@ -101,6 +98,8 @@ export class Watcher<T extends GenericClass> {
   // Track the list of items in the cache
   #cache = new Map<string, InstanceType<T>>();
 
+  // Token Path
+  #TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token";
   /**
    * Setup a Kubernetes watcher for the specified model and filters. The callback function will be called for each event received.
    * The watch can be aborted by calling {@link Watcher.close} or by calling abort() on the AbortController returned by {@link Watcher.start}.
@@ -122,9 +121,6 @@ export class Watcher<T extends GenericClass> {
 
     // Set the resync interval to 10 minutes if not specified
     watchCfg.lastSeenLimitSeconds ??= 600;
-
-    // eliminate this
-    watchCfg.resyncFailureMax = undefined;
 
     // Set the last seen limit to the resync interval
     this.#lastSeenLimit = watchCfg.lastSeenLimitSeconds * 1000;
@@ -203,6 +199,19 @@ export class Watcher<T extends GenericClass> {
    */
   public get events(): EventEmitter {
     return this.#events;
+  }
+
+  /**
+   * Read the serviceAccount Token
+   *
+   * @returns token or null
+   */
+  async #getToken() {
+    try {
+      return (await fs.promises.readFile(this.#TOKEN_PATH, "utf8")).trim();
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -374,43 +383,37 @@ export class Watcher<T extends GenericClass> {
           key: opts.agent.options.key,
           cert: opts.agent.options.cert,
           ca: opts.agent.options.ca,
-          // key,
-          // cert,
           rejectUnauthorized: false,
         };
       }
-      // Cert and Key are coming back undefined
-      console.log("Agent Options", {ca: agentOptions?.ca, cert: agentOptions?.cert, key: agentOptions?.key})
 
       const agent = new Agent({
         // https://github.com/nodejs/undici/blob/87d7ccf6b51c61a4f4a056f7c2cac78347618486/docs/docs/api/Errors.md?plain=1#L16
         // https://github.com/nodejs/undici/blob/87d7ccf6b51c61a4f4a056f7c2cac78347618486/docs/docs/api/Client.md?plain=1#L24
         keepAliveMaxTimeout: 600000,
         keepAliveTimeout: 600000,
-        bodyTimeout: 600000, // 0 to disable entirely
+        bodyTimeout: 0,
         connect: {
           ca: agentOptions?.ca,
           cert: agentOptions?.cert,
-          key: agentOptions?.key
+          key: agentOptions?.key,
         },
-      })
-      // Perform the fetch call with the proper HTTPS agent
-      let response;
-      try {
-        response = await fetch(url, {
-          headers: {
-            "Content-Type": "application/json",
-            "User-Agent": `kubernetes-fluent-client`,
-            "Authorization": `Bearer ${token}`
-          },
-          dispatcher: agent
-        });
-      } catch (err) {
-        console.error("Error during fetch:", err);
-        console.log("Agent ", agent)
-        await this.#reconnect(); 
-        return;
+      });
+
+      const token = await this.#getToken();
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        "User-Agent": "kubernetes-fluent-client",
+      };
+
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
       }
+
+      const response = await fetch(url, {
+        headers,
+        dispatcher: agent,
+      });
 
       // Reset the pending reconnect flag
       this.#pendingReconnect = false;
@@ -430,18 +433,17 @@ export class Watcher<T extends GenericClass> {
         this.#events.emit(WatchEvent.INC_RESYNC_FAILURE_COUNT, this.#resyncFailureCount);
 
         // Use a native stream issue #1180
-        const stream = Readable.from(body)
+        this.#stream = Readable.from(body);
         const decoder = new TextDecoder();
         let buffer = "";
 
-        stream.on('data', (chunk) => {
+        // Listen for events and call the callback function
+        this.#stream.on("data", chunk => {
           try {
-            // Decode chunk using TextDecoder
             buffer += decoder.decode(chunk, { stream: true });
-            const lines = buffer.split('\n');
-            // Keep last incomplete line in the buffer for the next chunk
+            const lines = buffer.split("\n");
             buffer = lines.pop()!;
-  
+
             for (const line of lines) {
               try {
                 // Parse the event payload
@@ -449,10 +451,10 @@ export class Watcher<T extends GenericClass> {
                   type: WatchPhase;
                   object: InstanceType<T>;
                 };
-  
+
                 // Update the last seen time
                 this.#lastSeenTime = Date.now();
-  
+
                 // If the watch is too old, remove the resourceVersion and reload the watch
                 if (phase === WatchPhase.Error && payload.code === 410) {
                   throw {
@@ -460,7 +462,7 @@ export class Watcher<T extends GenericClass> {
                     message: this.#resourceVersion!,
                   };
                 }
-  
+
                 // Process the event payload, do not update the resource version as that is handled by the list operation
                 void this.#process(payload, phase);
               } catch (err) {
@@ -469,48 +471,26 @@ export class Watcher<T extends GenericClass> {
                   void this.#errHandler(err);
                   return;
                 }
-  
+
                 this.#events.emit(WatchEvent.DATA_ERROR, err);
               }
             }
           } catch (err) {
-            console.error("Error processing stream data:", err);
+            void this.#errHandler(err);
           }
         });
-  
-        stream.on('close', () => {
-          console.log('Stream closed, attempting reconnection...');
-          this.#streamCleanup();
-          void this.#reconnect();
-        });
-  
-        stream.on('end', () => {
-          console.log('Stream ended gracefully, reconnecting...');
-          this.#streamCleanup();
-          void this.#reconnect();
-        });
-  
-        stream.on('error', (err) => {
-          console.error('Stream error:', err);
-          this.#streamCleanup();
-          void this.#reconnect();
-        });
-  
-        stream.on('finish', () => {
-          console.log('Stream finished.');
-          this.#streamCleanup();
-          void this.#reconnect();
-        });
-  
+
+        this.#stream.on("close", this.#streamCleanup);
+        this.#stream.on("end", this.#streamCleanup);
+        this.#stream.on("error", this.#errHandler);
+        this.#stream.on("finish", this.#streamCleanup);
       } else {
         throw new Error(`watch connect failed: ${response.status} ${response.statusText}`);
       }
     } catch (e) {
-      console.error("Watch function error:", e);
       void this.#errHandler(e);
     }
   };
-  
 
   // Function to handle reconnecting
   #reconnect = async () => {
@@ -601,7 +581,10 @@ export class Watcher<T extends GenericClass> {
   #streamCleanup = () => {
     if (this.#stream) {
       this.#stream.removeAllListeners();
-      this.#stream.destroy();
+      if (!this.#stream.readableEnded) {
+        this.#stream.destroy();
+      }
     }
+    void this.#watch();
   };
 }
