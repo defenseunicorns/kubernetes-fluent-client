@@ -368,7 +368,10 @@ export class Watcher<T extends GenericClass> {
   };
 
   // process a line from the chunk
-  #processLine = async (line: string, process: (payload: InstanceType<T>, phase: WatchPhase) => Promise<void>) => {
+  #processLine = async (
+    line: string,
+    process: (payload: InstanceType<T>, phase: WatchPhase) => Promise<void>,
+  ) => {
     try {
       // Parse the event payload
       const { object: payload, type: phase } = JSON.parse(line) as {
@@ -388,7 +391,7 @@ export class Watcher<T extends GenericClass> {
       }
 
       // Process the event payload, do not update the resource version as that is handled by the list operation
-      await process(payload, phase) 
+      await process(payload, phase);
     } catch (err) {
       if (err.name === "TooOld") {
         // Reload the watch
@@ -398,12 +401,11 @@ export class Watcher<T extends GenericClass> {
 
       this.#events.emit(WatchEvent.DATA_ERROR, err);
     }
-  }
+  };
   /**
    * Watch for changes to the resource.
    */
   #watch = async () => {
-
     try {
       // Start with a list operation
       await this.#list();
@@ -479,7 +481,7 @@ export class Watcher<T extends GenericClass> {
             buffer = lines.pop()!;
 
             for (const line of lines) {
-              await this.#processLine(line, this.#process)
+              await this.#processLine(line, this.#process);
             }
           } catch (err) {
             void this.#errHandler(err);
