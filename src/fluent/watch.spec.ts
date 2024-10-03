@@ -9,7 +9,7 @@ import { WatchEvent, kind } from "..";
 import { WatchPhase } from "./types";
 import { Watcher } from "./watch";
 
-let mockClient: Interceptable
+let mockClient: Interceptable;
 describe("Watcher", () => {
   const evtMock = jest.fn<(update: kind.Pod, phase: WatchPhase) => void>();
   const errMock = jest.fn<(err: Error) => void>();
@@ -76,8 +76,6 @@ describe("Watcher", () => {
   });
 
   it("should watch named resources", done => {
-    
-
     mockClient
       .intercept({
         path: "/api/v1/namespaces/tester/pods?fieldSelector=metadata.name=demo",
@@ -98,9 +96,7 @@ describe("Watcher", () => {
     done();
   });
 
-  
   it("should handle resource version is too old", done => {
-
     mockClient
       .intercept({
         path: "/api/v1/pods",
