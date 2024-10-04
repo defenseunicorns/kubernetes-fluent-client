@@ -4,7 +4,7 @@
 import { createHash } from "crypto";
 import { EventEmitter } from "events";
 import https from "https";
-import { Agent, fetch } from "undici";
+import http2 from "http2"
 import { fetch as wrappedFetch } from "../fetch";
 import { GenericClass, KubernetesListObject } from "../types";
 import { Filters, WatchAction, WatchPhase } from "./types";
@@ -409,10 +409,11 @@ export class Watcher<T extends GenericClass> {
     try {
       // Start with a list operation
       await this.#list();
-
+  
       // Build the URL and request options
       const { opts, url } = await this.#buildURL(true, this.#resourceVersion);
       let agentOptions;
+  
       if (opts.agent && opts.agent instanceof https.Agent) {
         agentOptions = {
           key: opts.agent.options.key,
@@ -421,80 +422,83 @@ export class Watcher<T extends GenericClass> {
           rejectUnauthorized: false,
         };
       }
-
-      const agent = new Agent({
-        // https://github.com/nodejs/undici/blob/87d7ccf6b51c61a4f4a056f7c2cac78347618486/docs/docs/api/Errors.md?plain=1#L16
-        // https://github.com/nodejs/undici/blob/87d7ccf6b51c61a4f4a056f7c2cac78347618486/docs/docs/api/Client.md?plain=1#L24
-        keepAliveMaxTimeout: 600000,
-        keepAliveTimeout: 600000,
-        bodyTimeout: 0,
-        connect: {
-          ca: agentOptions?.ca,
-          cert: agentOptions?.cert,
-          key: agentOptions?.key,
-        },
+  
+      // HTTP/2 client connection setup
+      const client = http2.connect(url.origin, {
+        ca: agentOptions?.ca,
+        cert: agentOptions?.cert,
+        key: agentOptions?.key,
+        rejectUnauthorized: agentOptions?.rejectUnauthorized,
       });
-
+  
+      // Set up headers for the HTTP/2 request
       const token = await this.#getToken();
       const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-        "User-Agent": "kubernetes-fluent-client",
+        ':method': 'GET',
+        ':path': url.pathname + url.search,
+        'content-type': 'application/json',
+        'user-agent': 'kubernetes-fluent-client',
       };
-
+  
       if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
+        headers['authorization'] = `Bearer ${token}`;
       }
-
-      const response = await fetch(url, {
-        headers,
-        dispatcher: agent,
-      });
-
-      // Reset the pending reconnect flag
-      this.#pendingReconnect = false;
-
-      // If the request is successful, start listening for events
-      if (response.ok) {
-        this.#events.emit(WatchEvent.CONNECT, url.pathname);
-
-        const { body } = response;
-
-        if (!body) {
-          throw new Error("No response body found");
-        }
-
-        // Reset the retry count
-        this.#resyncFailureCount = 0;
-        this.#events.emit(WatchEvent.INC_RESYNC_FAILURE_COUNT, this.#resyncFailureCount);
-
-        // Use a native stream issue #1180
-        this.#stream = Readable.from(body);
-        const decoder = new TextDecoder();
-        let buffer = "";
-
-        // Listen for events and call the callback function
-        this.#stream.on("data", async chunk => {
-          try {
-            // this whole section is kind of ugly +=, .pop()!
-            buffer += decoder.decode(chunk, { stream: true });
-            const lines = buffer.split("\n");
-            buffer = lines.pop()!;
-
-            for (const line of lines) {
-              await this.#processLine(line, this.#process);
+  
+      // Make the HTTP/2 request
+      const req = client.request(headers);
+  
+      req.setEncoding('utf8');
+  
+      let buffer = "";
+      const decoder = new TextDecoder();
+  
+      // Handle response data
+      req.on('response', (headers, flags) => {
+        const statusCode = headers[':status'];
+  
+        if (statusCode && statusCode >= 200 && statusCode < 300) {
+          this.#pendingReconnect = false;
+          this.#events.emit(WatchEvent.CONNECT, url.pathname);
+  
+          // Reset the retry count
+          this.#resyncFailureCount = 0;
+          this.#events.emit(WatchEvent.INC_RESYNC_FAILURE_COUNT, this.#resyncFailureCount);
+  
+          req.on('data', async (chunk) => {
+            try {
+              buffer += decoder.decode(chunk, { stream: true });
+              const lines = buffer.split('\n');
+              buffer = lines.pop()!;
+  
+              for (const line of lines) {
+                await this.#processLine(line, this.#process);
+              }
+            } catch (err) {
+              void this.#errHandler(err);
             }
-          } catch (err) {
-            void this.#errHandler(err);
-          }
-        });
-
-        this.#stream.on("close", this.#streamCleanup);
-        this.#stream.on("end", this.#streamCleanup);
-        this.#stream.on("error", this.#errHandler);
-        this.#stream.on("finish", this.#streamCleanup);
-      } else {
-        throw new Error(`watch connect failed: ${response.status} ${response.statusText}`);
-      }
+          });
+  
+          req.on('end', () => {
+            this.#streamCleanup();
+            client.close();
+          });
+  
+          req.on('close', () => {
+            this.#streamCleanup();
+            client.close();
+          });
+  
+          req.on('error', (err) => {
+            this.#errHandler(err);
+            client.close();
+          });
+        } else {
+          const statusMessage = headers[':status-text'] || 'Unknown';
+          throw new Error(`watch connect failed: ${statusCode} ${statusMessage}`);
+        }
+      });
+  
+      req.end();
     } catch (e) {
       void this.#errHandler(e);
     }
