@@ -441,7 +441,7 @@ export class Watcher<T extends GenericClass> {
       };
   
       if (token) {
-        headers['authorization'] = `Bearer ${token}`;
+        headers['Authorization'] = `Bearer ${token}`;
       }
   
       // Make the HTTP/2 request
@@ -450,7 +450,6 @@ export class Watcher<T extends GenericClass> {
       req.setEncoding('utf8');
   
       let buffer = "";
-      const decoder = new TextDecoder();
   
       // Handle response data
       req.on('response', (headers, flags) => {
@@ -466,8 +465,10 @@ export class Watcher<T extends GenericClass> {
   
           req.on('data', async (chunk) => {
             try {
-              buffer += decoder.decode(chunk, { stream: true });
+              buffer += chunk
               const lines = buffer.split('\n');
+              // Avoid  Watch event data_error received. Unexpected end of JSON input.
+              // Completes JSON on the next chunk, ugly yes, works yes, needs refactor... also yes (fast testing purposes)
               buffer = lines.pop()!;
   
               for (const line of lines) {
