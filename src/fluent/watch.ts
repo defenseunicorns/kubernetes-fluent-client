@@ -4,12 +4,14 @@
 import byline from "byline";
 import { createHash } from "crypto";
 import { EventEmitter } from "events";
+import https from "https";
+import http2 from "http2";
 import fetch from "node-fetch";
-
 import { fetch as wrappedFetch } from "../fetch";
 import { GenericClass, KubernetesListObject } from "../types";
 import { Filters, WatchAction, WatchPhase } from "./types";
 import { k8sCfg, pathBuilder } from "./utils";
+import fs from "fs";
 
 export enum WatchEvent {
   /** Watch is connected successfully */
@@ -52,6 +54,8 @@ export type WatchCfg = {
   relistIntervalSec?: number;
   /** Max amount of seconds to go without receiving an event before reconciliation starts. Defaults to 300 (5 minutes). */
   lastSeenLimitSeconds?: number;
+  /** Use http2 for the Watch */
+  useHTTP2?: boolean;
 };
 
 const NONE = 50;
@@ -65,6 +69,7 @@ export class Watcher<T extends GenericClass> {
   #callback: WatchAction<T>;
   #watchCfg: WatchCfg;
   #latestRelistWindow: string = "";
+  #useHTTP2: boolean = false;
 
   // Track the last time data was received
   #lastSeenTime = NONE;
@@ -97,6 +102,8 @@ export class Watcher<T extends GenericClass> {
   // Track the list of items in the cache
   #cache = new Map<string, InstanceType<T>>();
 
+  // Token Path
+  #TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token";
   /**
    * Setup a Kubernetes watcher for the specified model and filters. The callback function will be called for each event received.
    * The watch can be aborted by calling {@link Watcher.close} or by calling abort() on the AbortController returned by {@link Watcher.start}.
@@ -124,6 +131,9 @@ export class Watcher<T extends GenericClass> {
 
     // Set the latest relist interval to now
     this.#latestRelistWindow = new Date().toISOString();
+
+    // Set the latest relist interval to now
+    this.#useHTTP2 = watchCfg.useHTTP2 ?? false;
 
     // Add random jitter to the relist/resync intervals (up to 1 second)
     const jitter = Math.floor(Math.random() * 1000);
@@ -158,7 +168,11 @@ export class Watcher<T extends GenericClass> {
    */
   public async start(): Promise<AbortController> {
     this.#events.emit(WatchEvent.INIT_CACHE_MISS, this.#latestRelistWindow);
-    await this.#watch();
+    if (this.#useHTTP2) {
+      await this.#http2Watch();
+    } else {
+      await this.#watch();
+    }
     return this.#abortController;
   }
 
@@ -196,6 +210,19 @@ export class Watcher<T extends GenericClass> {
    */
   public get events(): EventEmitter {
     return this.#events;
+  }
+
+  /**
+   * Read the serviceAccount Token
+   *
+   * @returns token or null
+   */
+  async #getToken() {
+    try {
+      return (await fs.promises.readFile(this.#TOKEN_PATH, "utf8")).trim();
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -351,6 +378,42 @@ export class Watcher<T extends GenericClass> {
     }
   };
 
+  // process a line from the chunk
+  #processLine = async (
+    line: string,
+    process: (payload: InstanceType<T>, phase: WatchPhase) => Promise<void>,
+  ) => {
+    try {
+      // Parse the event payload
+      const { object: payload, type: phase } = JSON.parse(line) as {
+        type: WatchPhase;
+        object: InstanceType<T>;
+      };
+
+      // Update the last seen time
+      this.#lastSeenTime = Date.now();
+
+      // If the watch is too old, remove the resourceVersion and reload the watch
+      if (phase === WatchPhase.Error && payload.code === 410) {
+        throw {
+          name: "TooOld",
+          message: this.#resourceVersion!,
+        };
+      }
+
+      // Process the event payload, do not update the resource version as that is handled by the list operation
+      await process(payload, phase);
+    } catch (err) {
+      if (err.name === "TooOld") {
+        // Reload the watch
+        void this.#errHandler(err);
+        return;
+      }
+
+      this.#events.emit(WatchEvent.DATA_ERROR, err);
+    }
+  };
+
   /**
    * Watch for changes to the resource.
    */
@@ -388,38 +451,7 @@ export class Watcher<T extends GenericClass> {
 
         // Listen for events and call the callback function
         this.#stream.on("data", async line => {
-          try {
-            // Parse the event payload
-            const { object: payload, type: phase } = JSON.parse(line) as {
-              type: WatchPhase;
-              object: InstanceType<T>;
-            };
-
-            // Update the last seen time
-            this.#lastSeenTime = Date.now();
-
-            // If the watch is too old, remove the resourceVersion and reload the watch
-            if (phase === WatchPhase.Error && payload.code === 410) {
-              throw {
-                name: "TooOld",
-                message: this.#resourceVersion!,
-              };
-            }
-
-            // Process the event payload, do not update the resource version as that is handled by the list operation
-            await this.#process(payload, phase);
-          } catch (err) {
-            if (err.name === "TooOld") {
-              // Prevent any body events from firing
-              body.removeAllListeners();
-
-              // Reload the watch
-              void this.#errHandler(err);
-              return;
-            }
-
-            this.#events.emit(WatchEvent.DATA_ERROR, err);
-          }
+          await this.#processLine(line, this.#process);
         });
 
         // Bind the body events
@@ -432,6 +464,108 @@ export class Watcher<T extends GenericClass> {
       } else {
         throw new Error(`watch connect failed: ${response.status} ${response.statusText}`);
       }
+    } catch (e) {
+      void this.#errHandler(e);
+    }
+  };
+
+  /**
+   * Watch for changes to the resource.
+   */
+  #http2Watch = async () => {
+    try {
+      // Start with a list operation
+      await this.#list();
+
+      // Build the URL and request options
+      const { opts, url } = await this.#buildURL(true, this.#resourceVersion);
+      let agentOptions;
+
+      if (opts.agent && opts.agent instanceof https.Agent) {
+        agentOptions = {
+          key: opts.agent.options.key,
+          cert: opts.agent.options.cert,
+          ca: opts.agent.options.ca,
+          rejectUnauthorized: false,
+        };
+      }
+
+      // HTTP/2 client connection setup
+      const client = http2.connect(url.origin, {
+        ca: agentOptions?.ca,
+        cert: agentOptions?.cert,
+        key: agentOptions?.key,
+        rejectUnauthorized: agentOptions?.rejectUnauthorized,
+      });
+
+      // Set up headers for the HTTP/2 request
+      const token = await this.#getToken();
+      const headers: Record<string, string> = {
+        ":method": "GET",
+        ":path": url.pathname + url.search,
+        "content-type": "application/json",
+        "user-agent": "kubernetes-fluent-client",
+      };
+
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      // Make the HTTP/2 request
+      const req = client.request(headers);
+
+      req.setEncoding("utf8");
+
+      let buffer = "";
+
+      // Handle response data
+      req.on("response", headers => {
+        const statusCode = headers[":status"];
+
+        if (statusCode && statusCode >= 200 && statusCode < 300) {
+          this.#pendingReconnect = false;
+          this.#events.emit(WatchEvent.CONNECT, url.pathname);
+
+          // Reset the retry count
+          this.#resyncFailureCount = 0;
+          this.#events.emit(WatchEvent.INC_RESYNC_FAILURE_COUNT, this.#resyncFailureCount);
+
+          req.on("data", async chunk => {
+            try {
+              buffer += chunk;
+              const lines = buffer.split("\n");
+              // Avoid  Watch event data_error received. Unexpected end of JSON input.
+              buffer = lines.pop()!;
+
+              for (const line of lines) {
+                await this.#processLine(line, this.#process);
+              }
+            } catch (err) {
+              void this.#errHandler(err);
+            }
+          });
+
+          req.on("end", () => {
+            this.#streamCleanup();
+            client.close();
+          });
+
+          req.on("close", () => {
+            this.#streamCleanup();
+            client.close();
+          });
+
+          req.on("error", err => {
+            void this.#errHandler(err);
+            client.close();
+          });
+        } else {
+          const statusMessage = headers[":status-text"] || "Unknown";
+          throw new Error(`watch connect failed: ${statusCode} ${statusMessage}`);
+        }
+      });
+
+      req.end();
     } catch (e) {
       void this.#errHandler(e);
     }
@@ -468,7 +602,9 @@ export class Watcher<T extends GenericClass> {
           this.#events.emit(WatchEvent.RECONNECT, this.#resyncFailureCount);
           this.#streamCleanup();
 
-          void this.#watch();
+          if (!this.#useHTTP2) {
+            void this.#watch();
+          }
         }
       } else {
         // Otherwise, call the finally function if it exists
@@ -515,6 +651,9 @@ export class Watcher<T extends GenericClass> {
     if (this.#stream) {
       this.#stream.removeAllListeners();
       this.#stream.destroy();
+    }
+    if (this.#useHTTP2) {
+      void this.#http2Watch();
     }
   };
 }
