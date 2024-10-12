@@ -43,6 +43,7 @@
     "node-fetch": "2.7.0",
     "quicktype-core": "23.0.170",
     "type-fest": "4.26.1",
+    "undici": "^6.19.8",
     "yargs": "17.7.2"
   },
   "devDependencies": {
