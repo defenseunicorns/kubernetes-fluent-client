@@ -546,26 +546,26 @@ export class Watcher<T extends GenericClass> {
           });
 
           req.on("end", () => {
-            client.close();
             this.#streamCleanup();
+            client.close();
           });
 
           req.on("close", () => {
-            client.close();
             this.#streamCleanup();
+            client.close();
           });
 
           req.on("error", err => {
             void this.#errHandler(err);
+            client.close();
           });
         } else {
           const statusMessage = headers[":status-text"] || "Unknown";
           throw new Error(`watch connect failed: ${statusCode} ${statusMessage}`);
         }
       });
-      req.on("error", err => {
-        void this.#errHandler(err);
-      });
+
+      req.end();
     } catch (e) {
       void this.#errHandler(e);
     }
