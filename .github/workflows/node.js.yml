@@ -50,7 +50,10 @@ jobs:
       - name: Test E2E
         run: npm run test:e2e
 
+      - name: Package the artifact
+        run: npm pack
+
       - uses: actions/upload-artifact@v4
         with:
-          name: pepr-artifact
-          path: "."
+          name: "kubernetes-fluent-client-0.0.0-development.tgz"
+          path: "kubernetes-fluent-client-0.0.0-development.tgz"

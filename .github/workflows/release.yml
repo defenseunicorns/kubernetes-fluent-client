@@ -4,7 +4,7 @@ on:
     branches:
       - main
   workflow_call:
-  
+
 permissions:
   contents: read # for checkout
 
@@ -32,22 +32,17 @@ jobs:
         with:
           node-version: "lts/*"
 
-      # - name: Install dependencies
-      #   run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
-      # - name: Build
-      #   run: npm run build
-      - name: Download artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: pepr-artifact
-          path: "."
-      - name: Show files
-        run: ls -la
+      - name: Test
+        run: npm run test
 
+      - name: Build
+        run: npm run build
 
-      # - name: Release
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #     NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-      #   run: npx semantic-release
+      - name: Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npx semantic-release
