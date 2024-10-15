@@ -40,7 +40,7 @@ jobs:
       - name: Download artifact
         uses: actions/download-artifact@v4
         with:
-          name: kubernetes-fluent-client-0.0.0-development.tgz 
+          name: kubernetes-fluent-client-0.0.0-development.tgz
 
       - name: unpack artifact
         run: |
@@ -51,7 +51,6 @@ jobs:
         run: |
           cd kfc
           ls -la
-
 
       # - name: Release
       #   env:
