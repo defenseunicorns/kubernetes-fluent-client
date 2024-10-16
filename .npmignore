@@ -7,3 +7,5 @@ tsconfig.json
 __mocks__
 *.config.js
 
+# Exclude all test files
+src/**/*.test.ts
