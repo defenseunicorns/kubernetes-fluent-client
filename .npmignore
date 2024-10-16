@@ -6,11 +6,11 @@ jest.config.json
 tsconfig.json
 __mocks__
 *.config.js
-
+.prettierrc
 # Exclude all test files
 src/**/*.test.ts
 dist/**/*.test.ts
 dist/**/*.test.js
 e2e
 dist/**/*.test.d.ts*
-
+*.tgz
