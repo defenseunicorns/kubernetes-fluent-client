@@ -9,3 +9,4 @@ __mocks__
 
 # Exclude all test files
 src/**/*.test.ts
+e2e
