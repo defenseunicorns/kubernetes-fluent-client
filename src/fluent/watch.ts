@@ -525,8 +525,7 @@ export class Watcher<T extends GenericClass> {
       // Handle client connection errors
       client.on("error", err => {
         this.#events.emit(WatchEvent.NETWORK_ERROR, err);
-        this.#streamCleanup(client);
-        this.#scheduleReconnect();
+        this.#cleanupAndReconnect(client, err);
       });
 
       // Set up headers for the HTTP/2 request
@@ -578,6 +577,10 @@ export class Watcher<T extends GenericClass> {
           this.#pendingReconnect = true;
           this.#events.emit(WatchEvent.RECONNECT, this.#resyncFailureCount);
           this.#streamCleanup();
+
+          if (this.#useHTTP2) {
+            this.#cleanupAndReconnect();
+          }
 
           if (!this.#useHTTP2) {
             void this.#watch();
@@ -699,11 +702,10 @@ export class Watcher<T extends GenericClass> {
    * @param client - the client session
    * @param error - the error that occurred
    */
-  #cleanupAndReconnect(client: http2.ClientHttp2Session, error?: Error) {
+  #cleanupAndReconnect(client?: http2.ClientHttp2Session, error?: Error) {
     this.#streamCleanup(client);
 
     if (error) {
-      this.#events.emit(WatchEvent.NETWORK_ERROR, error);
       void this.#errHandler(error);
     }
 
