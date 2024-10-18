@@ -706,7 +706,6 @@ export class Watcher<T extends GenericClass> {
     this.#streamCleanup(client);
 
     if (error) {
-      this.#events.emit(WatchEvent.NETWORK_ERROR, error);
       void this.#errHandler(error);
     }
 
