@@ -12,7 +12,8 @@
     "test": "jest src --coverage",
     "test:e2e": "jest e2e",
     "format:check": "eslint src && prettier . --check",
-    "format:fix": "eslint --fix src && prettier . --write"
+    "format:fix": "eslint --fix src && prettier . --write",
+    "prepare": "if [ \"$NODE_ENV\" != 'production' ]; then husky; fi"
   },
   "engines": {
     "node": ">=18.0.0"
