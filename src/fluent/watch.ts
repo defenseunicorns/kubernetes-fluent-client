@@ -43,6 +43,7 @@ export enum WatchEvent {
   INC_RESYNC_FAILURE_COUNT = "inc_resync_failure_count",
   /** Initialize a relist window */
   INIT_CACHE_MISS = "init_cache_miss",
+  CLIENT_SIZE = "client_size",
 }
 
 /** Configuration for the watch function. */
@@ -553,7 +554,8 @@ export class Watcher<T extends GenericClass> {
   #checkResync = () => {
     // print the size of this.#client
     if (this.#client) {
-      console.log(`{"this.#client": "${sizeOf(this.#client)} bytes"}`)
+      this.#events.emit(WatchEvent.CLIENT_SIZE, `this.#client is ${sizeOf(this.#client)} bytes`);
+
     }
     // Ignore if the last seen time is not set
     if (this.#lastSeenTime === NONE) {
