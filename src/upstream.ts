@@ -50,6 +50,7 @@ export {
   V1ValidatingWebhookConfiguration as ValidatingWebhookConfiguration,
   V1VolumeAttachment as VolumeAttachment,
   V1Endpoint as Endpoint,
+  V1PolicyRule as PolicyRule,
 } from "@kubernetes/client-node";
 
 export { GenericKind } from "./types";
