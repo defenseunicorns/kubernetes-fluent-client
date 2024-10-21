@@ -553,7 +553,7 @@ export class Watcher<T extends GenericClass> {
   #checkResync = () => {
     // print the size of this.#client
     if (this.#client) {
-      console.log(`Size of this.#client: ${sizeOf(this.#client)} bytes`)
+      console.log(`{"this.#client": "${sizeOf(this.#client)} bytes"}`)
     }
     // Ignore if the last seen time is not set
     if (this.#lastSeenTime === NONE) {
