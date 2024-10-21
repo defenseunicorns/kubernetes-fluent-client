@@ -12,6 +12,7 @@ import { GenericClass, KubernetesListObject } from "../types";
 import { Filters, WatchAction, WatchPhase, Options, AgentOptions } from "./types";
 import { k8sCfg, pathBuilder } from "./utils";
 import fs from "fs";
+import sizeOf from "object-sizeof";
 
 export enum WatchEvent {
   /** Watch is connected successfully */
@@ -70,6 +71,7 @@ export class Watcher<T extends GenericClass> {
   #watchCfg: WatchCfg;
   #latestRelistWindow: string = "";
   #useHTTP2: boolean = false;
+  #client: http2.ClientHttp2Session | undefined
 
   // Track the last time data was received
   #lastSeenTime = NONE;
@@ -520,27 +522,27 @@ export class Watcher<T extends GenericClass> {
       const agentOptions = Watcher.#getAgentOptions(opts as Options);
 
       // HTTP/2 client connection setup
-      const client = Watcher.#createHttp2Client(url.origin, agentOptions);
+      this.#client = Watcher.#createHttp2Client(url.origin, agentOptions);
 
       // Handle client connection errors
-      client.on("error", err => {
+      this.#client.on("error", err => {
         this.#events.emit(WatchEvent.NETWORK_ERROR, err);
-        this.#cleanupAndReconnect(client, err);
+        this.#cleanupAndReconnect(this.#client, err);
       });
 
       // Set up headers for the HTTP/2 request
       const headers = await this.#generateRequestHeaders(url);
 
       // Make the HTTP/2 request
-      const req = client.request(headers);
+      const req = this.#client.request(headers);
       req.setEncoding("utf8");
 
       // Handler events for the HTTP/2 request
-      this.#handleHttp2Request(req, client);
+      this.#handleHttp2Request(req, this.#client);
 
       // Handle abort signal
       this.#abortController.signal.addEventListener("abort", () => {
-        this.#streamCleanup(client);
+        this.#streamCleanup(this.#client);
       });
     } catch (e) {
       void this.#errHandler(e);
@@ -549,6 +551,10 @@ export class Watcher<T extends GenericClass> {
 
   /** Clear the resync timer and schedule a new one. */
   #checkResync = () => {
+    // print the size of this.#client
+    if (this.#client) {
+      console.log(`Size of this.#client: ${sizeOf(this.#client)} bytes`)
+    }
     // Ignore if the last seen time is not set
     if (this.#lastSeenTime === NONE) {
       return;
@@ -579,7 +585,7 @@ export class Watcher<T extends GenericClass> {
           this.#streamCleanup();
 
           if (this.#useHTTP2) {
-            this.#cleanupAndReconnect();
+            this.#cleanupAndReconnect(this.#client);
           }
 
           if (!this.#useHTTP2) {
@@ -693,6 +699,7 @@ export class Watcher<T extends GenericClass> {
     }
     if (client) {
       client.close();
+      client = undefined;
     }
   };
 
