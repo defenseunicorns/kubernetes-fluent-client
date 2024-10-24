@@ -49,8 +49,7 @@ export {
   V1TokenReview as TokenReview,
   V1ValidatingWebhookConfiguration as ValidatingWebhookConfiguration,
   V1VolumeAttachment as VolumeAttachment,
-  V1Endpoint as Endpoint,
-  V1PolicyRule as PolicyRule,
+  V1Endpoint as Endpoint
 } from "@kubernetes/client-node";
 
 export { GenericKind } from "./types";
