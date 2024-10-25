@@ -608,7 +608,9 @@ export class Watcher<T extends GenericClass> {
         clearInterval(this.$relistTimer);
         clearInterval(this.#resyncTimer);
         this.#streamCleanup();
-        this.#scheduleReconnect();
+        if (!this.#useHTTP2) {
+          this.#scheduleReconnect();
+        }
         this.#events.emit(WatchEvent.ABORT, err);
         return;
 
