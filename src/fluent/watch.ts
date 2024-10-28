@@ -530,8 +530,6 @@ export class Watcher<T extends GenericClass> {
           this.#pendingReconnect = true;
           this.#events.emit(WatchEvent.RECONNECT, this.#resyncFailureCount);
           this.#streamCleanup();
-
-          void this.#watch();
         }
       } else {
         // Otherwise, call the finally function if it exists
