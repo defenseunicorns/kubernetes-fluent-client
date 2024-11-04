@@ -493,26 +493,6 @@ export class Watcher<T extends GenericClass> {
       // Build the URL and request options
       const { opts, url } = await this.#buildURL(true, this.#resourceVersion);
       const agent = this.#getAgent(opts.agent as https.Agent);
-      // let agentOptions;
-      // if (opts.agent && opts.agent instanceof https.Agent) {
-      //   agentOptions = {
-      //     key: opts.agent.options.key,
-      //     cert: opts.agent.options.cert,
-      //     ca: opts.agent.options.ca,
-      //     rejectUnauthorized: false,
-      //   };
-      // }
-
-      // const agent = new Agent({
-      //   keepAliveMaxTimeout: 600000,
-      //   keepAliveTimeout: 600000,
-      //   bodyTimeout: 0,
-      //   connect: {
-      //     ca: agentOptions?.ca,
-      //     cert: agentOptions?.cert,
-      //     key: agentOptions?.key,
-      //   },
-      // });
 
       const token = await this.#getToken();
       const headers: Record<string, string> = {
