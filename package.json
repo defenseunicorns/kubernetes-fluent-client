@@ -12,7 +12,8 @@
     "test": "jest src --coverage",
     "test:e2e": "jest e2e",
     "format:check": "eslint src && prettier . --check",
-    "format:fix": "eslint --fix src && prettier . --write"
+    "format:fix": "eslint --fix src && prettier . --write",
+    "prepare": "if [ \"$NODE_ENV\" != 'production' ]; then husky; fi"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -36,14 +37,14 @@
   },
   "homepage": "https://github.com/defenseunicorns/kubernetes-fluent-client#readme",
   "dependencies": {
-    "@kubernetes/client-node": "^1.0.0-rc7",
+    "@kubernetes/client-node": "1.0.0-rc7",
     "byline": "5.0.0",
     "fast-json-patch": "3.1.1",
     "http-status-codes": "2.3.0",
     "node-fetch": "2.7.0",
     "quicktype-core": "23.0.170",
     "type-fest": "4.26.1",
-    "undici": "^6.19.8",
+    "undici": "^6.20.1",
     "yargs": "17.7.2"
   },
   "devDependencies": {
@@ -51,18 +52,20 @@
     "@commitlint/config-conventional": "19.5.0",
     "@jest/globals": "29.7.0",
     "@types/byline": "4.2.36",
-    "@types/readable-stream": "4.0.15",
+    "@types/readable-stream": "4.0.18",
     "@types/urijs": "^1.19.25",
     "@types/yargs": "17.0.33",
-    "@typescript-eslint/eslint-plugin": "8.7.0",
-    "@typescript-eslint/parser": "8.7.0",
-    "eslint-plugin-jsdoc": "50.3.0",
+    "@typescript-eslint/eslint-plugin": "8.12.2",
+    "@typescript-eslint/parser": "8.12.2",
+    "eslint-plugin-jsdoc": "50.4.3",
+    "husky": "^9.1.6",
     "jest": "29.7.0",
+    "lint-staged": "^15.2.10",
     "nock": "13.5.5",
     "prettier": "3.3.3",
-    "semantic-release": "24.1.2",
+    "semantic-release": "24.2.0",
     "ts-jest": "29.2.5",
-    "typescript": "5.6.2"
+    "typescript": "5.6.3"
   },
   "release": {
     "branches": [

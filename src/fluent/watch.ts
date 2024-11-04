@@ -184,7 +184,7 @@ export class Watcher<T extends GenericClass> {
     if (this.#useLegacy) {
       this.#legacyStreamCleanup();
     } else {
-      this.#cleanupAndReconnect();
+      this.#streamCleanup();
     }
     this.#abortController.abort();
   }
@@ -417,6 +417,7 @@ export class Watcher<T extends GenericClass> {
       this.#events.emit(WatchEvent.DATA_ERROR, err);
     }
   };
+  /** node-fetch watch */
   #legacyWatch = async () => {
     try {
       // Start with a list operation
@@ -468,6 +469,19 @@ export class Watcher<T extends GenericClass> {
       void this.#errHandler(e);
     }
   };
+
+  #getAgent = (optsAgent: https.Agent) => {
+    return new Agent({
+      keepAliveMaxTimeout: 600000,
+      keepAliveTimeout: 600000,
+      bodyTimeout: 0,
+      connect: {
+        ca: optsAgent.options.ca,
+        cert: optsAgent.options.cert,
+        key: optsAgent.options.key,
+      },
+    });
+  }
   /**
    * Watch for changes to the resource.
    */
@@ -478,26 +492,27 @@ export class Watcher<T extends GenericClass> {
 
       // Build the URL and request options
       const { opts, url } = await this.#buildURL(true, this.#resourceVersion);
-      let agentOptions;
-      if (opts.agent && opts.agent instanceof https.Agent) {
-        agentOptions = {
-          key: opts.agent.options.key,
-          cert: opts.agent.options.cert,
-          ca: opts.agent.options.ca,
-          rejectUnauthorized: false,
-        };
-      }
+      const agent = this.#getAgent(opts.agent as https.Agent);
+      // let agentOptions;
+      // if (opts.agent && opts.agent instanceof https.Agent) {
+      //   agentOptions = {
+      //     key: opts.agent.options.key,
+      //     cert: opts.agent.options.cert,
+      //     ca: opts.agent.options.ca,
+      //     rejectUnauthorized: false,
+      //   };
+      // }
 
-      const agent = new Agent({
-        keepAliveMaxTimeout: 600000,
-        keepAliveTimeout: 600000,
-        bodyTimeout: 0,
-        connect: {
-          ca: agentOptions?.ca,
-          cert: agentOptions?.cert,
-          key: agentOptions?.key,
-        },
-      });
+      // const agent = new Agent({
+      //   keepAliveMaxTimeout: 600000,
+      //   keepAliveTimeout: 600000,
+      //   bodyTimeout: 0,
+      //   connect: {
+      //     ca: agentOptions?.ca,
+      //     cert: agentOptions?.cert,
+      //     key: agentOptions?.key,
+      //   },
+      // });
 
       const token = await this.#getToken();
       const headers: Record<string, string> = {
