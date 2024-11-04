@@ -481,7 +481,7 @@ export class Watcher<T extends GenericClass> {
         key: optsAgent.options.key,
       },
     });
-  }
+  };
   /**
    * Watch for changes to the resource.
    */
