@@ -56,7 +56,7 @@ export type WatchCfg = {
   /** Max amount of seconds to go without receiving an event before reconciliation starts. Defaults to 300 (5 minutes). */
   lastSeenLimitSeconds?: number;
   /** Watch Mechansism */
-  useLegacy?: boolean;
+  useLegacyWatch?: boolean;
 };
 
 const NONE = 50;
@@ -70,7 +70,7 @@ export class Watcher<T extends GenericClass> {
   #callback: WatchAction<T>;
   #watchCfg: WatchCfg;
   #latestRelistWindow: string = "";
-  #useLegacy = false;
+  #useLegacyWatch = false;
   // Track the last time data was received
   #lastSeenTime = NONE;
   #lastSeenLimit: number;
@@ -128,7 +128,7 @@ export class Watcher<T extends GenericClass> {
     watchCfg.lastSeenLimitSeconds ??= 600;
 
     // Set the watch mechanism
-    this.#useLegacy = watchCfg.useLegacy || false;
+    this.#useLegacyWatch = watchCfg.useLegacyWatch || false;
 
     // Set the last seen limit to the resync interval
     this.#lastSeenLimit = watchCfg.lastSeenLimitSeconds * 1000;
@@ -169,7 +169,7 @@ export class Watcher<T extends GenericClass> {
    */
   public async start(): Promise<AbortController> {
     this.#events.emit(WatchEvent.INIT_CACHE_MISS, this.#latestRelistWindow);
-    if (this.#useLegacy) {
+    if (this.#useLegacyWatch) {
       await this.#legacyWatch();
     } else {
       await this.#watch();
@@ -181,7 +181,7 @@ export class Watcher<T extends GenericClass> {
   public close() {
     clearInterval(this.$relistTimer);
     clearInterval(this.#resyncTimer);
-    if (this.#useLegacy) {
+    if (this.#useLegacyWatch) {
       this.#legacyStreamCleanup();
     } else {
       this.#streamCleanup();
@@ -588,7 +588,7 @@ export class Watcher<T extends GenericClass> {
         } else {
           this.#pendingReconnect = true;
           this.#events.emit(WatchEvent.RECONNECT, this.#resyncFailureCount);
-          if (this.#useLegacy) {
+          if (this.#useLegacyWatch) {
             this.#legacyStreamCleanup();
             void this.#legacyWatch();
           } else {
@@ -616,7 +616,7 @@ export class Watcher<T extends GenericClass> {
       case "AbortError":
         clearInterval(this.$relistTimer);
         clearInterval(this.#resyncTimer);
-        if (this.#useLegacy) {
+        if (this.#useLegacyWatch) {
           this.#legacyStreamCleanup();
         } else {
           this.#streamCleanup();
