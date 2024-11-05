@@ -542,7 +542,6 @@ export class Watcher<T extends GenericClass> {
         // Listen for events and call the callback function
         this.#stream.on("data", async chunk => {
           try {
-            // this whole section is kind of ugly +=, .pop()!
             buffer += decoder.decode(chunk, { stream: true });
             const lines = buffer.split("\n");
             buffer = lines.pop()!;
