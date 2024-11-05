@@ -470,6 +470,28 @@ export class Watcher<T extends GenericClass> {
     }
   };
 
+  #getHTTPSAgent = (opts: legacyFetch.RequestInit) => {
+    // In cluster there will be agent - testing or dev no
+    const agentOptions =
+      opts.agent instanceof https.Agent
+        ? {
+            ca: opts.agent.options.ca,
+            cert: opts.agent.options.cert,
+            key: opts.agent.options.key,
+          }
+        : {
+            ca: undefined,
+            cert: undefined,
+            key: undefined,
+          };
+
+    return new Agent({
+      keepAliveMaxTimeout: 600000,
+      keepAliveTimeout: 600000,
+      bodyTimeout: 0,
+      connect: agentOptions,
+    });
+  };
   /**
    * Watch for changes to the resource.
    */
@@ -480,26 +502,6 @@ export class Watcher<T extends GenericClass> {
 
       // Build the URL and request options
       const { opts, url } = await this.#buildURL(true, this.#resourceVersion);
-      let agentOptions;
-      if (opts.agent && opts.agent instanceof https.Agent) {
-        agentOptions = {
-          key: opts.agent.options.key,
-          cert: opts.agent.options.cert,
-          ca: opts.agent.options.ca,
-          rejectUnauthorized: false,
-        };
-      }
-
-      const agent = new Agent({
-        keepAliveMaxTimeout: 600000,
-        keepAliveTimeout: 600000,
-        bodyTimeout: 0,
-        connect: {
-          ca: agentOptions?.ca,
-          cert: agentOptions?.cert,
-          key: agentOptions?.key,
-        },
-      });
 
       const token = await this.#getToken();
       const headers: Record<string, string> = {
@@ -513,7 +515,7 @@ export class Watcher<T extends GenericClass> {
 
       const response = await fetch(url, {
         headers,
-        dispatcher: agent,
+        dispatcher: this.#getHTTPSAgent(opts),
       });
 
       // Reset the pending reconnect flag
