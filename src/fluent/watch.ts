@@ -656,9 +656,7 @@ export class Watcher<T extends GenericClass> {
   #streamCleanup = () => {
     if (this.#stream) {
       this.#stream.removeAllListeners();
-      if (!this.#stream.readableEnded) {
-        this.#stream.destroy();
-      }
+      this.#stream.destroy();
     }
   };
 
