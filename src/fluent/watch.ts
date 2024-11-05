@@ -5,7 +5,7 @@ import { createHash } from "crypto";
 import { EventEmitter } from "events";
 import byline from "byline";
 import https from "https";
-import legacyFetch from "node-fetch";
+import legacyFetch, { RequestInit } from "node-fetch";
 import { Agent, fetch } from "undici";
 import { fetch as wrappedFetch } from "../fetch";
 import { GenericClass, KubernetesListObject } from "../types";
@@ -470,7 +470,7 @@ export class Watcher<T extends GenericClass> {
     }
   };
 
-  #getHTTPSAgent = (opts: legacyFetch.RequestInit) => {
+  #getHTTPSAgent = (opts: RequestInit) => {
     // In cluster there will be agent - testing or dev no
     const agentOptions =
       opts.agent instanceof https.Agent
