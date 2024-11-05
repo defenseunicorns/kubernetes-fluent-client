@@ -437,11 +437,11 @@ export class Watcher<T extends GenericClass> {
       // Make the actual request
       const response = await legacyFetch(url, { ...opts });
 
-      // Reset the pending reconnect flag
-      this.#pendingReconnect = false;
-
       // If the request is successful, start listening for events
       if (response.ok) {
+        // Reset the pending reconnect flag
+        this.#pendingReconnect = false;
+
         this.#events.emit(WatchEvent.CONNECT, url.pathname);
 
         const { body } = response;
@@ -518,11 +518,11 @@ export class Watcher<T extends GenericClass> {
         dispatcher: Watcher.getHTTPSAgent(opts),
       });
 
-      // Reset the pending reconnect flag
-      this.#pendingReconnect = false;
-
       // If the request is successful, start listening for events
       if (response.ok) {
+        // Reset the pending reconnect flag
+        this.#pendingReconnect = false;
+
         this.#events.emit(WatchEvent.CONNECT, url.pathname);
 
         const { body } = response;
