@@ -470,7 +470,7 @@ export class Watcher<T extends GenericClass> {
     }
   };
 
-  #getHTTPSAgent = (opts: RequestInit) => {
+  static getHTTPSAgent = (opts: RequestInit) => {
     // In cluster there will be agent - testing or dev no
     const agentOptions =
       opts.agent instanceof https.Agent
@@ -515,7 +515,7 @@ export class Watcher<T extends GenericClass> {
 
       const response = await fetch(url, {
         headers,
-        dispatcher: this.#getHTTPSAgent(opts),
+        dispatcher: Watcher.getHTTPSAgent(opts),
       });
 
       // Reset the pending reconnect flag
