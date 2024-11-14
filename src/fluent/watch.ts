@@ -3,9 +3,8 @@
 
 import { createHash } from "crypto";
 import { EventEmitter } from "events";
-import byline from "byline";
 import https from "https";
-import legacyFetch, { RequestInit } from "node-fetch";
+import { RequestInit } from "node-fetch";
 import { Agent, fetch } from "undici";
 import { fetch as wrappedFetch } from "../fetch";
 import { GenericClass, KubernetesListObject } from "../types";
@@ -55,8 +54,6 @@ export type WatchCfg = {
   relistIntervalSec?: number;
   /** Max amount of seconds to go without receiving an event before reconciliation starts. Defaults to 300 (5 minutes). */
   lastSeenLimitSeconds?: number;
-  /** Watch Mechansism */
-  useLegacyWatch?: boolean;
 };
 
 const NONE = 50;
@@ -70,7 +67,7 @@ export class Watcher<T extends GenericClass> {
   #callback: WatchAction<T>;
   #watchCfg: WatchCfg;
   #latestRelistWindow: string = "";
-  #useLegacyWatch = false;
+
   // Track the last time data was received
   #lastSeenTime = NONE;
   #lastSeenLimit: number;
@@ -83,7 +80,6 @@ export class Watcher<T extends GenericClass> {
 
   // Create a stream to read the response body
   #stream?: Readable;
-  #legacyStream?: byline.LineStream;
 
   // Create an EventEmitter to emit events
   #events = new EventEmitter();
@@ -127,9 +123,6 @@ export class Watcher<T extends GenericClass> {
     // Set the resync interval to 10 minutes if not specified
     watchCfg.lastSeenLimitSeconds ??= 600;
 
-    // Set the watch mechanism
-    this.#useLegacyWatch = watchCfg.useLegacyWatch || false;
-
     // Set the last seen limit to the resync interval
     this.#lastSeenLimit = watchCfg.lastSeenLimitSeconds * 1000;
 
@@ -169,11 +162,8 @@ export class Watcher<T extends GenericClass> {
    */
   public async start(): Promise<AbortController> {
     this.#events.emit(WatchEvent.INIT_CACHE_MISS, this.#latestRelistWindow);
-    if (this.#useLegacyWatch) {
-      await this.#legacyWatch();
-    } else {
-      await this.#watch();
-    }
+    await this.#watch();
+
     return this.#abortController;
   }
 
@@ -181,11 +171,8 @@ export class Watcher<T extends GenericClass> {
   public close() {
     clearInterval(this.$relistTimer);
     clearInterval(this.#resyncTimer);
-    if (this.#useLegacyWatch) {
-      this.#legacyStreamCleanup();
-    } else {
-      this.#streamCleanup();
-    }
+
+    this.#streamCleanup();
     this.#abortController.abort();
   }
 
@@ -417,58 +404,6 @@ export class Watcher<T extends GenericClass> {
       this.#events.emit(WatchEvent.DATA_ERROR, err);
     }
   };
-  /** node-fetch watch */
-  #legacyWatch = async () => {
-    try {
-      // Start with a list operation
-      await this.#list();
-
-      // Build the URL and request options
-      const { opts, url } = await this.#buildURL(true, this.#resourceVersion);
-
-      // Create a stream to read the response body
-      this.#legacyStream = byline.createStream();
-
-      // Bind the stream events
-      this.#legacyStream.on("error", this.#errHandler);
-      this.#legacyStream.on("close", this.#legacyStreamCleanup);
-      this.#legacyStream.on("finish", this.#legacyStreamCleanup);
-
-      // Make the actual request
-      const response = await legacyFetch(url, { ...opts });
-
-      // If the request is successful, start listening for events
-      if (response.ok) {
-        // Reset the pending reconnect flag
-        this.#pendingReconnect = false;
-
-        this.#events.emit(WatchEvent.CONNECT, url.pathname);
-
-        const { body } = response;
-
-        // Reset the retry count
-        this.#resyncFailureCount = 0;
-        this.#events.emit(WatchEvent.INC_RESYNC_FAILURE_COUNT, this.#resyncFailureCount);
-
-        // Listen for events and call the callback function
-        this.#legacyStream.on("data", async line => {
-          await this.#processLine(line, this.#process);
-        });
-
-        // Bind the body events
-        body.on("error", this.#errHandler);
-        body.on("close", this.#legacyStreamCleanup);
-        body.on("finish", this.#legacyStreamCleanup);
-
-        // Pipe the response body to the stream
-        body.pipe(this.#legacyStream);
-      } else {
-        throw new Error(`watch connect failed: ${response.status} ${response.statusText}`);
-      }
-    } catch (e) {
-      void this.#errHandler(e);
-    }
-  };
 
   static getHTTPSAgent = (opts: RequestInit) => {
     // In cluster there will be agent - testing or dev no
@@ -595,12 +530,7 @@ export class Watcher<T extends GenericClass> {
         } else {
           this.#pendingReconnect = true;
           this.#events.emit(WatchEvent.RECONNECT, this.#resyncFailureCount);
-          if (this.#useLegacyWatch) {
-            this.#legacyStreamCleanup();
-            void this.#legacyWatch();
-          } else {
-            this.#cleanupAndReconnect();
-          }
+          this.#cleanupAndReconnect();
         }
       } else {
         // Otherwise, call the finally function if it exists
@@ -623,11 +553,9 @@ export class Watcher<T extends GenericClass> {
       case "AbortError":
         clearInterval(this.$relistTimer);
         clearInterval(this.#resyncTimer);
-        if (this.#useLegacyWatch) {
-          this.#legacyStreamCleanup();
-        } else {
-          this.#streamCleanup();
-        }
+
+        this.#streamCleanup();
+
         this.#events.emit(WatchEvent.ABORT, err);
         return;
 
@@ -657,13 +585,6 @@ export class Watcher<T extends GenericClass> {
     if (this.#stream) {
       this.#stream.removeAllListeners();
       this.#stream.destroy();
-    }
-  };
-
-  #legacyStreamCleanup = () => {
-    if (this.#legacyStream) {
-      this.#legacyStream.removeAllListeners();
-      this.#legacyStream.destroy();
     }
   };
 }
