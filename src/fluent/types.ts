@@ -4,7 +4,7 @@
 import { KubernetesListObject, KubernetesObject } from "@kubernetes/client-node";
 import { Operation } from "fast-json-patch";
 import type { PartialDeep } from "type-fest";
-import {  RequestInit as UndiciRequestInit } from "undici";
+import { RequestInit as UndiciRequestInit } from "undici";
 import { GenericClass, GroupVersionKind } from "../types";
 import { WatchCfg, Watcher } from "./watch";
 import https from "https";
@@ -13,7 +13,7 @@ import { SecureClientSessionOptions } from "http2";
 /**
  * Fetch options and server URL
  */
-export type K8sConfigPromise = Promise<{opts: UndiciRequestInit, serverUrl: string}>
+export type K8sConfigPromise = Promise<{ opts: UndiciRequestInit; serverUrl: string | URL }>;
 
 /**
  * Agent options for the the http2Watch

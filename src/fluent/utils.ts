@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
 
 import { KubeConfig, PatchStrategy } from "@kubernetes/client-node";
-import { Headers, RequestInit } from "node-fetch";
+import { RequestInit } from "node-fetch";
 import { URL } from "url";
 import { Agent, Dispatcher } from "undici";
 import { Agent as httpsAgent } from "https";
@@ -157,7 +157,7 @@ export function pathBuilder<T extends GenericClass>(
  * @returns the fetch options and server URL
  */
 // export async function transformedK8sCfg(method: FetchMethods): K8sConfigPromise {
-export async function k8sCfg(method: FetchMethods): K8sConfigPromise {  
+export async function k8sCfg(method: FetchMethods): K8sConfigPromise {
   const kubeConfig = new KubeConfig();
   kubeConfig.loadFromDefault();
 
@@ -166,17 +166,10 @@ export async function k8sCfg(method: FetchMethods): K8sConfigPromise {
     throw new Error("No currently active cluster");
   }
 
-  // Setup the TLS options & auth headers, as needed
-  const opts = await kubeConfig.applyToFetchOptions({
-    method,
-    headers: {
-      // Set the default content type to JSON
-      "Content-Type": "application/json",
-      // Set the user agent like kubectl does
-      "User-Agent": `kubernetes-fluent-client`,
-    },
-  });
+  // Get TLS Options
+  const opts = await kubeConfig.applyToFetchOptions({});
 
+  // Transform the TLS options & auth headers, as needed
   const undiciRequestUnit = {
     headers: await getHeaders(),
     method,
@@ -241,37 +234,38 @@ export async function k8sExec<T extends GenericClass, K>(
   payload?: K | unknown,
   applyCfg: ApplyCfg = { force: false },
 ) {
-  const reconstruct = async (method: FetchMethods) => {
+  const reconstruct = async (method: FetchMethods): K8sConfigPromise => {
     const configMethod = method === "LOG" ? "GET" : method;
     const { opts, serverUrl } = await k8sCfg(configMethod);
     const isPost = method === "POST";
-    const baseUrl = pathBuilder(serverUrl, model, filters, isPost);
+    const baseUrl = pathBuilder(serverUrl.toString(), model, filters, isPost);
     if (method === "LOG") {
       baseUrl.pathname = `${baseUrl.pathname}/log`;
     }
     return {
-      url: baseUrl,
+      serverUrl: baseUrl,
       opts,
     };
   };
 
-  const { opts, url } = await reconstruct(method);
+  const { opts, serverUrl } = await reconstruct(method);
+  const url: URL = serverUrl instanceof URL ? serverUrl : new URL(serverUrl);
 
   switch (opts.method) {
     // PATCH_STATUS is a special case that uses the PATCH method on status subresources
     case "PATCH_STATUS":
       opts.method = "PATCH";
       url.pathname = `${url.pathname}/status`;
-      (opts.headers as Headers).set("Content-Type", PatchStrategy.MergePatch);
+      (opts.headers as Record<string, string>)["Content-Type"] = PatchStrategy.MergePatch;
       payload = { status: (payload as { status: unknown }).status };
       break;
 
     case "PATCH":
-      (opts.headers as Headers).set("Content-Type", PatchStrategy.JsonPatch);
+      (opts.headers as Record<string, string>)["Content-Type"] = PatchStrategy.JsonPatch;
       break;
 
     case "APPLY":
-      (opts.headers as Headers).set("Content-Type", SSA_CONTENT_TYPE);
+      (opts.headers as Record<string, string>)["Content-Type"] = SSA_CONTENT_TYPE;
       opts.method = "PATCH";
       url.searchParams.set("fieldManager", "pepr");
       url.searchParams.set("fieldValidation", "Strict");

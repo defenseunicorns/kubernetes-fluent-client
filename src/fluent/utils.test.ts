@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
 
-import { beforeEach, describe, expect, it, jest, afterEach } from "@jest/globals";
-import { Headers } from "node-fetch";
+import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import * as fs from "fs";
-import {RequestInit } from "node-fetch"
+import { RequestInit } from "node-fetch";
 import { fetch } from "../fetch";
 import { RegisterKind } from "../kinds";
 import { GenericClass } from "../types";
@@ -51,8 +50,8 @@ describe("getHeaders", () => {
       Authorization: `Bearer ${token}`,
     });
     jest.restoreAllMocks();
-  })
-})
+  });
+});
 describe("pathBuilder Function", () => {
   const serverUrl = "https://jest-test:8080";
   it("should throw an error if the kind is not specified and the model is not a KubernetesObject", () => {
@@ -163,10 +162,10 @@ describe("kubeExec Function", () => {
   const fakeOpts = {
     body: JSON.stringify(fakePayload),
     compress: true,
-    headers: new Headers({
+    headers: {
       "Content-Type": "application/json",
       "User-Agent": `kubernetes-fluent-client`,
-    }),
+    },
     method: fakeMethod,
   };
 
@@ -185,7 +184,14 @@ describe("kubeExec Function", () => {
     const result = await k8sExec(Pod, fakeFilters, fakeMethod, fakePayload);
 
     expect(result).toEqual(fakePayload);
-    expect(mockedFetch).toHaveBeenCalledWith(fakeUrl, expect.objectContaining(fakeOpts));
+    expect(mockedFetch).toHaveBeenCalledWith(
+      fakeUrl,
+      expect.objectContaining({
+        body: JSON.stringify(fakePayload),
+        headers: fakeOpts.headers,
+        method: fakeMethod,
+      }),
+    );
   });
 
   it("should handle PATCH_STATUS", async () => {
@@ -203,11 +209,10 @@ describe("kubeExec Function", () => {
       new URL("http://jest-test:8080/api/v1/namespaces/default/pods/fake/status"),
       expect.objectContaining({
         method: "PATCH",
-        compress: true,
-        headers: new Headers({
+        headers: {
           "Content-Type": "application/merge-patch+json",
           "User-Agent": `kubernetes-fluent-client`,
-        }),
+        },
         body: JSON.stringify({ status: fakePayload.status }),
       }),
     );
@@ -230,11 +235,10 @@ describe("kubeExec Function", () => {
       new URL("http://jest-test:8080/api/v1/namespaces/default/pods/fake"),
       expect.objectContaining({
         method: "PATCH",
-        compress: true,
-        headers: new Headers({
+        headers: {
           "Content-Type": "application/json-patch+json",
           "User-Agent": `kubernetes-fluent-client`,
-        }),
+        },
         body: JSON.stringify(patchPayload),
       }),
     );
@@ -257,11 +261,10 @@ describe("kubeExec Function", () => {
       ),
       expect.objectContaining({
         method: "PATCH",
-        compress: true,
-        headers: new Headers({
+        headers: {
           "Content-Type": "application/apply-patch+yaml",
           "User-Agent": `kubernetes-fluent-client`,
-        }),
+        },
         body: JSON.stringify(fakePayload),
       }),
     );
@@ -284,11 +287,10 @@ describe("kubeExec Function", () => {
       ),
       expect.objectContaining({
         method: "PATCH",
-        compress: true,
-        headers: new Headers({
+        headers: {
           "Content-Type": "application/apply-patch+yaml",
           "User-Agent": `kubernetes-fluent-client`,
-        }),
+        },
         body: JSON.stringify(fakePayload),
       }),
     );

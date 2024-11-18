@@ -3,7 +3,7 @@
 
 import { StatusCodes } from "http-status-codes";
 import { fetch as undiciFetch, RequestInfo, RequestInit } from "undici";
-import { getHTTPSAgent, getHeaders } from "./fluent/utils";
+
 export type FetchResponse<T> = {
   data: T;
   ok: boolean;
@@ -32,7 +32,7 @@ export async function fetch<T>(
   try {
     const resp = await undiciFetch(url, init);
     const contentType = resp.headers.get("content-type") || "";
-    
+
     // Parse the response as JSON if the content type is JSON
     if (contentType.includes("application/json")) {
       data = (await resp.json()) as T;
