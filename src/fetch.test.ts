@@ -3,9 +3,9 @@
 
 import { expect, test, beforeEach, afterEach } from "@jest/globals";
 import { StatusCodes } from "http-status-codes";
-import { fetch as undiciFetch, RequestInit } from "undici";
+import { RequestInit } from "undici";
 import { fetch } from "./fetch";
-import { MockAgent, setGlobalDispatcher, getGlobalDispatcher } from "undici";
+import { MockAgent, setGlobalDispatcher } from "undici";
 
 let mockAgent: MockAgent;
 interface Todo {
@@ -21,24 +21,30 @@ beforeEach(() => {
 
   const mockClient = mockAgent.get("https://jsonplaceholder.typicode.com");
 
-  mockClient.intercept({ path: "/todos/1", method: "GET" }).reply(StatusCodes.OK, {
-    userId: 1,
-    id: 1,
-    title: "Example title",
-    completed: false,
-  }, {
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
+  mockClient.intercept({ path: "/todos/1", method: "GET" }).reply(
+    StatusCodes.OK,
+    {
+      userId: 1,
+      id: 1,
+      title: "Example title",
+      completed: false,
     },
-  });
-
-  mockClient
-    .intercept({ path: "/todos", method: "POST" })
-    .reply(StatusCodes.OK, { title: "test todo", userId: 1, completed: false }, {
+    {
       headers: {
         "Content-Type": "application/json; charset=utf-8",
       },
-    });
+    },
+  );
+
+  mockClient.intercept({ path: "/todos", method: "POST" }).reply(
+    StatusCodes.OK,
+    { title: "test todo", userId: 1, completed: false },
+    {
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+      },
+    },
+  );
 
   mockClient
     .intercept({ path: "/todos/empty-null", method: "GET" })
@@ -58,12 +64,11 @@ afterEach(() => {
 });
 
 test("fetch: should return without type data", async () => {
-
   const url = "https://jsonplaceholder.typicode.com/todos/1";
   const requestOptions: RequestInit = {
     method: "GET",
     headers: {
-      "hi":"there",
+      hi: "there",
       "content-type": "application/json; charset=UTF-8",
     },
   };
@@ -143,11 +148,15 @@ test("fetch: should handle failed requests without throwing an error", async () 
 test("fetch wrapper respects MockAgent", async () => {
   const mockClient = mockAgent.get("https://example.com");
 
-  mockClient.intercept({ path: "/test", method: "GET" }).reply(200, { success: true }, {
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
+  mockClient.intercept({ path: "/test", method: "GET" }).reply(
+    200,
+    { success: true },
+    {
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+      },
     },
-  });
+  );
 
   const response = await fetch<{ success: boolean }>("https://example.com/test");
 
@@ -161,8 +170,7 @@ test("fetch wrapper respects MockAgent", async () => {
 //     for (const [key, value] of response.headers) {
 //       console.log(`${key}: ${value}`);
 //     }
-//      return response.json() 
+//      return response.json()
 //     })
 //     .then(data => console.log(data.title))
 // }
-
