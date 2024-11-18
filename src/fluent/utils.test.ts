@@ -1,19 +1,58 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
 
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { beforeEach, describe, expect, it, jest, afterEach } from "@jest/globals";
 import { Headers } from "node-fetch";
-
+import * as fs from "fs";
+import {RequestInit } from "node-fetch"
 import { fetch } from "../fetch";
 import { RegisterKind } from "../kinds";
 import { GenericClass } from "../types";
 import { ClusterRole, Ingress, Pod } from "../upstream";
 import { Filters } from "./types";
-import { k8sExec, pathBuilder } from "./utils";
+import { k8sExec, pathBuilder, getHTTPSAgent, getHeaders, getToken } from "./utils";
 
 jest.mock("https");
 jest.mock("../fetch");
 
+describe("getToken", () => {
+  it("should return the token from the service account", async () => {
+    const token = "fake-token";
+    jest.spyOn(fs.promises, "readFile").mockResolvedValue(token as unknown as Buffer);
+    const result = await getToken();
+    expect(result).toEqual(token);
+    jest.restoreAllMocks();
+  });
+});
+describe("getHTTPSAgent", () => {
+  it("should return an agent for undici with correct options", () => {
+    const opts = {
+      agent: {
+        options: {
+          ca: "ca",
+          cert: "cert",
+          key: "key",
+        },
+      },
+    } as unknown as RequestInit;
+
+    const agent = getHTTPSAgent(opts);
+    expect(agent).toBeDefined();
+  });
+});
+describe("getHeaders", () => {
+  it("should return the correct headers", async () => {
+    const token = "fake-token";
+    jest.spyOn(fs.promises, "readFile").mockResolvedValue(token as unknown as Buffer);
+    const headers = await getHeaders();
+    expect(headers).toEqual({
+      "Content-Type": "application/json",
+      "User-Agent": "kubernetes-fluent-client",
+      Authorization: `Bearer ${token}`,
+    });
+    jest.restoreAllMocks();
+  })
+})
 describe("pathBuilder Function", () => {
   const serverUrl = "https://jest-test:8080";
   it("should throw an error if the kind is not specified and the model is not a KubernetesObject", () => {

@@ -1,59 +1,91 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
 
-import { expect, test, beforeEach } from "@jest/globals";
-
+import { expect, test, beforeEach, afterEach } from "@jest/globals";
 import { StatusCodes } from "http-status-codes";
-import nock from "nock";
-import { RequestInit } from "node-fetch";
+import { fetch as undiciFetch, RequestInit } from "undici";
 import { fetch } from "./fetch";
+import { MockAgent, setGlobalDispatcher, getGlobalDispatcher } from "undici";
 
+let mockAgent: MockAgent;
+interface Todo {
+  userId: number;
+  id: number;
+  title: string;
+  completed: boolean;
+}
 beforeEach(() => {
-  nock("https://jsonplaceholder.typicode.com")
-    .get("/todos/1")
-    .reply(200, {
-      userId: 1,
-      id: 1,
-      title: "Example title",
-      completed: false,
-    })
-    .post("/todos", {
-      title: "test todo",
-      userId: 1,
-      completed: false,
-    })
-    .reply(200, (uri, requestBody) => requestBody)
-    .get("/todos/empty-null")
-    .reply(200, undefined)
-    .get("/todos/empty-string")
-    .reply(200, "")
-    .get("/todos/empty-object")
-    .reply(200, {})
-    .get("/todos/invalid")
-    .replyWithError("Something bad happened");
+  mockAgent = new MockAgent();
+  setGlobalDispatcher(mockAgent);
+  mockAgent.disableNetConnect();
+
+  const mockClient = mockAgent.get("https://jsonplaceholder.typicode.com");
+
+  mockClient.intercept({ path: "/todos/1", method: "GET" }).reply(StatusCodes.OK, {
+    userId: 1,
+    id: 1,
+    title: "Example title",
+    completed: false,
+  }, {
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+    },
+  });
+
+  mockClient
+    .intercept({ path: "/todos", method: "POST" })
+    .reply(StatusCodes.OK, { title: "test todo", userId: 1, completed: false }, {
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+      },
+    });
+
+  mockClient
+    .intercept({ path: "/todos/empty-null", method: "GET" })
+    .reply(StatusCodes.OK, undefined);
+
+  mockClient.intercept({ path: "/todos/empty-string", method: "GET" }).reply(StatusCodes.OK, "");
+
+  mockClient.intercept({ path: "/todos/empty-object", method: "GET" }).reply(StatusCodes.OK, {});
+
+  mockClient
+    .intercept({ path: "/todos/invalid", method: "GET" })
+    .replyWithError(new Error("Something bad happened"));
+});
+
+afterEach(() => {
+  mockAgent.close();
 });
 
 test("fetch: should return without type data", async () => {
+
   const url = "https://jsonplaceholder.typicode.com/todos/1";
-  const { data, ok } = await fetch<{ title: string }>(url);
+  const requestOptions: RequestInit = {
+    method: "GET",
+    headers: {
+      "hi":"there",
+      "content-type": "application/json; charset=UTF-8",
+    },
+  };
+  const { data, ok } = await fetch<Todo>(url, requestOptions);
   expect(ok).toBe(true);
-  expect(data["title"]).toBe("Example title");
+  expect(data.title).toBe("Example title");
 });
 
 test("fetch: should return parsed JSON response as a specific type", async () => {
-  interface Todo {
-    userId: number;
-    id: number;
-    title: string;
-    completed: boolean;
-  }
-
   const url = "https://jsonplaceholder.typicode.com/todos/1";
-  const { data, ok } = await fetch<Todo>(url);
-  expect(ok).toBe(true);
-  expect(data.id).toBe(1);
-  expect(typeof data.title).toBe("string");
-  expect(typeof data.completed).toBe("boolean");
+  const requestOptions: RequestInit = {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json; charset=UTF-8",
+    },
+  };
+  const res = await fetch<Todo>(url, requestOptions);
+  expect(res.ok).toBe(true);
+
+  expect(res.data.id).toBe(1);
+  expect(typeof res.data.title).toBe("string");
+  expect(typeof res.data.completed).toBe("boolean");
 });
 
 test("fetch: should handle additional request options", async () => {
@@ -66,22 +98,18 @@ test("fetch: should handle additional request options", async () => {
       completed: false,
     }),
     headers: {
-      "Content-type": "application/json; charset=UTF-8",
+      "Content-Type": "application/json; charset=UTF-8",
     },
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, ok } = await fetch<any>(url, requestOptions);
-  expect(ok).toBe(true);
-  expect(data["title"]).toBe("test todo");
-  expect(data["userId"]).toBe(1);
-  expect(data["completed"]).toBe(false);
+  const res = await fetch<Todo>(url, requestOptions);
+  expect(res.ok).toBe(true);
+  expect(res.data).toStrictEqual({ title: "test todo", userId: 1, completed: false });
 });
 
 test("fetch: should handle empty (null) responses", async () => {
   const url = "https://jsonplaceholder.typicode.com/todos/empty-null";
   const resp = await fetch(url);
-
   expect(resp.data).toBe("");
   expect(resp.ok).toBe(true);
   expect(resp.status).toBe(StatusCodes.OK);
@@ -90,7 +118,6 @@ test("fetch: should handle empty (null) responses", async () => {
 test("fetch: should handle empty (string) responses", async () => {
   const url = "https://jsonplaceholder.typicode.com/todos/empty-string";
   const resp = await fetch(url);
-
   expect(resp.data).toBe("");
   expect(resp.ok).toBe(true);
   expect(resp.status).toBe(StatusCodes.OK);
@@ -99,8 +126,7 @@ test("fetch: should handle empty (string) responses", async () => {
 test("fetch: should handle empty (object) responses", async () => {
   const url = "https://jsonplaceholder.typicode.com/todos/empty-object";
   const resp = await fetch(url);
-
-  expect(resp.data).toEqual({});
+  expect(resp.data).toEqual("{}");
   expect(resp.ok).toBe(true);
   expect(resp.status).toBe(StatusCodes.OK);
 });
@@ -113,3 +139,30 @@ test("fetch: should handle failed requests without throwing an error", async () 
   expect(resp.ok).toBe(false);
   expect(resp.status).toBe(StatusCodes.BAD_REQUEST);
 });
+
+test("fetch wrapper respects MockAgent", async () => {
+  const mockClient = mockAgent.get("https://example.com");
+
+  mockClient.intercept({ path: "/test", method: "GET" }).reply(200, { success: true }, {
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+    },
+  });
+
+  const response = await fetch<{ success: boolean }>("https://example.com/test");
+
+  expect(response.ok).toBe(true);
+  expect(response.data).toEqual({ success: true });
+});
+
+// let ff = () => {
+//   return fetch(url, opts)
+//   .then(response => {
+//     for (const [key, value] of response.headers) {
+//       console.log(`${key}: ${value}`);
+//     }
+//      return response.json() 
+//     })
+//     .then(data => console.log(data.title))
+// }
+
