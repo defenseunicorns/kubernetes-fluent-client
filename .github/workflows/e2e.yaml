@@ -1,0 +1,145 @@
+name: e2e Test
+
+permissions: read-all
+on:
+  workflow_dispatch:
+    inputs:
+      kfcBranch:
+        description: "KFC dev branch"
+        required: false
+        type: string
+        default: "none"
+      branch:
+        description: "Soak test branch"
+        required: true
+        default: "main"
+
+  schedule:
+    - cron: "0 4 * * *" # 12AM EST/9PM PST
+
+jobs:
+  e2e:
+    name: e2e
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
+        with:
+          egress-policy: audit
+
+      - name: clone pepr
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: defenseunicorns/kubernetes-fluent-client
+          path: kubernetes-fluent-client
+
+      - name: "set env: KFC"
+        run: echo "KFC=${GITHUB_WORKSPACE}/kubernetes-fluent-client" >> "$GITHUB_ENV"
+
+      - name: setup node
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: 20
+          cache: "npm"
+          cache-dependency-path: kubernetes-fluent-client
+
+      - name: install kubernetes-fluent-client deps
+        run: |
+          cd "$KFC"
+          npm ci
+
+      - name: Create the tarball
+        run: |
+          cd "$KFC"
+          npm pack
+
+      - name: "install k3d"
+        run: "curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash"
+        shell: bash
+
+      - name: Create k3d Cluster
+        run: "k3d cluster create"
+        shell: bash
+
+      - name: Set up Kubernetes
+        uses: azure/setup-kubectl@3e0aec4d80787158d308d7b364cb1b702e7feb7f # v4.0.0
+        with:
+          version: "latest"
+
+      - name: Install CRD in the cluster
+        run: |
+          kubectl apply -f https://gist.githubusercontent.com/cmwylie19/4e8e9c7a71985ff935acd174a8c481b3/raw/f53f8efbffe4646015ba08900d595189b727a5
+
+      - name: Deploy applications
+        run: |
+          kubectl apply -f hack/auditor.ci.yaml
+          kubectl apply -f hack/soak.ci.yaml
+
+      - name: Wait for 15 minutes before starting pod checks
+        run: |
+          sleep 10s
+          kubectl wait --for=condition=ready -n istio-system pod -l istio=pilot
+          kubectl wait --for=condition=ready -n istio-system pod -l app=istio-ingressgateway
+          kubectl wait --for=condition=ready -n watch-auditor pod -l app=watch-auditor
+          kubectl wait --for=condition=ready -n pepr-system pod -l app=pepr-soak-ci-watcher
+
+      - name: Run the soak test and collect metrics
+        run: |
+          # Initialize the map to store pod counts
+          declare -A pod_map
+
+          update_pod_map() {
+            for pod in $(kubectl get pods -n pepr-demo -o jsonpath='{.items[*].metadata.name}'); do
+              count=${pod_map[$pod]}
+              if [ -z "$count" ]; then
+                pod_map[$pod]=1
+              else
+                pod_map[$pod]=$((count + 1))
+              fi
+            done
+          }
+          touch logs/auditor-log.txt
+          touch logs/informer-log.txt
+          touch logs/watch-logs.txt
+
+          update_pod_map
+
+          collect_metrics() {
+            kubectl exec metrics-collector -n watch-auditor -- curl watch-auditor:8080/metrics | grep watch_controller_failures_total > logs/auditor-log.txt
+            kubectl exec metrics-collector -n watch-auditor -- curl -k https://pepr-soak-ci-watcher.pepr-system.svc.cluster.local/metrics | egrep -E "pepr_cache_miss|pepr_resync_failure_count" > logs/informer-log.txt
+            kubectl logs deploy/pepr-soak-ci-watcher -n pepr-system > logs/watch-logs.txt
+          }
+
+          # Start collecting metrics every 5 minutes and checking pod counts every 30 minutes
+          for i in {1..70}; do  # 70 iterations cover 350 minutes (5 hours and 50 minutes)
+            collect_metrics
+            cat logs/informer-log.txt
+            cat logs/auditor-log.txt
+            if [ $((i % 2)) -eq 0 ]; then  # Every 10 minutes 
+              update_pod_map
+
+              kubectl get pods -n pepr-demo 
+              kubectl top po -n pepr-system
+              kubectl get po -n pepr-system
+              
+              # Verify that no pod's count exceeds 1
+              for pod in "${!pod_map[@]}"; do
+                echo "$pod: ${pod_map[$pod]}"
+                if [ "${pod_map[$pod]}" -gt 1 ]; then
+                  echo "Test failed: Pod $pod has count ${pod_map[$pod]}"
+                  kubectl logs deploy/pepr-soak-ci-watcher -n pepr-system
+                  exit 1
+                fi
+              done
+            fi
+            sleep 300s  # Sleep for 5 minutes before the next iteration
+          done
+
+          echo "Soak test passed successfully!"
+        shell: bash
+
+      - name: Upload logs
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: soak-test-logs
+          path: logs
