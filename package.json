@@ -11,6 +11,9 @@
     "semantic-release": "semantic-release",
     "test": "jest src --coverage",
     "test:e2e": "jest e2e",
+    "test:e2e:url-crd": "",
+    "test:e2e:file-crd": "",
+    "test:e2e:cluster": "k3d cluster create kfc-dev --k3s-arg '--debug@server:0' --wait && kubectl rollout status deployment -n kube-system",
     "format:check": "eslint src && prettier . --check",
     "format:fix": "eslint --fix src && prettier . --write",
     "prepare": "if [ \"$NODE_ENV\" != 'production' ]; then husky; fi"
