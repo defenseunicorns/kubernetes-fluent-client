@@ -44,5 +44,16 @@ spec:
                 - accessModes
                 - capacity
                 - hostPath
+            status:
+              type: object
+              properties:
+                observedGeneration:
+                  type: integer
+                phase:
+                  type: string
+                  enum:
+                    - "Failed"
+                    - "Pending"
+                    - "Ready"
       subresources:
         status: {}

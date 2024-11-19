@@ -1,8 +1,11 @@
-import { kind, K8s, fetch } from "kubernetes-fluent-client";
+import { kind, K8s, fetch, GenericClass, KubernetesObject } from "kubernetes-fluent-client";
 import { beforeAll, afterAll, jest, test, describe, expect } from "@jest/globals";
 import path from "path";
+import { Datastore, Kind as Backing } from "./datastore-v1alpha1";
+import { WebApp, Phase, Language, Theme } from "./webapp-v1alpha1";
 import { execSync } from "child_process";
 import { V1APIGroup } from "@kubernetes/client-node";
+import exp from "constants";
 jest.unmock("@kubernetes/client-node");
 
 describe("KFC e2e test", () => {
@@ -17,11 +20,11 @@ describe("KFC e2e test", () => {
     }
   };
 
-  //   afterAll(async () => {
-  //     try {
-  //       execCommand(`k3d cluster delete ${clusterName}`);
-  //     } catch {}
-  //   });
+  afterAll(async () => {
+    try {
+      execCommand(`k3d cluster delete ${clusterName}`);
+    } catch {}
+  });
 
   beforeAll(async () => {
     try {
@@ -31,10 +34,9 @@ describe("KFC e2e test", () => {
         spec: { containers: [{ name: "nginx", image: "nginx" }] },
       });
     } catch {}
-    await waitForPodReady(namespace, namespace);
+    await untilTrue(() => live(kind.Pod, { metadata: { name: namespace, namespace } }));
   }, 30000);
 
-  // test("kfc crd", () => {})
   test("Apply()", async () => {
     // No Force
     try {
@@ -89,26 +91,22 @@ describe("KFC e2e test", () => {
 
   test("Delete(name)", async () => {
     try {
-      await K8s(kind.Namespace).Delete(namespace);
+      await K8s(kind.Pod).InNamespace(namespace).Delete(namespace);
     } catch (e) {
       expect(e).toBeUndefined();
     }
-
+    await gone(kind.Pod, { metadata: { name: namespace, namespace } });
     try {
       const ns = await K8s(kind.Namespace).Get(namespace);
-      expect(ns.status!.phase).toBe("Terminating");
+      expect(ns.spec).toBe(undefined);
     } catch (e) {
       expect(e).toBeDefined();
     }
 
     try {
-      await K8s(kind.Namespace).Apply({ metadata: { name: namespace } });
-      await K8s(kind.Pod).Apply({
-        metadata: { name: namespace, namespace },
-        spec: { containers: [{ name: "nginx", image: "nginx" }] },
-      });
+      await K8s(kind.Pod).Apply({ metadata: { name: namespace, namespace } });
     } catch {}
-    await waitForPodReady(namespace, namespace);
+    await untilTrue(() => live(kind.Pod, { metadata: { name: namespace, namespace } }));
   });
 
   test("Create()", async () => {
@@ -121,7 +119,7 @@ describe("KFC e2e test", () => {
       expect(e).toBeUndefined();
     }
 
-    await waitForPodReady(`${namespace}-1`, namespace);
+    await untilTrue(() => live(kind.Pod, { metadata: { name: `${namespace}-1`, namespace } }));
   });
   test("Raw()", async () => {
     interface API {
@@ -138,7 +136,84 @@ describe("KFC e2e test", () => {
       expect(e).toBeUndefined();
     }
   });
-  test("PatchStatus()", () => {});
+  test("PatchStatus()", async () => {
+    try {
+      await K8s(WebApp).Apply({
+        metadata: { name: "webapp", namespace },
+        spec: {
+          language: Language.En,
+          theme: Theme.Dark,
+          replicas: 1,
+        },
+        status: { phase: Phase.Pending },
+      });
+    } catch {}
+
+    try {
+      await K8s(Datastore).Apply({
+        metadata: { name: "valkey", namespace },
+        spec: {
+          accessModes: ["ReadWriteOnce"],
+          capacity: "10Gi",
+          hostPath: "/data",
+          kind: Backing.Valkey,
+        },
+        status: {
+          phase: Phase.Pending,
+        },
+      });
+    } catch {}
+
+    try {
+      const wa = await K8s(WebApp).InNamespace(namespace).Get("webapp");
+      expect(wa.status?.phase).toBe(Phase.Pending);
+    } catch (e) {
+      expect(e).toBeUndefined();
+    }
+
+    try {
+      const ds = await K8s(Datastore).InNamespace(namespace).Get("valkey");
+      expect(ds.status?.phase).toBe(Phase.Pending);
+    } catch (e) {
+      expect(e).toBeUndefined();
+    }
+  });
+
+  test("kfc crd", async () => {
+    try {
+      await K8s(WebApp).PatchStatus({
+        metadata: { name: "webapp", namespace },
+        status: { phase: Phase.Ready },
+      });
+    } catch (e) {
+      expect(e).toBeUndefined();
+    }
+
+    try {
+      await K8s(Datastore).Apply({
+        metadata: { name: "valkey", namespace },
+        status: {
+          phase: Phase.Ready,
+        },
+      });
+    } catch (e) {
+      expect(e).toBeUndefined();
+    }
+
+    try {
+      const wa = await K8s(WebApp).InNamespace(namespace).Get("webapp");
+      expect(wa.status?.phase).toBe(Phase.Pending);
+    } catch (e) {
+      expect(e).toBeUndefined();
+    }
+
+    try {
+      const ds = await K8s(Datastore).InNamespace(namespace).Get("valkey");
+      expect(ds.status?.phase).toBe(Phase.Pending);
+    } catch (e) {
+      expect(e).toBeUndefined();
+    }
+  });
 
   test("filters - InNamespace, WithLabel, WithField", async () => {
     try {
@@ -213,15 +288,61 @@ describe("KFC e2e test", () => {
   });
 });
 
-export async function waitForPodReady(name: string, namespace: string) {
-  const pod = await K8s(kind.Pod).InNamespace(namespace).Get(name);
-
-  if (pod.status?.phase !== "Running") {
-    await sleep(2);
-    return waitForPodReady(name, namespace);
-  }
-}
-
 export function sleep(seconds: number) {
   return new Promise(resolve => setTimeout(resolve, seconds * 1000));
+}
+
+export async function live(k: GenericClass, o: KubernetesObject) {
+  const ns = o.metadata?.namespace ? o.metadata.namespace : "";
+
+  try {
+    await K8s(k)
+      .InNamespace(ns)
+      .Get(o.metadata?.name || "");
+  } catch (e) {
+    if (e.status === 404) {
+      return false;
+    } else {
+      throw e;
+    }
+  }
+  return true;
+}
+export async function statusCheck(k: GenericClass, o: KubernetesObject, status: string) {
+  const ns = o.metadata?.namespace ? o.metadata.namespace : "";
+  try {
+    const obj = await K8s(k)
+      .InNamespace(ns)
+      .Get(o.metadata?.name || "");
+    return obj.status?.phase.toString() === status;
+  } catch (e) {
+    if (e.status === 404) {
+      return false;
+    } else {
+      throw e;
+    }
+  }
+}
+export async function gone(k: GenericClass, o: KubernetesObject) {
+  const ns = o.metadata?.namespace ? o.metadata.namespace : "";
+
+  try {
+    await K8s(k)
+      .InNamespace(ns)
+      .Get(o.metadata?.name || "");
+  } catch (e) {
+    if (e.status === 404) {
+      return Promise.resolve(true);
+    }
+  }
+  return Promise.resolve(false);
+}
+
+export async function untilTrue(predicate: () => Promise<boolean>) {
+  while (true) {
+    if (await predicate()) {
+      break;
+    }
+    await sleep(0.25);
+  }
 }

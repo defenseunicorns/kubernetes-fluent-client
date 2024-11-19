@@ -2,6 +2,7 @@
 import { GenericKind, RegisterKind } from "kubernetes-fluent-client";
 export class Datastore extends GenericKind {
   spec?: Spec;
+  status?: Status;
 }
 
 export interface Spec {
@@ -29,6 +30,17 @@ export interface Spec {
 export enum Kind {
   Sqlite = "sqlite",
   Valkey = "valkey",
+}
+
+export interface Status {
+  observedGeneration?: number;
+  phase?: Phase;
+}
+
+export enum Phase {
+  Failed = "Failed",
+  Pending = "Pending",
+  Ready = "Ready",
 }
 
 RegisterKind(Datastore, {
