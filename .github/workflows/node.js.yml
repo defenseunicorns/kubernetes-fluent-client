@@ -48,4 +48,4 @@ jobs:
         run: npm test
 
       - name: Test E2E
-        uses: ./.github/workflows/e2e.yml
+        uses: .github/workflows/e2e.yml

@@ -41,7 +41,7 @@ jobs:
         run: npm run test
 
       - name: Test E2E
-        uses: ./.github/workflows/e2e.yml
+        uses: .github/workflows/e2e.yml
 
       - name: Release
         env:
