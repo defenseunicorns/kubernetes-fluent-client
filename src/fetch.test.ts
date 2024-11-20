@@ -52,15 +52,27 @@ beforeEach(() => {
 
   mockClient.intercept({ path: "/todos/empty-string", method: "GET" }).reply(StatusCodes.OK, "");
 
-  mockClient.intercept({ path: "/todos/empty-object", method: "GET" }).reply(StatusCodes.OK, {});
+  mockClient.intercept({ path: "/todos/empty-object", method: "GET" }).reply(
+    StatusCodes.OK,
+    {},
+    {
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+      },
+    },
+  );
 
   mockClient
     .intercept({ path: "/todos/invalid", method: "GET" })
     .replyWithError(new Error("Something bad happened"));
 });
 
-afterEach(() => {
-  mockAgent.close();
+afterEach(async () => {
+  try {
+    await mockAgent.close();
+  } catch (error) {
+    console.error("Error closing mock agent", error);
+  }
 });
 
 test("fetch: should return without type data", async () => {
@@ -130,8 +142,14 @@ test("fetch: should handle empty (string) responses", async () => {
 
 test("fetch: should handle empty (object) responses", async () => {
   const url = "https://jsonplaceholder.typicode.com/todos/empty-object";
-  const resp = await fetch(url);
-  expect(resp.data).toEqual("{}");
+  const requestOptions: RequestInit = {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json; charset=UTF-8",
+    },
+  };
+  const resp = await fetch(url, requestOptions);
+  expect(resp.data).toEqual({});
   expect(resp.ok).toBe(true);
   expect(resp.status).toBe(StatusCodes.OK);
 });
@@ -163,14 +181,3 @@ test("fetch wrapper respects MockAgent", async () => {
   expect(response.ok).toBe(true);
   expect(response.data).toEqual({ success: true });
 });
-
-// let ff = () => {
-//   return fetch(url, opts)
-//   .then(response => {
-//     for (const [key, value] of response.headers) {
-//       console.log(`${key}: ${value}`);
-//     }
-//      return response.json()
-//     })
-//     .then(data => console.log(data.title))
-// }

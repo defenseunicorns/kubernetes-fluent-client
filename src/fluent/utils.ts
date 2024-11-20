@@ -156,7 +156,6 @@ export function pathBuilder<T extends GenericClass>(
  * @param method - the HTTP method to use
  * @returns the fetch options and server URL
  */
-// export async function transformedK8sCfg(method: FetchMethods): K8sConfigPromise {
 export async function k8sCfg(method: FetchMethods): K8sConfigPromise {
   const kubeConfig = new KubeConfig();
   kubeConfig.loadFromDefault();
@@ -178,43 +177,6 @@ export async function k8sCfg(method: FetchMethods): K8sConfigPromise {
 
   return { opts: undiciRequestUnit, serverUrl: cluster.server };
 }
-
-/**
- * Sets up the kubeconfig and https agent for a request
- *
- * A few notes:
- * - The kubeconfig is loaded from the default location, and can check for in-cluster config
- * - We have to create an agent to handle the TLS connection (for the custom CA + mTLS in some cases)
- * - The K8s lib uses request instead of node-fetch today so the object is slightly different
- *
- * @param method - the HTTP method to use
- * @returns the fetch options and server URL
- */
-// export async function k8sCfg(method: FetchMethods) {
-//   const kubeConfig = new KubeConfig();
-//   kubeConfig.loadFromDefault();
-
-//   const cluster = kubeConfig.getCurrentCluster();
-//   if (!cluster) {
-//     throw new Error("No currently active cluster");
-//   }
-
-//   // Setup the TLS options & auth headers, as needed
-//   const opts = await kubeConfig.applyToFetchOptions({
-//     method,
-//     headers: {
-//       // Set the default content type to JSON
-//       "Content-Type": "application/json",
-//       // Set the user agent like kubectl does
-//       "User-Agent": `kubernetes-fluent-client`,
-//     },
-//   });
-
-//   // Enable compression
-//   opts.compress = true;
-
-//   return { opts, serverUrl: cluster.server };
-// }
 
 /**
  * Execute a request against the Kubernetes API server.

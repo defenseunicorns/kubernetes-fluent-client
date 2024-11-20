@@ -17,7 +17,7 @@ jest.mock("../fetch");
 describe("getToken", () => {
   it("should return the token from the service account", async () => {
     const token = "fake-token";
-    jest.spyOn(fs.promises, "readFile").mockResolvedValue(token as unknown as Buffer);
+    jest.spyOn(fs.promises, "readFile").mockResolvedValue(token);
     const result = await getToken();
     expect(result).toEqual(token);
     jest.restoreAllMocks();
@@ -42,7 +42,7 @@ describe("getHTTPSAgent", () => {
 describe("getHeaders", () => {
   it("should return the correct headers", async () => {
     const token = "fake-token";
-    jest.spyOn(fs.promises, "readFile").mockResolvedValue(token as unknown as Buffer);
+    jest.spyOn(fs.promises, "readFile").mockResolvedValue(token);
     const headers = await getHeaders();
     expect(headers).toEqual({
       "Content-Type": "application/json",
