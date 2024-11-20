@@ -84,7 +84,9 @@ describe("KFC e2e test", () => {
     try {
       const nsList = await K8s(kind.Namespace).Get();
       expect(nsList.items.length).toBeGreaterThan(0);
-      expect(nsList.items.find(ns => ns.metadata!.name === namespace)).toBeDefined();
+      expect(
+        nsList.items.find((ns: KubernetesObject) => ns.metadata!.name === namespace),
+      ).toBeDefined();
     } catch (e) {
       expect(e).toBeUndefined();
     }
@@ -264,7 +266,7 @@ describe("KFC e2e test", () => {
     try {
       const logs = await K8s(kind.Pod).InNamespace(namespace).Logs(namespace);
       expect(logs).toBeDefined();
-      expect(logs.find(log => log.includes("nginx"))).toBeTruthy();
+      expect(logs.find((log: string) => log.includes("nginx"))).toBeTruthy();
     } catch (e) {
       expect(e).toBeUndefined();
     }
