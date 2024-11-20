@@ -15,15 +15,15 @@ describe("KFC e2e test", () => {
     try {
       execCommand(`k3d cluster delete ${clusterName}`);
     } catch {
-      console.error("Failed to delete cluster");
+      throw new Error("Failed to delete cluster");
     }
   });
 
   beforeAll(async () => {
     try {
-      await K8s(kind.Namespace).Apply({ metadata: { name: namespace } });
-    } catch {
-      console.error("Apply namespace failed");
+      await K8s(kind.Namespace).Apply({ metadata: { name: namespace } },{force: true});
+    } catch (e){
+      expect(e).toBeUndefined();
     }
   }, 30000);
 
@@ -37,7 +37,7 @@ describe("KFC e2e test", () => {
         { force: true },
       );
     } catch (e) {
-      console.error(e);
+      expect(e).toBeUndefined();
     }
     await waitForRunningStatusPhase(kind.Pod, { metadata: { name: namespace, namespace } });
   });
@@ -102,15 +102,15 @@ describe("KFC e2e test", () => {
       expect(result).toBeUndefined();
       await untilTrue(() => gone(kind.Pod, { metadata: { name: namespace, namespace } }));
     } catch (e) {
-      console.error(e);
+      expect(e).toBeUndefined();
     }
     try {
       await K8s(kind.Pod).Apply({
         metadata: { name: namespace, namespace, labels: { app: "nginx" } },
         spec: { containers: [{ name: "nginx", image: "nginx" }] },
-      });
+      },{force: true});
     } catch (e) {
-      console.error(e);
+      expect(e).toBeUndefined();
     }
     await waitForRunningStatusPhase(kind.Pod, { metadata: { name: namespace, namespace } });
   }, 80000);
@@ -311,9 +311,9 @@ describe("KFC e2e test", () => {
       const { data, ok } = await fetch(stringURL);
       expect(ok).toBe(true);
       expect(data).toBeDefined();
-      expect(ok).toContain("Keep it logically awesome.");
+      expect(data).toContain("MMMMMMMMMMMMM");
     } catch (e){
-      console.error(e);
+      expect(e).toBeUndefined();
     }
 
     // JSON payload
@@ -323,7 +323,7 @@ describe("KFC e2e test", () => {
       expect(data).toBeDefined();
       expect(data.id).toBe(1);
     } catch (e) {
-      console.error(e);
+      expect(e).toBeUndefined();
     }
   });
 });
@@ -433,7 +433,7 @@ const createCR = async (
   try {
     await K8s(k).Apply(o, { force });
   } catch (e) {
-    console.error(e);
+    expect(e).toBeUndefined();
   }
 };
 
@@ -442,13 +442,7 @@ const createCR = async (
  * 
  * @param cmd - string
  * @returns Buffer
- * @throws Error
  */
 const execCommand = (cmd: string): Buffer => {
-  try {
     return execSync(cmd, { stdio: "inherit" });
-  } catch (e) {
-    console.error(e);
-    throw e;
-  }
 };
