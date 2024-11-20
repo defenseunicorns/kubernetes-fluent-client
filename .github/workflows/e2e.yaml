@@ -55,13 +55,17 @@ jobs:
         run: |
           cd "$KFC"
           kubectl apply -f test/ && npx ts-node src/cli.ts crd ./test/datastore.crd.yaml e2e && npx ts-node src/cli.ts crd https://raw.githubusercontent.com/defenseunicorns/kubernetes-fluent-client/refs/heads/471/test/webapp.crd.yaml e2e
+        shell: bash
 
       - name: Prepare Image
         run: |
           cd "$KFC"
           npm pack && npm i kubernetes-fluent-client-0.0.0-development.tgz --no-save
+        shell: bash
 
       - name: Run the e2es
         run: |
           cd "$KFC"
           npm run test:e2e
+        shell: bash
+        
