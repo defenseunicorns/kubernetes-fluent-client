@@ -11,6 +11,8 @@ permissions:
   contents: read
 
 jobs:
+  e2e:
+    uses: "./.github/workflows/e2e.yml"
   format:
     runs-on: ubuntu-latest
     steps:
@@ -25,6 +27,7 @@ jobs:
       - name: Verify the integrity of provenance attestations and registry signatures for installed dependencies
         run: npm audit signatures
   test:
+    needs: e2e
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -44,8 +47,5 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Test
+      - name: Test Unit
         run: npm test
-
-      - name: Test E2E
-        run: npm run test:e2e

@@ -311,7 +311,7 @@ function createMockPod(name: string, resourceVersion: string): kind.Pod {
     metadata: {
       name: name,
       resourceVersion: resourceVersion,
-      uid: Math.random().toString(36).substring(7),
+      uid: "random-uid",
     },
     spec: {
       containers: [
