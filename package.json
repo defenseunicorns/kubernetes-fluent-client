@@ -44,7 +44,6 @@
     "@kubernetes/client-node": "1.0.0-rc7",
     "fast-json-patch": "3.1.1",
     "http-status-codes": "2.3.0",
-    "kubernetes-fluent-client": "file:kubernetes-fluent-client-0.0.0-development.tgz",
     "node-fetch": "2.7.0",
     "quicktype-core": "23.0.170",
     "type-fest": "4.27.0",

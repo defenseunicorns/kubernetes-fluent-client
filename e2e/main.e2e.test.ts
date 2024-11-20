@@ -5,17 +5,17 @@ import { WebApp, Phase, Language, Theme } from "./webapp-v1alpha1";
 import { execSync } from "child_process";
 import { V1APIGroup } from "@kubernetes/client-node";
 import { beforeEach } from "node:test";
-import exp from "constants";
 
 jest.unmock("@kubernetes/client-node");
 const namespace = `e2e-tests`;
 const clusterName = "kfc-dev";
+
 describe("KFC e2e test", () => {
-  // afterAll(async () => {
-  //   try {
-  //     execCommand(`k3d cluster delete ${clusterName}`);
-  //   } catch {}
-  // });
+  afterAll(async () => {
+    try {
+      execCommand(`k3d cluster delete ${clusterName}`);
+    } catch {}
+  });
 
   beforeAll(async () => {
     try {
@@ -109,7 +109,7 @@ describe("KFC e2e test", () => {
     await waitForRunningStatusPhase(kind.Pod, { metadata: { name: namespace, namespace } });
   }, 80000);
 
-  test("Create()", async () => {
+  test("Create", async () => {
     try {
       await K8s(kind.Pod).Apply({
         metadata: { name: `${namespace}-1`, namespace },
@@ -126,7 +126,7 @@ describe("KFC e2e test", () => {
       expect(e).toBeUndefined();
     }
   });
-  test("Raw()", async () => {
+  test("Raw", async () => {
     try {
       const data = await K8s(V1APIGroup).Raw("/api");
       expect(data).toBeDefined();
@@ -182,7 +182,7 @@ describe("KFC e2e test", () => {
     }
   });
 
-  test("PatchStatus()", async () => {
+  test("PatchStatus", async () => {
     // Create initial CRs
     await createCR(WebApp, {
       metadata: { name: "webapp", namespace },
@@ -250,7 +250,7 @@ describe("KFC e2e test", () => {
       const podList = await K8s(kind.Pod)
         .InNamespace(namespace)
         .WithLabel("app", "nginx")
-        // .WithField("metadata.name", namespace)
+        .WithField("metadata.name", namespace)
         .Get();
       expect(podList.items.length).toBe(1);
       const po = podList.items[0];
@@ -383,26 +383,6 @@ const createCR = async (
   } catch (e) {
     console.error(e);
   }
-};
-
-const deleteCR = async (k: GenericClass, o: KubernetesObject): Promise<void> => {
-  try {
-    await K8s(k)
-      .InNamespace(o.metadata?.namespace || "")
-      .Delete({ name: o.metadata?.name || "" });
-  } catch {}
-
-  const getObject = async (): Promise<boolean> => {
-    const object = await K8s(k)
-      .InNamespace(o.metadata?.namespace || "")
-      .Get(o.metadata?.name || "");
-    if (object.metadata?.name === o.metadata?.name) {
-      await sleep(2);
-      return await getObject();
-    }
-    return Promise.resolve(true);
-  };
-  await getObject();
 };
 
 const execCommand = (cmd: string): Buffer => {
