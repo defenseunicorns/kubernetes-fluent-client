@@ -38,7 +38,6 @@ jobs:
           cd "$KFC"
           npm ci
 
-
       - name: "install k3d"
         run: "curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash"
         shell: bash
@@ -56,12 +55,12 @@ jobs:
         run: |
           cd "$KFC"
           kubectl apply -f test/ && npx ts-node src/cli.ts crd ./test/datastore.crd.yaml e2e && npx ts-node src/cli.ts crd https://raw.githubusercontent.com/defenseunicorns/kubernetes-fluent-client/refs/heads/471/test/webapp.crd.yaml e2e
-   
+
       - name: Prepare Image
         run: |
           cd "$KFC"
           npm pack && npm i kubernetes-fluent-client-0.0.0-development.tgz --no-save
-   
+
       - name: Run the e2es
         run: |
           cd "$KFC"
