@@ -37,6 +37,7 @@ jobs:
         run: |
           cd "$KFC"
           npm ci
+        shell: bash
 
       - name: "install k3d"
         run: "curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash"
