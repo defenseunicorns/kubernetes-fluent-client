@@ -14,13 +14,17 @@ describe("KFC e2e test", () => {
   afterAll(async () => {
     try {
       execCommand(`k3d cluster delete ${clusterName}`);
-    } catch {}
+    } catch {
+      console.error("Failed to delete cluster");
+    }
   });
 
   beforeAll(async () => {
     try {
       await K8s(kind.Namespace).Apply({ metadata: { name: namespace } });
-    } catch {}
+    } catch {
+      console.error("Failed to delete cluster");
+    }
   }, 30000);
 
   beforeEach(async () => {
@@ -308,7 +312,9 @@ describe("KFC e2e test", () => {
       expect(ok).toBe(true);
       expect(data).toBeDefined();
       expect(ok).toContain("Keep it logically awesome.");
-    } catch {}
+    } catch {
+      console.error("Failed to delete cluster");
+    }
 
     // JSON payload
     try {
@@ -316,14 +322,29 @@ describe("KFC e2e test", () => {
       expect(ok).toBe(true);
       expect(data).toBeDefined();
       expect(data.id).toBe(1);
-    } catch {}
+    } catch (e) {
+      console.error(e);
+    }
   });
 });
 
+/**
+ * sleep for a given number of seconds
+ * 
+ * @param seconds - number of seconds to sleep
+ * @returns Promise<void>
+ */
 export function sleep(seconds: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, seconds * 1000));
 }
 
+/**
+ * Wait for the status phase to be Running
+ * 
+ * @param k - GenericClass
+ * @param o - KubernetesObject
+ * @returns Promise<void>
+ */
 export async function waitForRunningStatusPhase(
   k: GenericClass,
   o: KubernetesObject,
@@ -338,6 +359,14 @@ export async function waitForRunningStatusPhase(
   }
 }
 
+/**
+ * Wait for the status phase to be the given status
+ * 
+ * @param k - GenericClass
+ * @param o - KubernetesObject
+ * @param status - string
+ * @returns Promise<void>
+ */
 export async function waitForGenericStatusPhase(
   k: GenericClass,
   o: KubernetesObject,
@@ -351,6 +380,14 @@ export async function waitForGenericStatusPhase(
     return waitForGenericStatusPhase(k, o, status);
   }
 }
+
+/**
+ * Check if the object is gone
+ * 
+ * @param k - GenericClass
+ * @param o - KubernetesObject
+ * @returns Promise<boolean>
+ */
 export async function gone(k: GenericClass, o: KubernetesObject): Promise<boolean> {
   const ns = o.metadata?.namespace ? o.metadata.namespace : "";
 
@@ -358,23 +395,36 @@ export async function gone(k: GenericClass, o: KubernetesObject): Promise<boolea
     await K8s(k)
       .InNamespace(ns)
       .Get(o.metadata?.name || "");
-  } catch (e) {
-    if (e.status === 404) {
+  } catch {
       return Promise.resolve(true);
-    }
   }
   return Promise.resolve(false);
 }
 
+/**
+ * Wait until the predicate is true
+ * 
+ * @param predicate - () => Promise<boolean>
+ * @returns Promise<void>
+ */
 export async function untilTrue(predicate: () => Promise<boolean>): Promise<void> {
-  while (true) {
-    if (await predicate()) {
-      break;
+  let condition = false;
+  while (!condition) {
+    condition = await predicate();
+    if (!condition) {
+      await sleep(0.25);
     }
-    await sleep(0.25);
   }
 }
 
+/**
+ * Create a CR
+ * 
+ * @param k - GenericClass
+ * @param o - KubernetesObject
+ * @param force - boolean
+ * @returns Promise<void>
+ */
 const createCR = async (
   k: GenericClass,
   o: KubernetesObject,
@@ -387,6 +437,13 @@ const createCR = async (
   }
 };
 
+/**
+ * Execute a command
+ * 
+ * @param cmd - string
+ * @returns Buffer
+ * @throws Error
+ */
 const execCommand = (cmd: string): Buffer => {
   try {
     return execSync(cmd, { stdio: "inherit" });
