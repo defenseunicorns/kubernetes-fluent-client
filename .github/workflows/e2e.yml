@@ -54,7 +54,7 @@ jobs:
       - name: Prepare CRDs and Generate Classes
         run: |
           cd "$KFC"
-          kubectl apply -f test/ && npx ts-node src/cli.ts crd ./test/datastore.crd.yaml e2e && npx ts-node src/cli.ts crd https://raw.githubusercontent.com/defenseunicorns/kubernetes-fluent-client/refs/heads/471/test/webapp.crd.yaml e2e
+          kubectl apply -f test/ && npx ts-node src/cli.ts crd ./test/datastore.crd.yaml e2e && npx ts-node src/cli.ts crd https://raw.githubusercontent.com/defenseunicorns/kubernetes-fluent-client/refs/heads/main/test/webapp.crd.yaml e2e
         shell: bash
 
       - name: Prepare Image and Test
