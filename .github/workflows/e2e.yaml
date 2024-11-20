@@ -61,6 +61,7 @@ jobs:
       - name: Prepare Image and Test
         run: |
           cd "$KFC"
+          npm run build
           npm pack
           npm i kubernetes-fluent-client-0.0.0-development.tgz --no-save
           npm run test:e2e
