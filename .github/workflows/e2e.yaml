@@ -2,10 +2,8 @@ name: e2e Test
 
 permissions: read-all
 on:
-  push:
-    branches: ["main"]
-  pull_request:
-    branches: ["main"]
+  # Triggered by node.js.yaml & release.yaml
+  workflow_call:
 
 jobs:
   e2e:
