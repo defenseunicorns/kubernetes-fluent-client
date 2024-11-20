@@ -3,6 +3,7 @@ name: e2e Test
 permissions: read-all
 on:
   # Triggered by node.js.yaml & release.yaml
+  workflow_dispatch:
   workflow_call:
 
 jobs:

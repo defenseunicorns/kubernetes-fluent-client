@@ -23,7 +23,7 @@ describe("KFC e2e test", () => {
     try {
       await K8s(kind.Namespace).Apply({ metadata: { name: namespace } });
     } catch {
-      console.error("Failed to delete cluster");
+      console.error("Apply namespace failed");
     }
   }, 30000);
 
