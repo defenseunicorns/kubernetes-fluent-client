@@ -312,8 +312,8 @@ describe("KFC e2e test", () => {
       expect(ok).toBe(true);
       expect(data).toBeDefined();
       expect(ok).toContain("Keep it logically awesome.");
-    } catch {
-      console.error("Failed to delete cluster");
+    } catch (e){
+      console.error(e);
     }
 
     // JSON payload

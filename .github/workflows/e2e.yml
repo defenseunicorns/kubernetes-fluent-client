@@ -4,7 +4,6 @@ permissions:
   contents: read
 on:
   # Triggered by node.js.yaml & release.yaml
-  workflow_dispatch:
   workflow_call:
 
 jobs:
