@@ -69,9 +69,13 @@ describe("Watcher", () => {
       });
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     watcher.close();
-    mockAgent.close();
+    try {
+      await mockAgent.close();
+    } catch (error) {
+      console.error("Error closing mock agent", error);
+    }
   });
 
   it("should watch named resources", done => {
