@@ -69,4 +69,3 @@ jobs:
           cd "$KFC"
           npm run test:e2e
         shell: bash
-        
