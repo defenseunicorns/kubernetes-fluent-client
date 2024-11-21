@@ -131,3 +131,6 @@ dist
 
 # Generated CRD files
 generated/
+
+e2e/*v1alpha1.ts
+
