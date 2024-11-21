@@ -13,7 +13,6 @@ name: CodeQL
 
 on:
   push:
-  merge_group:
 
 permissions:
   contents: read
