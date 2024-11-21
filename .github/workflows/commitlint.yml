@@ -5,6 +5,8 @@ on:
     branches: [main]
     types: [opened, edited, synchronize]
   merge_group:
+    paths-ignore:
+    - "*"
 
 permissions: # added using https://github.com/step-security/secure-repo
   contents: read
