@@ -6,10 +6,10 @@ on:
     types: [opened, edited, synchronize]
   merge_group:
     paths-ignore:
-    - "LICENSE"
-    - "CODEOWNERS"
-    - "**.md"
-    
+      - "LICENSE"
+      - "CODEOWNERS"
+      - "**.md"
+
 permissions: # added using https://github.com/step-security/secure-repo
   contents: read
 

@@ -15,10 +15,10 @@ on:
   push:
   merge_group:
     paths-ignore:
-    - "LICENSE"
-    - "CODEOWNERS"
-    - "**.md"
-    
+      - "LICENSE"
+      - "CODEOWNERS"
+      - "**.md"
+
 permissions:
   contents: read
 
