@@ -1,4 +1,4 @@
-name: Node.js CI
+name: "Node.js CI"
 
 on:
   push:
@@ -6,6 +6,7 @@ on:
   pull_request:
     branches: [main]
   workflow_call:
+  merge_group:
 
 permissions:
   contents: read
@@ -17,11 +18,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - name: Use Node.js latest
+
+      - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
         with:
           node-version: latest
           cache: npm
+
       - run: npm ci
       - run: npm run format:check
       - name: Verify the integrity of provenance attestations and registry signatures for installed dependencies
@@ -31,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [18, 20, latest]
+        node-version: [18, 20, 22]
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
