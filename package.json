@@ -47,8 +47,8 @@
     "http-status-codes": "2.3.0",
     "node-fetch": "2.7.0",
     "quicktype-core": "23.0.170",
-    "type-fest": "4.27.0",
-    "undici": "6.21.0",
+    "type-fest": "4.29.1",
+    "undici": "7.0.0",
     "yargs": "17.7.2"
   },
   "devDependencies": {
@@ -61,18 +61,18 @@
     "@types/readable-stream": "4.0.18",
     "@types/urijs": "^1.19.25",
     "@types/yargs": "17.0.33",
-    "@typescript-eslint/eslint-plugin": "8.15.0",
-    "@typescript-eslint/parser": "8.15.0",
-    "eslint-plugin-jsdoc": "50.5.0",
+    "@typescript-eslint/eslint-plugin": "8.16.0",
+    "@typescript-eslint/parser": "8.16.0",
+    "eslint-plugin-jsdoc": "50.6.0",
     "globals": "^15.12.0",
     "husky": "^9.1.6",
     "jest": "29.7.0",
     "lint-staged": "^15.2.10",
     "nock": "13.5.6",
-    "prettier": "3.3.3",
+    "prettier": "3.4.1",
     "semantic-release": "24.2.0",
     "ts-jest": "29.2.5",
-    "typescript": "5.6.3"
+    "typescript": "5.7.2"
   },
   "release": {
     "branches": [
