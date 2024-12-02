@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
 
 import { StatusCodes } from "http-status-codes";
-import fetchRaw, { FetchError, RequestInfo, RequestInit } from "node-fetch";
+import { fetch as undiciFetch, RequestInfo, RequestInit } from "undici";
 
 export type FetchResponse<T> = {
   data: T;
@@ -30,12 +30,12 @@ export async function fetch<T>(
 ): Promise<FetchResponse<T>> {
   let data = undefined as unknown as T;
   try {
-    const resp = await fetchRaw(url, init);
+    const resp = await undiciFetch(url, init);
     const contentType = resp.headers.get("content-type") || "";
 
     // Parse the response as JSON if the content type is JSON
     if (contentType.includes("application/json")) {
-      data = await resp.json();
+      data = (await resp.json()) as T;
     } else {
       // Otherwise, return however the response was read
       data = (await resp.text()) as unknown as T;
@@ -48,23 +48,14 @@ export async function fetch<T>(
       statusText: resp.statusText,
     };
   } catch (e) {
-    if (e instanceof FetchError) {
-      // Parse the error code from the FetchError or default to 400 (Bad Request)
-      const status = parseInt(e.code || "400");
-
-      return {
-        data,
-        ok: false,
-        status,
-        statusText: e.message,
-      };
-    }
+    const status = parseInt(e?.code) || StatusCodes.BAD_REQUEST;
+    const statusText = e?.message || "Unknown error";
 
     return {
       data,
       ok: false,
-      status: StatusCodes.BAD_REQUEST,
-      statusText: "Unknown error",
+      status,
+      statusText,
     };
   }
 }

@@ -3,15 +3,12 @@
 
 import { createHash } from "crypto";
 import { EventEmitter } from "events";
-import https from "https";
-import { RequestInit } from "node-fetch";
-import { Agent, fetch } from "undici";
+import { fetch } from "undici";
 import { fetch as wrappedFetch } from "../fetch";
 import { GenericClass, KubernetesListObject } from "../types";
-import { Filters, WatchAction, WatchPhase } from "./types";
-import { k8sCfg, pathBuilder } from "./utils";
+import { Filters, WatchAction, WatchPhase, K8sConfigPromise } from "./types";
+import { k8sCfg, pathBuilder, getHeaders } from "./utils";
 import { Readable } from "stream";
-import fs from "fs";
 
 export enum WatchEvent {
   /** Watch is connected successfully */
@@ -99,8 +96,6 @@ export class Watcher<T extends GenericClass> {
   // Track the list of items in the cache
   #cache = new Map<string, InstanceType<T>>();
 
-  // Token Path
-  #TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token";
   /**
    * Setup a Kubernetes watcher for the specified model and filters. The callback function will be called for each event received.
    * The watch can be aborted by calling {@link Watcher.close} or by calling abort() on the AbortController returned by {@link Watcher.start}.
@@ -205,19 +200,6 @@ export class Watcher<T extends GenericClass> {
   }
 
   /**
-   * Read the serviceAccount Token
-   *
-   * @returns token or null
-   */
-  async #getToken() {
-    try {
-      return (await fs.promises.readFile(this.#TOKEN_PATH, "utf8")).trim();
-    } catch {
-      return null;
-    }
-  }
-
-  /**
    * Build the URL and request options for the watch.
    *
    * @param isWatch - whether the request is for a watch operation
@@ -226,11 +208,15 @@ export class Watcher<T extends GenericClass> {
    *
    * @returns the URL and request options
    */
-  #buildURL = async (isWatch: boolean, resourceVersion?: string, continueToken?: string) => {
+  #buildURL = async (
+    isWatch: boolean,
+    resourceVersion?: string,
+    continueToken?: string,
+  ): K8sConfigPromise => {
     // Build the path and query params for the resource, excluding the name
     const { opts, serverUrl } = await k8sCfg("GET");
-
-    const url = pathBuilder(serverUrl, this.#model, this.#filters, true);
+    const k8sUrl = serverUrl instanceof URL ? serverUrl.toString() : serverUrl;
+    const url = pathBuilder(k8sUrl, this.#model, this.#filters, true);
 
     // Enable the watch query param
     if (isWatch) {
@@ -254,7 +240,7 @@ export class Watcher<T extends GenericClass> {
     // Add the abort signal to the request options
     opts.signal = this.#abortController.signal;
 
-    return { opts, url };
+    return { opts, serverUrl: url };
   };
 
   /**
@@ -265,10 +251,10 @@ export class Watcher<T extends GenericClass> {
    */
   #list = async (continueToken?: string, removedItems?: Map<string, InstanceType<T>>) => {
     try {
-      const { opts, url } = await this.#buildURL(false, undefined, continueToken);
+      const { opts, serverUrl } = await this.#buildURL(false, undefined, continueToken);
 
       // Make the request to list the resources
-      const response = await wrappedFetch<KubernetesListObject<InstanceType<T>>>(url, opts);
+      const response = await wrappedFetch<KubernetesListObject<InstanceType<T>>>(serverUrl, opts);
       const list = response.data;
 
       // If the request fails, emit an error event and return
@@ -405,28 +391,6 @@ export class Watcher<T extends GenericClass> {
     }
   };
 
-  static getHTTPSAgent = (opts: RequestInit) => {
-    // In cluster there will be agent - testing or dev no
-    const agentOptions =
-      opts.agent instanceof https.Agent
-        ? {
-            ca: opts.agent.options.ca,
-            cert: opts.agent.options.cert,
-            key: opts.agent.options.key,
-          }
-        : {
-            ca: undefined,
-            cert: undefined,
-            key: undefined,
-          };
-
-    return new Agent({
-      keepAliveMaxTimeout: 600000,
-      keepAliveTimeout: 600000,
-      bodyTimeout: 0,
-      connect: agentOptions,
-    });
-  };
   /**
    * Watch for changes to the resource.
    */
@@ -436,22 +400,14 @@ export class Watcher<T extends GenericClass> {
       await this.#list();
 
       // Build the URL and request options
-      const { opts, url } = await this.#buildURL(true, this.#resourceVersion);
+      const { opts, serverUrl } = await this.#buildURL(true, this.#resourceVersion);
 
-      const token = await this.#getToken();
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-        "User-Agent": "kubernetes-fluent-client",
-      };
-
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-      }
-
-      const response = await fetch(url, {
-        headers,
-        dispatcher: Watcher.getHTTPSAgent(opts),
+      const response = await fetch(serverUrl, {
+        headers: await getHeaders(),
+        ...opts,
       });
+
+      const url = serverUrl instanceof URL ? serverUrl : new URL(serverUrl);
 
       // If the request is successful, start listening for events
       if (response.ok) {

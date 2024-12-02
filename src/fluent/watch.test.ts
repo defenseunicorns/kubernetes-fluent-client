@@ -1,9 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { Interceptable, MockAgent, Agent, setGlobalDispatcher } from "undici";
+import { Interceptable, MockAgent, setGlobalDispatcher } from "undici";
 import { PassThrough } from "stream";
-import { RequestInit } from "node-fetch";
 import { K8s } from ".";
 import { WatchEvent, kind } from "..";
 import { WatchPhase } from "./types";
@@ -70,9 +69,13 @@ describe("Watcher", () => {
       });
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     watcher.close();
-    mockAgent.close();
+    try {
+      await mockAgent.close();
+    } catch (error) {
+      console.error("Error closing mock agent", error);
+    }
   });
 
   it("should watch named resources", done => {
@@ -295,15 +298,6 @@ describe("Watcher", () => {
       );
     });
     done();
-  });
-
-  it("should return an https agent", () => {
-    const opts: RequestInit = {};
-    const agent = Watcher.getHTTPSAgent(opts);
-    expect(agent).toBeInstanceOf(Agent);
-    expect(agent).toHaveProperty("_events");
-    expect(agent).toHaveProperty("_eventsCount");
-    expect(agent).toHaveProperty("_maxListeners");
   });
 });
 
