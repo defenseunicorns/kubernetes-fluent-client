@@ -26,6 +26,13 @@
     "url": "https://github.com/defenseunicorns/kubernetes-fluent-client/issues"
   },
   "homepage": "https://github.com/defenseunicorns/kubernetes-fluent-client#readme",
+  "files": [
+    "/src",
+    "/dist",
+    "!src/**/*.test.ts",
+    "!dist/**/*.test.js*",
+    "!dist/**/*.test.d.ts*"
+  ],
   "scripts": {
     "prebuild": "rm -rf dist",
     "build": "tsc",
