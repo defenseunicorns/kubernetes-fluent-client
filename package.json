@@ -5,21 +5,6 @@
   "bin": "./dist/cli.js",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "scripts": {
-    "prebuild": "rm -rf dist",
-    "build": "tsc",
-    "semantic-release": "semantic-release",
-    "test": "jest src --coverage",
-    "test:e2e": "jest e2e --runInBand",
-    "test:e2e:prep-crds": "kubectl apply -f test/ && npx ts-node src/cli.ts crd ./test/datastore.crd.yaml e2e && npx ts-node src/cli.ts crd https://raw.githubusercontent.com/defenseunicorns/kubernetes-fluent-client/refs/heads/main/test/webapp.crd.yaml e2e",
-    "test:e2e:prep-cluster": "k3d cluster create kfc-dev --k3s-arg '--debug@server:0' --wait && kubectl rollout status deployment -n kube-system",
-    "test:e2e:prep-image": "npm run build && npm pack && npm i kubernetes-fluent-client-0.0.0-development.tgz --no-save",
-    "test:e2e:run": "npm run test:e2e:prep-cluster && npm run test:e2e:prep-crds && npm run test:e2e:prep-image && jest e2e --runInBand && npm run test:e2e:cleanup",
-    "test:e2e:cleanup": "k3d cluster delete kfc-dev",
-    "format:check": "eslint src && prettier . --check",
-    "format:fix": "eslint --fix src && prettier . --write",
-    "prepare": "if [ \"$NODE_ENV\" != 'production' ]; then husky; fi"
-  },
   "engines": {
     "node": ">=18.0.0"
   },
@@ -41,6 +26,21 @@
     "url": "https://github.com/defenseunicorns/kubernetes-fluent-client/issues"
   },
   "homepage": "https://github.com/defenseunicorns/kubernetes-fluent-client#readme",
+  "scripts": {
+    "prebuild": "rm -rf dist",
+    "build": "tsc",
+    "semantic-release": "semantic-release",
+    "test": "jest src --coverage",
+    "test:e2e": "jest e2e --runInBand",
+    "test:e2e:prep-crds": "kubectl apply -f test/ && npx ts-node src/cli.ts crd ./test/datastore.crd.yaml e2e && npx ts-node src/cli.ts crd https://raw.githubusercontent.com/defenseunicorns/kubernetes-fluent-client/refs/heads/main/test/webapp.crd.yaml e2e",
+    "test:e2e:prep-cluster": "k3d cluster create kfc-dev --k3s-arg '--debug@server:0' --wait && kubectl rollout status deployment -n kube-system",
+    "test:e2e:prep-image": "npm run build && npm pack && npm i kubernetes-fluent-client-0.0.0-development.tgz --no-save",
+    "test:e2e:run": "npm run test:e2e:prep-cluster && npm run test:e2e:prep-crds && npm run test:e2e:prep-image && jest e2e --runInBand && npm run test:e2e:cleanup",
+    "test:e2e:cleanup": "k3d cluster delete kfc-dev",
+    "format:check": "eslint src && prettier . --check",
+    "format:fix": "eslint --fix src && prettier . --write",
+    "prepare": "if [ \"$NODE_ENV\" != 'production' ]; then husky; fi"
+  },
   "dependencies": {
     "@kubernetes/client-node": "1.0.0-rc7",
     "fast-json-patch": "3.1.1",
