@@ -59,9 +59,8 @@ Please follow the coding conventions and style used in the project. Use ESLint a
 
 ### Run Tests Locally
 
-- Unit: `npm test`  
+- Unit: `npm test`
 - End to end: `npm run test:e2e:run`
-
 
 ### Running Development Version Locally
 
