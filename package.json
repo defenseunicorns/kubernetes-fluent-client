@@ -49,13 +49,13 @@
     "prepare": "if [ \"$NODE_ENV\" != 'production' ]; then husky; fi"
   },
   "dependencies": {
-    "@kubernetes/client-node": "1.0.0-rc7",
+    "@kubernetes/client-node": "1.0.0",
     "fast-json-patch": "3.1.1",
     "http-status-codes": "2.3.0",
     "node-fetch": "2.7.0",
     "quicktype-core": "23.0.170",
     "type-fest": "4.30.2",
-    "undici": "7.1.1",
+    "undici": "7.2.0",
     "yargs": "17.7.2"
   },
   "devDependencies": {
