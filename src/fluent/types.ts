@@ -10,6 +10,11 @@ import { WatchCfg, Watcher } from "./watch";
 import https from "https";
 import { SecureClientSessionOptions } from "http2";
 
+/*
+ * Watch Class Type
+ */
+export type WatcherType<T extends GenericClass> = Watcher<T>;
+
 /**
  * Fetch options and server URL
  */
