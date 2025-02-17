@@ -54,7 +54,7 @@
     "http-status-codes": "2.3.0",
     "node-fetch": "2.7.0",
     "quicktype-core": "23.0.171",
-    "type-fest": "4.34.1",
+    "type-fest": "4.35.0",
     "undici": "7.3.0",
     "yargs": "17.7.2"
   },
