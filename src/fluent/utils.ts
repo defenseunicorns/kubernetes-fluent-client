@@ -21,7 +21,7 @@ const K8S_SA_TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token";
  * @param token - the token from @kubernetes/client-node
  * @returns the headers for undici
  */
-export async function getHeaders(token?: string): Promise<Record<string, string>> {
+export async function getHeaders(token?: string | null): Promise<Record<string, string>> {
   let saToken: string | null = "";
   if (!token) {
     saToken = await getToken();
@@ -175,23 +175,24 @@ export async function k8sCfg(method: FetchMethods): K8sConfigPromise {
   // Get TLS Options
   const opts = await kubeConfig.applyToFetchOptions({});
 
-  let authHeader: string | undefined;
+  // Extract the headers from the options object
+  const symbols = Object.getOwnPropertySymbols(opts.headers);
+  const headersMap = symbols
+    .map(symbol => Object.getOwnPropertyDescriptor(opts.headers, symbol)?.value)
+    .find(value => typeof value === "object" && value !== null) as
+    | Record<string, string[]>
+    | undefined;
 
-  if (opts.headers instanceof Headers) {
-    authHeader = opts.headers.get("Authorization") ?? undefined;
-  } else if (Array.isArray(opts.headers)) {
-    authHeader = opts.headers.find(([key]) => key.toLowerCase() === "authorization")?.[1];
-  } else if (typeof opts.headers === "object" && opts.headers !== null) {
-    authHeader = (opts.headers as Record<string, string>)["Authorization"];
-  }
+  // Extract the Authorization header
+  const extractedHeaders: Record<string, string | undefined> = {
+    Authorization: headersMap?.["Authorization"]?.[0]?.split(" ")[1],
+  };
 
-  // Transform the TLS options & auth headers, as needed
   const undiciRequestUnit = {
-    headers: await getHeaders(authHeader),
+    headers: await getHeaders(extractedHeaders["Authorization"]),
     method,
     dispatcher: getHTTPSAgent(opts),
   };
-
   return { opts: undiciRequestUnit, serverUrl: cluster.server };
 }
 
