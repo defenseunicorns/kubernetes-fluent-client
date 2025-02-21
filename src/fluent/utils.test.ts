@@ -40,7 +40,7 @@ describe("getHTTPSAgent", () => {
   });
 });
 describe("getHeaders", () => {
-  it("should return the correct headers", async () => {
+  it("should return the correct headers if the @kubernetes/client-node token is undefined", async () => {
     const token = "fake-token";
     jest.spyOn(fs.promises, "readFile").mockResolvedValue(token);
     const headers = await getHeaders();
@@ -48,6 +48,18 @@ describe("getHeaders", () => {
       "Content-Type": "application/json",
       "User-Agent": "kubernetes-fluent-client",
       Authorization: `Bearer ${token}`,
+    });
+    jest.restoreAllMocks();
+  });
+
+  it("should return the correct headers if the @kubernetes/client-node token is defined", async () => {
+    const token = "fake-token";
+    jest.spyOn(fs.promises, "readFile").mockResolvedValue(token);
+    const headers = await getHeaders("aws-token");
+    expect(headers).toEqual({
+      "Content-Type": "application/json",
+      "User-Agent": "kubernetes-fluent-client",
+      Authorization: `Bearer aws-token`,
     });
     jest.restoreAllMocks();
   });
