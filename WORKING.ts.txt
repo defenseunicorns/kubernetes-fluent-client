@@ -1,0 +1,26 @@
+async function k8sCfg(method) {
+    const kubeConfig = new client_node_1.KubeConfig();
+    kubeConfig.loadFromDefault();
+    const cluster = kubeConfig.getCurrentCluster();
+    if (!cluster) {
+        throw new Error("No currently active cluster");
+    }
+    // Get TLS Options
+    const opts = await kubeConfig.applyToFetchOptions({});
+    console.log("Headers:", opts.headers);
+    const authHeader = opts.headers?.get("Authorization"); // Use `.get()` to retrieve the header
+
+    if (authHeader) {
+    const token = authHeader.replace("Bearer ", ""); // Remove 'Bearer ' prefix
+    console.log("Extracted Token:", token);
+    } else {
+    console.error("Authorization header not found");
+    }
+    // Transform the TLS options & auth headers, as needed
+    const undiciRequestUnit = {
+        headers: await getHeaders(),
+        method,
+        dispatcher: getHTTPSAgent(opts),
+    };
+    return { opts: undiciRequestUnit, serverUrl: cluster.server };
+}
