@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   test:
-    # Runs e2e tests and uni tests
+    # Runs e2e tests and unit tests
     uses: "./.github/workflows/node.js.yml"
 
   release:
