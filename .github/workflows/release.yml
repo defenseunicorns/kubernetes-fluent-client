@@ -9,6 +9,7 @@ permissions:
 
 jobs:
   test:
+    # Runs e2e tests and unit tests
     uses: "./.github/workflows/node.js.yml"
 
   release:
@@ -36,9 +37,6 @@ jobs:
 
       - name: Build
         run: npm run build
-
-      - name: Test
-        run: npm run test
 
       - name: Release
         env:
