@@ -129,6 +129,6 @@ By default, the generated TypeScript interfaces will be post-processed to make t
 kubernetes-fluent-client crd crd.yaml types --noPost
 ```
 
-### Community
+### Community 🦄
 
 To chat with other users & see some examples of the fluent client in active use, go to [Kubernetes Slack](https://communityinviter.com/apps/kubernetes/community) and join `#pepr` channel.
