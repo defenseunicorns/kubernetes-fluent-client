@@ -10,7 +10,7 @@ updates:
     ignore:
       - dependency-name: "@kubernetes/client-node"
         versions:
-          - "1.1.0"
+          - "1.*"
     groups:
       production-dependencies:
         dependency-type: production
