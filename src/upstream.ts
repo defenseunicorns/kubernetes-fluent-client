@@ -70,7 +70,7 @@ export class Endpoint {
 
   /**
    * The generated type only contains a single subnet, should should be an array
-   * kubectl explain ep
+   * > kubectl explain ep # to see actual endpoint type
    */
   subnets?: V1Endpoint[];
 
