@@ -96,6 +96,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
    */
   // https://github.com/defenseunicorns/kubernetes-fluent-client/issues/618
   // The endpoint generated type is not correct and is registered elsewhere
+  // Keep this commented out until the generated type is fixed in the upstream
   // V1Endpoint: {
   //   kind: "Endpoints",
   //   version: "v1",
