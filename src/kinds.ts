@@ -94,12 +94,14 @@ const gvkMap: Record<string, GroupVersionKind> = {
    *
    * @see {@link https://kubernetes.io/docs/concepts/services-networking/service/#endpoints}
    */
-  V1Endpoint: {
-    kind: "Endpoints",
-    version: "v1",
-    group: "",
-    plural: "endpoints",
-  },
+  // https://github.com/defenseunicorns/kubernetes-fluent-client/issues/618
+  // The endpoint generated type is not correct and is registered elsewhere
+  // V1Endpoint: {
+  //   kind: "Endpoints",
+  //   version: "v1",
+  //   group: "",
+  //   plural: "endpoints",
+  // },
 
   /**
    * Represents a K8s LimitRange resource.
