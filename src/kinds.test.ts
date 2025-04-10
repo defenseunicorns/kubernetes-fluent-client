@@ -2,7 +2,6 @@
 // SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
 
 import { expect, test } from "@jest/globals";
-
 import { kind, modelToGroupVersionKind } from "./index";
 import { RegisterKind } from "./kinds";
 import { GroupVersionKind } from "./types";
@@ -118,6 +117,10 @@ const testCases = [
   {
     name: kind.VolumeAttachment,
     expected: { group: "storage.k8s.io", version: "v1", kind: "VolumeAttachment" },
+  },
+  {
+    name: kind.Endpoint,
+    expected: { group: "", version: "v1", kind: "Endpoints", plural: "endpoints" },
   },
 ];
 
