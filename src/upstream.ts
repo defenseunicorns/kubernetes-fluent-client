@@ -51,3 +51,4 @@ export {
   V1VolumeAttachment as VolumeAttachment,
   V1Endpoints as Endpoints,
 } from "@kubernetes/client-node";
+export { GenericKind } from "./types";
