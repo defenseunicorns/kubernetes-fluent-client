@@ -2,8 +2,6 @@
 // SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
 
 /** a is a collection of K8s types to be used within an action: `When(a.Configmap)` */
-import { V1Endpoint, V1ObjectMeta } from "@kubernetes/client-node";
-import { RegisterKind } from "./kinds";
 export {
   CoreV1Event as CoreEvent,
   EventsV1Event as Event,
@@ -51,37 +49,5 @@ export {
   V1TokenReview as TokenReview,
   V1ValidatingWebhookConfiguration as ValidatingWebhookConfiguration,
   V1VolumeAttachment as VolumeAttachment,
-  // V1Endpoint as Endpoint, - keep this so we do not forget incase it is corrected
+  V1Endpoints as Endpoints,
 } from "@kubernetes/client-node";
-
-export { GenericKind } from "./types";
-
-export class Endpoint {
-  /**
-   * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
-   */
-  apiVersion: string = "v1";
-  /**
-   * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
-   */
-  kind: string = "Endpoint";
-
-  metadata?: V1ObjectMeta;
-
-  /**
-   * The generated type only contains a single subnet, should should be an array
-   * > kubectl explain ep # to see actual endpoint type
-   */
-  subnets?: V1Endpoint[];
-
-  constructor(init?: Partial<Endpoint>) {
-    Object.assign(this, init);
-  }
-}
-
-RegisterKind(Endpoint, {
-  group: "",
-  version: "v1",
-  kind: "Endpoints",
-  plural: "endpoints",
-});
