@@ -119,7 +119,7 @@ const testCases = [
     expected: { group: "storage.k8s.io", version: "v1", kind: "VolumeAttachment" },
   },
   {
-    name: kind.Endpoint,
+    name: kind.Endpoints,
     expected: { group: "", version: "v1", kind: "Endpoints", plural: "endpoints" },
   },
 ];
