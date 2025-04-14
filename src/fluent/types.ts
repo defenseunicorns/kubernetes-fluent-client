@@ -49,7 +49,6 @@ export enum WatchPhase {
 export type FetchMethods =
   | "APPLY"
   | "DELETE"
-  | "EVICT"
   | "GET"
   | "LOG"
   | "PATCH"

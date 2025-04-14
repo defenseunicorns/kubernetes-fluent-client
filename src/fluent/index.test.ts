@@ -100,7 +100,7 @@ describe("Kube", () => {
         name: "fake",
         namespace: "default",
       }),
-      "EVICT",
+      "POST",
     );
   });
 

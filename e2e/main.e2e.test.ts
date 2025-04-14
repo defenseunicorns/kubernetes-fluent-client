@@ -96,6 +96,25 @@ describe("KFC e2e test", () => {
     }
   });
 
+  test("Evict by name", async () => {
+    try {
+      const result = await K8s(kind.Pod).InNamespace(namespace).Evict(`${namespace}`);
+      expect(result).toBeUndefined();
+      await untilTrue(() => gone(kind.Pod, { metadata: { name: namespace, namespace } }));
+    } catch (e) {
+      expect(e).toBeUndefined();
+    }
+    try {
+      await K8s(kind.Pod).Apply({
+        metadata: { name: namespace, namespace, labels: { app: "nginx" } },
+        spec: { containers: [{ name: "nginx", image: "nginx" }] },
+      },{force: true});
+    } catch (e) {
+      expect(e).toBeUndefined();
+    }
+    await waitForRunningStatusPhase(kind.Pod, { metadata: { name: namespace, namespace } });
+  }, 80000);
+
   test("Delete by name", async () => {
     try {
       const result = await K8s(kind.Pod).InNamespace(namespace).Delete(`${namespace}`);
