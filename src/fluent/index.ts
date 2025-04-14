@@ -25,7 +25,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
   model: T,
   filters: Filters = {},
 ): K8sInit<T, K> {
-  const withFilters = { WithField, WithLabel, Get, Delete, Watch, Logs };
+  const withFilters = { WithField, WithLabel, Get, Delete, Evict, Watch, Logs };
   const matchedKind = filters.kindOverride || modelToGroupVersionKind(model.name);
 
   /**
@@ -225,6 +225,19 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
   async function Create(resource: K): Promise<K> {
     syncFilters(resource);
     return k8sExec(model, filters, "POST", resource);
+  }
+
+  /**
+   * @inheritdoc
+   * @see {@link K8sInit.Evict}
+   */
+  async function Evict(filter?: K | string): Promise<void> {
+    if (typeof filter === "string") {
+      filters.name = filter;
+    } else if (filter) {
+      syncFilters(filter);
+    }
+    return k8sExec(model, filters, "EVICT");
   }
 
   /**

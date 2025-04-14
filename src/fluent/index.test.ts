@@ -91,6 +91,19 @@ describe("Kube", () => {
     );
   });
 
+  it("should evict a resource", async () => {
+    await K8s(Pod).Evict(fakeResource);
+
+    expect(mockedKubeExec).toHaveBeenCalledWith(
+      Pod,
+      expect.objectContaining({
+        name: "fake",
+        namespace: "default",
+      }),
+      "EVICT",
+    );
+  });
+
   it("should patch a resource", async () => {
     const patchOperations: Operation[] = [
       { op: "replace", path: "/metadata/name", value: "new-fake" },

@@ -47,15 +47,16 @@ export enum WatchPhase {
 }
 
 export type FetchMethods =
-  | "GET"
   | "APPLY"
+  | "DELETE"
+  | "EVICT"
+  | "GET"
+  | "LOG"
+  | "PATCH"
+  | "PATCH_STATUS"
   | "POST"
   | "PUT"
-  | "DELETE"
-  | "PATCH"
-  | "WATCH"
-  | "PATCH_STATUS"
-  | "LOG";
+  | "WATCH";
 
 export interface Filters {
   kindOverride?: GroupVersionKind;
@@ -99,6 +100,13 @@ export type K8sFilteredActions<T extends GenericClass, K extends KubernetesObjec
    * @param filter - the resource or resource name to delete
    */
   Delete: (filter?: K | string) => Promise<void>;
+
+  /**
+   * Evict the resource matching the filters.
+   *
+   * @param filter - the resource or resource name to evict
+   */
+  Evict: (filter?: K | string) => Promise<void>;
 
   /**
    * Watch the resource matching the filters.
