@@ -237,7 +237,17 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
     } else if (filter) {
       syncFilters(filter);
     }
-    return k8sExec(model, filters, "EVICT");
+
+    try {
+      // Try to delete the resource
+      await k8sExec<T, void>(model, filters, "EVICT");
+    } catch (e) {
+      // If the resource doesn't exist, ignore the error
+      if (e.status === StatusCodes.NOT_FOUND) {
+        return;
+      }
+      throw e;
+    }
   }
 
   /**

@@ -202,6 +202,11 @@ describe("Kube", () => {
     await expect(K8s(Pod).Delete("fakeResource")).resolves.toBeUndefined();
   });
 
+  it("should handle Evict when the resource doesn't exist", async () => {
+    mockedKubeExec.mockRejectedValueOnce({ status: 404 }); // Not Found on first call
+    await expect(K8s(Pod).Evict("fakeResource")).resolves.toBeUndefined();
+  });
+
   it("should handle Get", async () => {
     const result = await K8s(Pod).Get("fakeResource");
 
@@ -244,6 +249,13 @@ describe("Kube", () => {
   it("should throw an error if a Delete failed for a reason other than Not Found", async () => {
     mockedKubeExec.mockRejectedValueOnce({ status: 500 }); // Internal Server Error on first call
     await expect(K8s(Pod).Delete("fakeResource")).rejects.toEqual(
+      expect.objectContaining({ status: 500 }),
+    );
+  });
+
+  it("should throw an error if an Evict failed for a reason other than Not Found", async () => {
+    mockedKubeExec.mockRejectedValueOnce({ status: 500 }); // Internal Server Error on first call
+    await expect(K8s(Pod).Evict("fakeResource")).rejects.toEqual(
       expect.objectContaining({ status: 500 }),
     );
   });
