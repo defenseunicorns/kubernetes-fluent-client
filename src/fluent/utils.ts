@@ -11,6 +11,7 @@ import { modelToGroupVersionKind } from "../kinds";
 import { GenericClass } from "../types";
 import { ApplyCfg, FetchMethods, Filters, K8sConfigPromise } from "./types";
 import fs from "fs";
+import { Eviction } from "../upstream";
 
 const SSA_CONTENT_TYPE = "application/apply-patch+yaml";
 const K8S_SA_TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token";
@@ -196,6 +197,13 @@ export async function k8sCfg(method: FetchMethods): K8sConfigPromise {
   return { opts: undiciRequestUnit, serverUrl: cluster.server };
 }
 
+const isEvictionPayload = (payload: unknown): payload is Eviction =>
+  payload !== null &&
+  payload !== undefined &&
+  typeof payload === "object" &&
+  "kind" in payload &&
+  (payload as { kind: string }).kind === "Eviction";
+
 /**
  * Execute a request against the Kubernetes API server.
  *
@@ -221,6 +229,10 @@ export async function k8sExec<T extends GenericClass, K>(
     const baseUrl = pathBuilder(serverUrl.toString(), model, filters, isPost);
     if (method === "LOG") {
       baseUrl.pathname = `${baseUrl.pathname}/log`;
+    }
+    // Check if payload is an Eviction with metadata
+    if (payload && isEvictionPayload(payload) && payload.metadata?.name) {
+      baseUrl.pathname = `${baseUrl.pathname}/${payload.metadata.name}/eviction`;
     }
     return {
       serverUrl: baseUrl,
@@ -256,7 +268,6 @@ export async function k8sExec<T extends GenericClass, K>(
   if (payload) {
     opts.body = JSON.stringify(payload);
   }
-
   const resp = await fetch<K>(url, opts);
 
   if (resp.ok) {
