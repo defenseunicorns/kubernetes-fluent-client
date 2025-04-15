@@ -240,7 +240,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
 
     try {
       // Try to evict the resource
-      await k8sExec<T, void>(model, filters, "POST");
+      await k8sExec<T, void>(model, filters, "EVICT");
     } catch (e) {
       // If the resource doesn't exist, ignore the error
       if (e.status === StatusCodes.NOT_FOUND) {

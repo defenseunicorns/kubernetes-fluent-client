@@ -221,6 +221,9 @@ export async function k8sExec<T extends GenericClass, K>(
     const baseUrl = pathBuilder(serverUrl.toString(), model, filters, isPost);
     if (method === "LOG") {
       baseUrl.pathname = `${baseUrl.pathname}/log`;
+    } else if (method === "EVICT") {
+      baseUrl.pathname = `${baseUrl.pathname}/eviction`;
+      opts.method = "POST";
     }
     return {
       serverUrl: baseUrl,

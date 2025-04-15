@@ -52,6 +52,7 @@ export type FetchMethods =
   | "GET"
   | "LOG"
   | "PATCH"
+  | "EVICT"
   | "PATCH_STATUS"
   | "POST"
   | "PUT"
