@@ -45,25 +45,41 @@ export default [
     rules: {
       "@typescript-eslint/no-floating-promises": "warn",
       "class-methods-use-this": "warn",
-      complexity: ["warn", {
+      complexity: [
+        "warn",
+        {
           max: 10,
-      }],
+        },
+      ],
       "consistent-this": "warn",
       eqeqeq: "error",
-      "max-depth": ["warn", {
+      "max-depth": [
+        "warn",
+        {
           max: 3,
-      }],
-      "max-nested-callbacks": ["warn", {
+        },
+      ],
+      "max-nested-callbacks": [
+        "warn",
+        {
           max: 4,
-      }],
-      "max-params": ["warn", {
+        },
+      ],
+      "max-params": [
+        "warn",
+        {
           max: 4,
-      }],
-      "max-statements": ["warn", {
+        },
+      ],
+      "max-statements": [
+        "warn",
+        {
           max: 20,
-      }, {
+        },
+        {
           ignoreTopLevelFunctions: true,
-      }],
+        },
+      ],
       "no-invalid-this": "warn",
       "class-methods-use-this": "warn",
       "consistent-this": "warn",
@@ -83,13 +99,17 @@ export default [
         },
       ],
     },
-  }, {
-      files: ["**/*.test.ts"],
+  },
+  {
+    files: ["**/*.test.ts"],
 
-      rules: {
-          "max-nested-callbacks": ["warn", {
-              max: 8,
-          }],
-      },
+    rules: {
+      "max-nested-callbacks": [
+        "warn",
+        {
+          max: 8,
+        },
+      ],
+    },
   },
 ];
