@@ -101,6 +101,11 @@ describe("Kube", () => {
         namespace: "default",
       }),
       "POST",
+      {
+        apiVersion: "policy/v1",
+        kind: "Eviction",
+        metadata: { name: "fake", namespace: "default" },
+      },
     );
   });
 

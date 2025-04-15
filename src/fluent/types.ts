@@ -16,6 +16,25 @@ import { SecureClientSessionOptions } from "http2";
 export type WatcherType<T extends GenericClass> = Watcher<T>;
 
 /**
+ * Kubernetes Eviction type for pod eviction
+ */
+export interface Eviction {
+  apiVersion: "policy/v1";
+  kind: "Eviction";
+  metadata: {
+    name: string;
+    namespace?: string;
+  };
+  deleteOptions?: {
+    gracePeriodSeconds?: number;
+    preconditions?: {
+      uid?: string;
+      resourceVersion?: string;
+    };
+  };
+}
+
+/**
  * Fetch options and server URL
  */
 export type K8sConfigPromise = Promise<{ opts: RequestInit; serverUrl: string | URL }>;

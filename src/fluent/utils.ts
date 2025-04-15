@@ -9,7 +9,7 @@ import { Agent as httpsAgent } from "https";
 import { fetch } from "../fetch";
 import { modelToGroupVersionKind } from "../kinds";
 import { GenericClass } from "../types";
-import { ApplyCfg, FetchMethods, Filters, K8sConfigPromise } from "./types";
+import { ApplyCfg, Eviction, FetchMethods, Filters, K8sConfigPromise } from "./types";
 import fs from "fs";
 
 const SSA_CONTENT_TYPE = "application/apply-patch+yaml";
@@ -221,9 +221,18 @@ export async function k8sExec<T extends GenericClass, K>(
     const baseUrl = pathBuilder(serverUrl.toString(), model, filters, isPost);
     if (method === "LOG") {
       baseUrl.pathname = `${baseUrl.pathname}/log`;
-    } else if (method === "EVICT") {
-      baseUrl.pathname = `${baseUrl.pathname}/eviction`;
-      opts.method = "POST";
+    }
+    // Check if payload is an Eviction
+    if (
+      payload &&
+      typeof payload === "object" &&
+      "kind" in payload &&
+      (payload as { kind: string }).kind === "Eviction"
+    ) {
+      const evictionPayload = payload as Eviction;
+      if (evictionPayload.metadata?.name) {
+        baseUrl.pathname = `${baseUrl.pathname}/${evictionPayload.metadata.name}/eviction`;
+      }
     }
     return {
       serverUrl: baseUrl,
@@ -256,22 +265,9 @@ export async function k8sExec<T extends GenericClass, K>(
       break;
   }
 
-  if (method === "EVICT") {
-    const newLocal = {
-      apiVersion: "policy/v1",
-      kind: "Eviction",
-      metadata: {
-        name: filters.name,
-        namespace: filters.namespace,
-      },
-    };
-    opts.body = JSON.stringify(newLocal);
-  }
-
   if (payload) {
     opts.body = JSON.stringify(payload);
   }
-
   const resp = await fetch<K>(url, opts);
 
   if (resp.ok) {

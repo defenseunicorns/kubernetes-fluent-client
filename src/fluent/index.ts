@@ -239,8 +239,16 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
     }
 
     try {
+      const evictionPayload = {
+        apiVersion: "policy/v1",
+        kind: "Eviction",
+        metadata: {
+          name: filters.name,
+          namespace: filters.namespace,
+        },
+      };
       // Try to evict the resource
-      await k8sExec<T, void>(model, filters, "EVICT");
+      await k8sExec<T, void>(model, filters, "POST", evictionPayload);
     } catch (e) {
       // If the resource doesn't exist, ignore the error
       if (e.status === StatusCodes.NOT_FOUND) {
