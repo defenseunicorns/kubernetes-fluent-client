@@ -256,6 +256,18 @@ export async function k8sExec<T extends GenericClass, K>(
       break;
   }
 
+  if (method === "EVICT") {
+    const newLocal = {
+      apiVersion: "policy/v1",
+      kind: "Eviction",
+      metadata: {
+        name: filters.name,
+        namespace: filters.namespace,
+      },
+    };
+    opts.body = JSON.stringify(newLocal);
+  }
+
   if (payload) {
     opts.body = JSON.stringify(payload);
   }
