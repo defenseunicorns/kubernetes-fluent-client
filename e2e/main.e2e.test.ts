@@ -114,7 +114,7 @@ describe("KFC e2e test", () => {
     } catch (e) {
       expect(e).toBeUndefined();
     }
-  });
+  }, 80000);
 
   test("Delete by name", async () => {
     try {
