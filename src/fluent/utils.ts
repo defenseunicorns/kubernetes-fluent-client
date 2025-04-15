@@ -196,6 +196,13 @@ export async function k8sCfg(method: FetchMethods): K8sConfigPromise {
   return { opts: undiciRequestUnit, serverUrl: cluster.server };
 }
 
+const isEvictionPayload = (payload: unknown): payload is Eviction =>
+  payload !== null &&
+  payload !== undefined &&
+  typeof payload === "object" &&
+  "kind" in payload &&
+  (payload as { kind: string }).kind === "Eviction";
+
 /**
  * Execute a request against the Kubernetes API server.
  *
@@ -223,16 +230,8 @@ export async function k8sExec<T extends GenericClass, K>(
       baseUrl.pathname = `${baseUrl.pathname}/log`;
     }
     // Check if payload is an Eviction
-    if (
-      payload &&
-      typeof payload === "object" &&
-      "kind" in payload &&
-      (payload as { kind: string }).kind === "Eviction"
-    ) {
-      const evictionPayload = payload as Eviction;
-      if (evictionPayload.metadata?.name) {
-        baseUrl.pathname = `${baseUrl.pathname}/${evictionPayload.metadata.name}/eviction`;
-      }
+    if (isEvictionPayload(payload)) {
+      baseUrl.pathname = `${baseUrl.pathname}/${(payload as Eviction).metadata.name}/eviction`;
     }
     return {
       serverUrl: baseUrl,
