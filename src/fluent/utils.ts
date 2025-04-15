@@ -9,8 +9,9 @@ import { Agent as httpsAgent } from "https";
 import { fetch } from "../fetch";
 import { modelToGroupVersionKind } from "../kinds";
 import { GenericClass } from "../types";
-import { ApplyCfg, Eviction, FetchMethods, Filters, K8sConfigPromise } from "./types";
+import { ApplyCfg, FetchMethods, Filters, K8sConfigPromise } from "./types";
 import fs from "fs";
+import { Eviction } from "../upstream";
 
 const SSA_CONTENT_TYPE = "application/apply-patch+yaml";
 const K8S_SA_TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token";
@@ -229,9 +230,9 @@ export async function k8sExec<T extends GenericClass, K>(
     if (method === "LOG") {
       baseUrl.pathname = `${baseUrl.pathname}/log`;
     }
-    // Check if payload is an Eviction
-    if (isEvictionPayload(payload)) {
-      baseUrl.pathname = `${baseUrl.pathname}/${(payload as Eviction).metadata.name}/eviction`;
+    // Check if payload is an Eviction with metadata
+    if (payload && isEvictionPayload(payload) && payload.metadata?.name) {
+      baseUrl.pathname = `${baseUrl.pathname}/${payload.metadata.name}/eviction`;
     }
     return {
       serverUrl: baseUrl,
