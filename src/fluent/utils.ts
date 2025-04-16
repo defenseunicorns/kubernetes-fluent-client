@@ -227,12 +227,11 @@ export async function k8sExec<T extends GenericClass, K>(
     const { opts, serverUrl } = await k8sCfg(configMethod);
 
     // Build the base path once, using excludeName only for standard POST requests
-    const shouldExcludeName =
-      method === "POST" && !(payload && isEvictionPayload(payload) && payload.metadata?.name);
+    const shouldExcludeName = method === "POST" && !(payload && isEvictionPayload(payload));
     const baseUrl = pathBuilder(serverUrl.toString(), model, filters, shouldExcludeName);
 
     // Append appropriate subresource paths
-    if (payload && isEvictionPayload(payload) && payload.metadata?.name) {
+    if (payload && isEvictionPayload(payload)) {
       baseUrl.pathname = `${baseUrl.pathname}/eviction`;
     } else if (method === "LOG") {
       baseUrl.pathname = `${baseUrl.pathname}/log`;
