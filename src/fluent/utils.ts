@@ -11,8 +11,7 @@ import { modelToGroupVersionKind } from "../kinds";
 import { GenericClass } from "../types";
 import { ApplyCfg, FetchMethods, Filters, K8sConfigPromise } from "./types";
 import fs from "fs";
-import { Eviction } from "../upstream";
-
+import { V1Eviction as Eviction } from "@kubernetes/client-node";
 const SSA_CONTENT_TYPE = "application/apply-patch+yaml";
 const K8S_SA_TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token";
 
