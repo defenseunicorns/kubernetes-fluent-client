@@ -225,18 +225,19 @@ export async function k8sExec<T extends GenericClass, K>(
   const reconstruct = async (method: FetchMethods): K8sConfigPromise => {
     const configMethod = method === "LOG" ? "GET" : method;
     const { opts, serverUrl } = await k8sCfg(configMethod);
-    const isPost = method === "POST";
-    let baseUrl = pathBuilder(serverUrl.toString(), model, filters, isPost);
 
-    // Check if payload is an Eviction with metadata
+    // Build the base path once, using excludeName only for standard POST requests
+    const shouldExcludeName =
+      method === "POST" && !(payload && isEvictionPayload(payload) && payload.metadata?.name);
+    const baseUrl = pathBuilder(serverUrl.toString(), model, filters, shouldExcludeName);
+
+    // Append appropriate subresource paths
     if (payload && isEvictionPayload(payload) && payload.metadata?.name) {
-      baseUrl = new URL(
-        pathBuilder(serverUrl.toString(), model, filters, false).pathname + "/eviction",
-        serverUrl,
-      );
+      baseUrl.pathname = `${baseUrl.pathname}/eviction`;
     } else if (method === "LOG") {
       baseUrl.pathname = `${baseUrl.pathname}/log`;
     }
+
     return {
       serverUrl: baseUrl,
       opts,
