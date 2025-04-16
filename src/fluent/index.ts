@@ -25,7 +25,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
   model: T,
   filters: Filters = {},
 ): K8sInit<T, K> {
-  const withFilters = { WithField, WithLabel, Get, Delete, Watch, Logs };
+  const withFilters = { WithField, WithLabel, Get, Delete, Evict, Watch, Logs };
   const matchedKind = filters.kindOverride || modelToGroupVersionKind(model.name);
 
   /**
@@ -225,6 +225,37 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
   async function Create(resource: K): Promise<K> {
     syncFilters(resource);
     return k8sExec(model, filters, "POST", resource);
+  }
+
+  /**
+   * @inheritdoc
+   * @see {@link K8sInit.Evict}
+   */
+  async function Evict(filter?: K | string): Promise<void> {
+    if (typeof filter === "string") {
+      filters.name = filter;
+    } else if (filter) {
+      syncFilters(filter);
+    }
+
+    try {
+      const evictionPayload = {
+        apiVersion: "policy/v1",
+        kind: "Eviction",
+        metadata: {
+          name: filters.name,
+          namespace: filters.namespace,
+        },
+      };
+      // Try to evict the resource
+      await k8sExec<T, void>(model, filters, "POST", evictionPayload);
+    } catch (e) {
+      // If the resource doesn't exist, ignore the error
+      if (e.status === StatusCodes.NOT_FOUND) {
+        return;
+      }
+      throw e;
+    }
   }
 
   /**
