@@ -18,7 +18,6 @@ export {
   V1Deployment as Deployment,
   V1EndpointSlice as EndpointSlice,
   V1Endpoints as Endpoints,
-  V1Eviction as Eviction,
   V1HorizontalPodAutoscaler as HorizontalPodAutoscaler,
   V1Ingress as Ingress,
   V1IngressClass as IngressClass,
