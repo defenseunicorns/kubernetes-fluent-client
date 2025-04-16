@@ -248,7 +248,12 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
         },
       };
       // Try to evict the resource
-      await k8sExec<T, void>(model, filters, "POST", evictionPayload);
+      await k8sExec<T, void>(
+        model,
+        { ...filters, kindOverride: modelToGroupVersionKind("V1Pod") },
+        "POST",
+        evictionPayload,
+      );
     } catch (e) {
       // If the resource doesn't exist, ignore the error
       if (e.status === StatusCodes.NOT_FOUND) {

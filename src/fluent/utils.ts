@@ -226,13 +226,16 @@ export async function k8sExec<T extends GenericClass, K>(
     const configMethod = method === "LOG" ? "GET" : method;
     const { opts, serverUrl } = await k8sCfg(configMethod);
     const isPost = method === "POST";
-    const baseUrl = pathBuilder(serverUrl.toString(), model, filters, isPost);
-    if (method === "LOG") {
-      baseUrl.pathname = `${baseUrl.pathname}/log`;
-    }
+    let baseUrl = pathBuilder(serverUrl.toString(), model, filters, isPost);
+
     // Check if payload is an Eviction with metadata
     if (payload && isEvictionPayload(payload) && payload.metadata?.name) {
-      baseUrl.pathname = `${baseUrl.pathname}/${payload.metadata.name}/eviction`;
+      baseUrl = new URL(
+        pathBuilder(serverUrl.toString(), model, filters, false).pathname + "/eviction",
+        serverUrl,
+      );
+    } else if (method === "LOG") {
+      baseUrl.pathname = `${baseUrl.pathname}/log`;
     }
     return {
       serverUrl: baseUrl,
