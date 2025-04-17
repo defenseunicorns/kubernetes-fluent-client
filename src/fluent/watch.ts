@@ -467,7 +467,7 @@ export class Watcher<T extends GenericClass> {
     const now = Date.now();
 
     // If the last seen time is greater than the limit, trigger a resync
-    if (this.#lastSeenTime == OVERRIDE || now - this.#lastSeenTime > this.#lastSeenLimit) {
+    if (this.#lastSeenTime === OVERRIDE || now - this.#lastSeenTime > this.#lastSeenLimit) {
       // Reset the last seen time to now to allow the resync to be called again in case of failure
       this.#lastSeenTime = now;
 
