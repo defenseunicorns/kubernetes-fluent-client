@@ -11,8 +11,7 @@ import { modelToGroupVersionKind } from "../kinds";
 import { GenericClass } from "../types";
 import { ApplyCfg, FetchMethods, Filters, K8sConfigPromise } from "./types";
 import fs from "fs";
-import { Eviction } from "../upstream";
-
+import { V1Eviction as Eviction } from "@kubernetes/client-node";
 const SSA_CONTENT_TYPE = "application/apply-patch+yaml";
 const K8S_SA_TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token";
 
@@ -225,15 +224,18 @@ export async function k8sExec<T extends GenericClass, K>(
   const reconstruct = async (method: FetchMethods): K8sConfigPromise => {
     const configMethod = method === "LOG" ? "GET" : method;
     const { opts, serverUrl } = await k8sCfg(configMethod);
-    const isPost = method === "POST";
-    const baseUrl = pathBuilder(serverUrl.toString(), model, filters, isPost);
-    if (method === "LOG") {
+
+    // Build the base path once, using excludeName only for standard POST requests
+    const shouldExcludeName = method === "POST" && !(payload && isEvictionPayload(payload));
+    const baseUrl = pathBuilder(serverUrl.toString(), model, filters, shouldExcludeName);
+
+    // Append appropriate subresource paths
+    if (payload && isEvictionPayload(payload)) {
+      baseUrl.pathname = `${baseUrl.pathname}/eviction`;
+    } else if (method === "LOG") {
       baseUrl.pathname = `${baseUrl.pathname}/log`;
     }
-    // Check if payload is an Eviction with metadata
-    if (payload && isEvictionPayload(payload) && payload.metadata?.name) {
-      baseUrl.pathname = `${baseUrl.pathname}/${payload.metadata.name}/eviction`;
-    }
+
     return {
       serverUrl: baseUrl,
       opts,
