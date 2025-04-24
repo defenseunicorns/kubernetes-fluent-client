@@ -160,6 +160,8 @@ jobs:
       - name: install pepr-excellent-examples deps
         run: |
           cd "$PEPR_EXCELLENT_EXAMPLES_PATH"
+          ls -l
+          pwd
           npm ci
 
       - name: run e2e tests
