@@ -5,11 +5,11 @@ on:
   workflow_dispatch:
   merge_group:
     paths-ignore:
-    - "LICENSE"
-    - "CODEOWNERS"
-    - "**.md"
+      - "LICENSE"
+      - "CODEOWNERS"
+      - "**.md"
   schedule:
-    - cron: '0 4 * * *' # 12AM EST/9PM PST
+    - cron: "0 4 * * *" # 12AM EST/9PM PST
   push:
     branches: ["main"]
   pull_request:
@@ -63,7 +63,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: kubernetes-fluent-client-package
-          path: | 
+          path: |
             kubernetes-fluent-client-0.0.0-development.tgz
           if-no-files-found: error
           retention-days: 1
@@ -176,7 +176,7 @@ jobs:
         if: always()
         with:
           name: "troubleshooting_logs_${{matrix.name}}"
-          path: | 
+          path: |
             pepr-excellent-examples/package.json
             pepr-excellent-examples/package-lock.json
           if-no-files-found: error
