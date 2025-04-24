@@ -48,6 +48,8 @@ jobs:
       - name: install kubernetes-fluent-client deps
         run: |
           cd "$KUBERNETES_FLUENT_CLIENT"
+          ls -l
+          pwd
           npm ci
 
       - name: build kubernetes-fluent-client package
