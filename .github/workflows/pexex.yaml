@@ -48,8 +48,6 @@ jobs:
       - name: install kubernetes-fluent-client deps
         run: |
           cd "$KUBERNETES_FLUENT_CLIENT"
-          ls -l
-          pwd
           npm ci
 
       - name: build kubernetes-fluent-client package
@@ -147,8 +145,8 @@ jobs:
           repository: defenseunicorns/pepr-excellent-examples
           path: pepr-excellent-examples
 
-      - name: "set env: KUBERNETES_FLUENT_CLIENT_EXCELLENT_EXAMPLES_PATH"
-        run: echo "KUBERNETES_FLUENT_CLIENT_EXCELLENT_EXAMPLES_PATH=${GITHUB_WORKSPACE}/pepr-excellent-examples" >> "$GITHUB_ENV"
+      - name: "set env: PEPR_EXCELLENT_EXAMPLES_PATH"
+        run: echo "PEPR_EXCELLENT_EXAMPLES_PATH=${GITHUB_WORKSPACE}/pepr-excellent-examples" >> "$GITHUB_ENV"
 
       - name: setup node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
@@ -160,8 +158,6 @@ jobs:
       - name: install pepr-excellent-examples deps
         run: |
           cd "$PEPR_EXCELLENT_EXAMPLES_PATH"
-          ls -l
-          pwd
           npm ci
 
       - name: run e2e tests
