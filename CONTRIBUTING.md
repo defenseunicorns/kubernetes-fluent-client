@@ -35,7 +35,7 @@ Please follow our [Code of Conduct](./CODE_OF_CONDUCT.md) to maintain a respectf
 
 ## Submitting a Pull Request
 
-1. **Create an Issue**: For significant changes, please create an issue first, describing the problem or feature proposal. Trivial fixes do not require an issue.
+1. **Create an Issue**: For significant changes, please create an issue first, describing the problem or feature proposal. Trivial fixes, such as typo corrections, do not require an issue.
 2. **Commit Your Changes**: Make your changes and commit them. All commits must be signed.
 3. **Run Tests**: Ensure that your changes pass all tests by running unit tests (`npm test`) and integration tests (`test:e2e:run`).
 4. **Push Your Branch**: Push your branch to your fork on GitHub.
@@ -45,7 +45,7 @@ Please follow our [Code of Conduct](./CODE_OF_CONDUCT.md) to maintain a respectf
 
 - PRs must be against the `main` branch.
 - PRs must pass CI checks.
-- All commits must be signed.
+- Ensure all commits in your PR are signed.
 - PRs should have a related issue, except for trivial fixes.
 
 ## Coding Guidelines
