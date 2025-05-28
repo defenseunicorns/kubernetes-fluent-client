@@ -7,10 +7,6 @@ updates:
     directory: "/" # Location of package manifests
     schedule:
       interval: daily
-    ignore:
-      - dependency-name: "@kubernetes/client-node"
-        versions:
-          - "1.*"
     groups:
       production-dependencies:
         dependency-type: production
