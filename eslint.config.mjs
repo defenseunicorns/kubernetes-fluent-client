@@ -16,13 +16,7 @@ const compat = new FlatCompat({
 
 export default [
   {
-    ignores: [
-      "**/node_modules",
-      "**/dist",
-      "**/__mocks__",
-      "e2e/**",
-      ".github/workflows/matrix.js",
-    ],
+    ignores: ["**/node_modules", "**/dist", "**/__mocks__", ".github/workflows/matrix.js"],
   },
   ...compat.extends(
     "eslint:recommended",
