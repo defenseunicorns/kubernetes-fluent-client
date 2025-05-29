@@ -20,7 +20,6 @@ export default [
       "**/node_modules",
       "**/dist",
       "**/__mocks__",
-      "e2e/**",
       ".github/workflows/matrix.js",
     ],
   },
