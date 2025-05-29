@@ -2,13 +2,11 @@ import { kind, K8s, fetch, GenericClass, KubernetesObject } from "kubernetes-flu
 import { beforeAll, jest, test, describe, expect } from "@jest/globals";
 import { Datastore, Kind as Backing } from "./datastore-v1alpha1";
 import { WebApp, Phase, Language, Theme } from "./webapp-v1alpha1";
-import { execSync } from "child_process";
 import { V1APIGroup } from "@kubernetes/client-node";
 import { beforeEach } from "node:test";
 
 jest.unmock("@kubernetes/client-node");
 const namespace = `e2e-tests`;
-const clusterName = "kfc-dev";
 
 describe("KFC e2e test", () => {
   beforeAll(async () => {
@@ -447,14 +445,4 @@ const createCR = async (
   } catch (e) {
     expect(e).toBeUndefined();
   }
-};
-
-/**
- * Execute a command
- * 
- * @param cmd - string
- * @returns Buffer
- */
-const execCommand = (cmd: string): Buffer => {
-    return execSync(cmd, { stdio: "inherit" });
 };
