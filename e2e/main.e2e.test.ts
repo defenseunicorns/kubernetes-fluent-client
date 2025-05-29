@@ -1,5 +1,5 @@
 import { kind, K8s, fetch, GenericClass, KubernetesObject } from "kubernetes-fluent-client";
-import { beforeAll, afterAll, jest, test, describe, expect } from "@jest/globals";
+import { beforeAll, jest, test, describe, expect } from "@jest/globals";
 import { Datastore, Kind as Backing } from "./datastore-v1alpha1";
 import { WebApp, Phase, Language, Theme } from "./webapp-v1alpha1";
 import { execSync } from "child_process";
@@ -11,14 +11,6 @@ const namespace = `e2e-tests`;
 const clusterName = "kfc-dev";
 
 describe("KFC e2e test", () => {
-  afterAll(async () => {
-    try {
-      execCommand(`k3d cluster delete ${clusterName}`);
-    } catch {
-      throw new Error("Failed to delete cluster");
-    }
-  });
-
   beforeAll(async () => {
     try {
       await K8s(kind.Namespace).Apply({ metadata: { name: namespace } },{force: true});
