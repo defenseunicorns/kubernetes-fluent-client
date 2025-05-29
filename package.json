@@ -44,8 +44,8 @@
     "test:e2e:prep-image": "npm run build && npm pack && npm i kubernetes-fluent-client-0.0.0-development.tgz --no-save",
     "test:e2e:run": "npm run test:e2e:prep-cluster && npm run test:e2e:prep-crds && npm run test:e2e:prep-image && jest e2e --runInBand && npm run test:e2e:cleanup",
     "test:e2e:cleanup": "k3d cluster delete kfc-dev",
-    "format:check": "eslint src && prettier . --check",
-    "format:fix": "eslint --fix src && prettier . --write",
+    "format:check": "eslint src e2e && prettier . --check",
+    "format:fix": "eslint --fix src e2e && prettier . --write",
     "prepare": "if [ \"$NODE_ENV\" != 'production' ]; then husky; fi"
   },
   "dependencies": {
