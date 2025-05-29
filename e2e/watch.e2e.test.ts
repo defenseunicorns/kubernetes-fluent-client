@@ -13,15 +13,18 @@ const namespace = `kfc-watch`;
 describe("watcher e2e", () => {
   beforeAll(async () => {
     try {
-      await K8s(kind.Namespace).Apply({ metadata: { name: namespace } }, {
-        force: true,
-      });
+      await K8s(kind.Namespace).Apply(
+        { metadata: { name: namespace } },
+        {
+          force: true,
+        }
+      );
       await K8s(kind.Pod).Apply(
         {
           metadata: { name: namespace, namespace, labels: { app: "nginx" } },
           spec: { containers: [{ name: "nginx", image: "nginx" }] },
         },
-        { force: true },
+        { force: true }
       );
       await waitForRunningStatusPhase(kind.Pod, {
         metadata: { name: namespace, namespace },
@@ -32,36 +35,42 @@ describe("watcher e2e", () => {
   }, 80000);
 
   it("should watch named resources", (done) => {
-    const watcher = K8s(kind.Pod).InNamespace(namespace).Watch((po) => {
-      expect(po.metadata!.name).toBe(namespace);
-      watcher.close();
-      done();
-    });
+    const watcher = K8s(kind.Pod)
+      .InNamespace(namespace)
+      .Watch((po) => {
+        expect(po.metadata!.name).toBe(namespace);
+        watcher.close();
+        done();
+      });
     watcher.start();
   });
 
   it("should call the event handler for each event", (done) => {
-    const watcher = K8s(kind.Pod).InNamespace(namespace).Watch((po, evt) => {
-      expect(po.metadata!.name).toBe(namespace);
-      expect(evt).toBe(WatchPhase.Added);
-      watcher.close();
-      done();
-    });
+    const watcher = K8s(kind.Pod)
+      .InNamespace(namespace)
+      .Watch((po, evt) => {
+        expect(po.metadata!.name).toBe(namespace);
+        expect(evt).toBe(WatchPhase.Added);
+        watcher.close();
+        done();
+      });
     watcher.start();
   });
 
   it("should return the cache id", () => {
-    const watcher = K8s(kind.Pod).InNamespace(namespace).Watch((po) =>
-      console.log(po.metadata!.name)
-    );
+    const watcher = K8s(kind.Pod)
+      .InNamespace(namespace)
+      .Watch((po) => console.log(po.metadata!.name));
     expect(watcher.getCacheID()).toBeDefined();
     watcher.close();
   });
 
   it("should handle the CONNECT event", (done) => {
-    const watcher = K8s(kind.Pod).InNamespace(namespace).Watch((po) => {
-      expect(po.metadata!.name).toBe(namespace);
-    });
+    const watcher = K8s(kind.Pod)
+      .InNamespace(namespace)
+      .Watch((po) => {
+        expect(po.metadata!.name).toBe(namespace);
+      });
     watcher.start();
     watcher.events.on(WatchEvent.CONNECT, (path) => {
       expect(path).toBe("/api/v1/namespaces/kfc-watch/pods");
@@ -71,9 +80,11 @@ describe("watcher e2e", () => {
   });
 
   it("should handle the RECONNECT event", (done) => {
-    const watcher = K8s(kind.Pod).InNamespace(namespace).Watch((po) => {
-      expect(po.metadata!.name).toBe(namespace);
-    });
+    const watcher = K8s(kind.Pod)
+      .InNamespace(namespace)
+      .Watch((po) => {
+        expect(po.metadata!.name).toBe(namespace);
+      });
     watcher.start();
 
     watcher.events.on(WatchEvent.RECONNECT, (num) => {
@@ -86,9 +97,11 @@ describe("watcher e2e", () => {
   });
 
   it("should handle the DATA event", (done) => {
-    const watcher = K8s(kind.Pod).InNamespace(namespace).Watch((po) => {
-      expect(po.metadata!.name).toBe(namespace);
-    });
+    const watcher = K8s(kind.Pod)
+      .InNamespace(namespace)
+      .Watch((po) => {
+        expect(po.metadata!.name).toBe(namespace);
+      });
     watcher.start();
 
     watcher.events.on(WatchEvent.DATA, (po) => {
@@ -97,7 +110,72 @@ describe("watcher e2e", () => {
     watcher.close();
     done();
   });
+
+  it("should handle the GIVE_UP event", (done) => {
+    const watcher = K8s(kind.Pod)
+      .InNamespace(namespace)
+      .Watch(
+        (po) => {
+          expect(po.metadata!.name).toBe(namespace);
+        },
+        {
+          resyncDelaySec: 1,
+          resyncFailureMax: 1,
+        }
+      );
+    watcher.start();
+
+    watcher.events.on(WatchEvent.GIVE_UP, (err) => {
+      expect(err).toBeDefined;
+    });
+    watcher.close();
+    done();
+  });
+
+  it("should handle the GIVE_UP event", (done) => {
+    const watcher = K8s(kind.Pod)
+      .InNamespace(namespace)
+      .Watch(
+        (po) => {
+          expect(po.metadata!.name).toBe(namespace);
+        },
+        {
+          resyncDelaySec: 1,
+          resyncFailureMax: 1,
+        }
+      );
+    watcher.start();
+
+    watcher.events.on(WatchEvent.GIVE_UP, (err) => {
+      expect(err).toBeDefined;
+    });
+    watcher.close();
+    done();
+  });
+
+  it("should perform a resync after the resync interval", (done) => {
+    const watcher = K8s(kind.Pod)
+      .InNamespace(namespace)
+      .Watch(
+        (po) => {
+          expect(po.metadata!.name).toBe(namespace);
+        },
+        {
+          resyncDelaySec: 1,
+          resyncFailureMax: 1,
+        }
+      );
+    watcher.start();
+
+    watcher.events.on(WatchEvent.RECONNECT, (num) => {
+      expect(num).toBe(1);
+    });
+
+    watcher.close();
+    done();
+  });
 });
+
 /**
  * sleep for a given number of seconds
  *
@@ -117,7 +195,7 @@ export function sleep(seconds: number): Promise<void> {
  */
 export async function waitForRunningStatusPhase(
   k: GenericClass,
-  o: KubernetesObject,
+  o: KubernetesObject
 ): Promise<void> {
   const object = await K8s(k)
     .InNamespace(o.metadata?.namespace || "")
