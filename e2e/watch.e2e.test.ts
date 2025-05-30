@@ -126,7 +126,7 @@ describe("watcher e2e", () => {
     watcher.start();
 
     watcher.events.on(WatchEvent.GIVE_UP, (err) => {
-      expect(err).toBeDefined;
+      expect(err).toBeDefined();
     });
     watcher.close();
     done();
@@ -147,7 +147,7 @@ describe("watcher e2e", () => {
     watcher.start();
 
     watcher.events.on(WatchEvent.GIVE_UP, (err) => {
-      expect(err).toBeDefined;
+      expect(err).toBeDefined();
     });
     watcher.close();
     done();

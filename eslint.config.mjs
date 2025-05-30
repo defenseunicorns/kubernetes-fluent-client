@@ -20,8 +20,8 @@ export default [
       "**/node_modules",
       "**/dist",
       "**/__mocks__",
-      "e2e/**",
       ".github/workflows/matrix.js",
+      "**/e2e/crds/**",
     ],
   },
   ...compat.extends(
@@ -44,7 +44,7 @@ export default [
       sourceType: "script",
 
       parserOptions: {
-        project: ["tsconfig.json"],
+        project: ["tsconfig.json", "./e2e/tsconfig.json"],
       },
     },
 
