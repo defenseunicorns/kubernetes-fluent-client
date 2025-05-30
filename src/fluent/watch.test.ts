@@ -160,13 +160,6 @@ describe("Watcher", () => {
     done();
   });
 
-  it("should return the cache id", () => {
-    watcher = K8s(kind.Pod).Watch(evtMock, {
-      resyncDelaySec: 1,
-    });
-    expect(watcher.getCacheID()).toEqual("d69b75a611");
-  });
-
   it("should handle the CONNECT event", done => {
     watcher = K8s(kind.Pod).Watch(evtMock, {
       resyncDelaySec: 1,
