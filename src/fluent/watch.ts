@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
 
-import { createHash } from "crypto";
 import { EventEmitter } from "events";
 import { fetch } from "undici";
 import { fetch as wrappedFetch } from "../fetch";
@@ -169,23 +168,6 @@ export class Watcher<T extends GenericClass> {
 
     this.#streamCleanup();
     this.#abortController.abort();
-  }
-
-  /**
-   * Get a unique ID for the watch based on the model and filters.
-   * This is useful for caching the watch data or resource versions.
-   *
-   * @returns the watch CacheID
-   */
-  public getCacheID() {
-    // Build the URL, we don't care about the server URL or resourceVersion
-    const url = pathBuilder("https://ignore", this.#model, this.#filters, false);
-
-    // Hash and truncate the ID to 10 characters, cache the result
-    return createHash("sha224")
-      .update(url.pathname + url.search)
-      .digest("hex")
-      .substring(0, 10);
   }
 
   /**

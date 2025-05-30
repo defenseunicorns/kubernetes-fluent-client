@@ -57,14 +57,6 @@ describe("watcher e2e", () => {
     watcher.start();
   });
 
-  it("should return the cache id", () => {
-    const watcher = K8s(kind.Pod)
-      .InNamespace(namespace)
-      .Watch((po) => console.log(po.metadata!.name));
-    expect(watcher.getCacheID()).toBeDefined();
-    watcher.close();
-  });
-
   it("should handle the CONNECT event", (done) => {
     const watcher = K8s(kind.Pod)
       .InNamespace(namespace)
