@@ -8,7 +8,6 @@ import { beforeAll, describe, expect, it, jest } from "@jest/globals";
 import { execSync } from "child_process";
 import { WatchPhase } from "../src/fluent/types";
 import { WatchEvent } from "../src";
-import { TIMEOUT_LIMIT_MS } from "./timeoutLimit";
 jest.unmock("@kubernetes/client-node");
 const namespace = `kfc-watch`;
 describe("watcher e2e", () => {
@@ -33,7 +32,7 @@ describe("watcher e2e", () => {
     } catch (e) {
       expect(e).toBeUndefined();
     }
-  }, TIMEOUT_LIMIT_MS);
+  }, 80000);
 
   it("should watch named resources", (done) => {
     const watcher = K8s(kind.Pod)

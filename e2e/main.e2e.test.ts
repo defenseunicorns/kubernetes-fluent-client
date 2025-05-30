@@ -4,7 +4,6 @@ import { Datastore, Kind as Backing } from "./datastore-v1alpha1";
 import { WebApp, Phase, Language, Theme } from "./webapp-v1alpha1";
 import { V1APIGroup } from "@kubernetes/client-node";
 import { beforeEach } from "node:test";
-import {TIMEOUT_LIMIT_MS} from './timeoutLimit'
 
 jest.unmock("@kubernetes/client-node");
 const namespace = `e2e-tests`;
@@ -16,7 +15,7 @@ describe("KFC e2e test", () => {
     } catch (e){
       expect(e).toBeUndefined();
     }
-  }, TIMEOUT_LIMIT_MS);
+  }, 30000);
 
   beforeEach(async () => {
     try {
@@ -105,7 +104,7 @@ describe("KFC e2e test", () => {
     } catch (e) {
       expect(e).toBeUndefined();
     }
-  }, TIMEOUT_LIMIT_MS);
+  }, 80000);
 
   test("Delete by name", async () => {
     try {
@@ -124,7 +123,7 @@ describe("KFC e2e test", () => {
       expect(e).toBeUndefined();
     }
     await waitForRunningStatusPhase(kind.Pod, { metadata: { name: namespace, namespace } });
-  }, TIMEOUT_LIMIT_MS);
+  }, 80000);
 
   test("Create", async () => {
     try {
