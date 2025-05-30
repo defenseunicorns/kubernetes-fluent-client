@@ -1,0 +1,1 @@
+export const TIMEOUT_LIMIT_MS = 480000 // 8 minutes
