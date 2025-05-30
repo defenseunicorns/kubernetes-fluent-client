@@ -1,9 +1,6 @@
-import {
-  kind, GenericClass
-} from "kubernetes-fluent-client";
+import { kind } from "kubernetes-fluent-client";
 import { modelToGroupVersionKind } from "../src/index";
 import { RegisterKind } from "../src/kinds";
-import { GroupVersionKind } from "../src/types";
 import { expect, it } from "@jest/globals";
 
 const testCases = [
