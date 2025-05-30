@@ -16,7 +16,13 @@ const compat = new FlatCompat({
 
 export default [
   {
-    ignores: ["**/node_modules", "**/dist", "**/__mocks__", ".github/workflows/matrix.js"],
+    ignores: [
+      "**/node_modules",
+      "**/dist",
+      "**/__mocks__",
+      ".github/workflows/matrix.js",
+      "**/e2e/crds/**",
+    ],
   },
   ...compat.extends(
     "eslint:recommended",
@@ -38,7 +44,7 @@ export default [
       sourceType: "script",
 
       parserOptions: {
-        project: ["tsconfig.json"],
+        project: ["tsconfig.json", "./e2e/tsconfig.json"],
       },
     },
 

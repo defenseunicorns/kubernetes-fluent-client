@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "lib": ["ES2022"],
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "strict": true,
+    "target": "ES2022",
+    "useUnknownInCatchVariables": false
+  },
+  "include": ["./**/*.e2e.test.ts"],
+  "exclude": ["node_modules", "dist", "**/crds/**"]
+}
