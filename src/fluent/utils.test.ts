@@ -3,7 +3,7 @@
 
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import * as fs from "fs";
-import { RequestInit } from "node-fetch";
+import { RequestInit } from "undici";
 import { fetch } from "../fetch";
 import { RegisterKind } from "../kinds";
 import { GenericClass } from "../types";
