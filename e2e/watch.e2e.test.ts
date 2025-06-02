@@ -6,7 +6,7 @@ import {
 } from "kubernetes-fluent-client";
 import { beforeAll, describe, expect, it, jest } from "@jest/globals";
 import { execSync } from "child_process";
-import { WatchPhase } from "../src/fluent/types";
+import { WatchPhase } from "../src/types/shared";
 import { WatchEvent } from "../src";
 jest.unmock("@kubernetes/client-node");
 const namespace = `kfc-watch`;
