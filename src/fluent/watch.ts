@@ -5,9 +5,11 @@ import { EventEmitter } from "events";
 import { fetch } from "undici";
 import { fetch as wrappedFetch } from "../fetch";
 import { GenericClass, KubernetesListObject } from "../types";
-import { Filters, WatchAction, WatchPhase, K8sConfigPromise } from "./types";
+import { K8sConfigPromise } from "./types";
+import { Filters, WatchAction, WatchPhase } from "../types/shared";
 import { k8sCfg, pathBuilder, getHeaders } from "./utils";
 import { Readable } from "stream";
+import { WatchCfg } from "../types/shared";
 
 export enum WatchEvent {
   /** Watch is connected successfully */
@@ -39,18 +41,6 @@ export enum WatchEvent {
   /** Initialize a relist window */
   INIT_CACHE_MISS = "init_cache_miss",
 }
-
-/** Configuration for the watch function. */
-export type WatchCfg = {
-  /** The maximum number of times to retry the watch, the retry count is reset on success. Unlimited retries if not specified. */
-  resyncFailureMax?: number;
-  /** Seconds between each resync check. Defaults to 5. */
-  resyncDelaySec?: number;
-  /** Amount of seconds to wait before relisting the watch list. Defaults to 600 (10 minutes). */
-  relistIntervalSec?: number;
-  /** Max amount of seconds to go without receiving an event before reconciliation starts. Defaults to 300 (5 minutes). */
-  lastSeenLimitSeconds?: number;
-};
 
 const NONE = 50;
 const OVERRIDE = 100;

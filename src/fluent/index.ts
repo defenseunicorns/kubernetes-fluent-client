@@ -9,9 +9,10 @@ import type { PartialDeep } from "type-fest";
 import { fetch } from "../fetch";
 import { modelToGroupVersionKind } from "../kinds";
 import { GenericClass } from "../types";
-import { ApplyCfg, FetchMethods, Filters, K8sInit, Paths, WatchAction } from "./types";
+import { ApplyCfg, FetchMethods, K8sInit, Paths } from "./types";
+import { Filters, WatchAction, WatchCfg } from "../types/shared";
 import { k8sCfg, k8sExec } from "./utils";
-import { WatchCfg, Watcher } from "./watch";
+import { Watcher } from "./watch";
 import { hasLogs } from "../helpers";
 import { Pod, type Service, type ReplicaSet } from "../upstream";
 /**
