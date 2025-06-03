@@ -1,13 +1,42 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
-
+import { KubernetesObject } from "@kubernetes/client-node";
 import { EventEmitter } from "events";
 import { fetch } from "undici";
 import { fetch as wrappedFetch } from "../fetch";
-import { GenericClass, KubernetesListObject } from "../types";
-import { Filters, WatchAction, WatchPhase, K8sConfigPromise } from "./types";
+import { GenericClass, KubernetesListObject, GroupVersionKind } from "../types";
 import { k8sCfg, pathBuilder, getHeaders } from "./utils";
 import { Readable } from "stream";
+import { RequestInit } from "undici";
+
+/**
+ * Fetch options and server URL
+ */
+export type K8sConfigPromise = Promise<{ opts: RequestInit; serverUrl: string | URL }>;
+
+export interface Filters {
+  kindOverride?: GroupVersionKind;
+  fields?: Record<string, string>;
+  labels?: Record<string, string>;
+  name?: string;
+  namespace?: string;
+}
+
+/**
+ * The Phase matched when using the K8s Watch API.
+ */
+export enum WatchPhase {
+  Added = "ADDED",
+  Modified = "MODIFIED",
+  Deleted = "DELETED",
+  Bookmark = "BOOKMARK",
+  Error = "ERROR",
+}
+
+export type WatchAction<T extends GenericClass, K extends KubernetesObject = InstanceType<T>> = (
+  update: K,
+  phase: WatchPhase,
+) => Promise<void> | void;
 
 export enum WatchEvent {
   /** Watch is connected successfully */
