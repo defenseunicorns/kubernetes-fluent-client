@@ -8,7 +8,7 @@ import { fetch } from "../fetch";
 import { RegisterKind } from "../kinds";
 import { GenericClass } from "../types";
 import { ClusterRole, Ingress, Pod } from "../upstream";
-import { Filters } from "./types";
+import { Filters } from "./shared-types";
 import { k8sExec, pathBuilder, getHTTPSAgent, getHeaders, getToken } from "./utils";
 
 jest.mock("https");

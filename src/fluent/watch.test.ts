@@ -5,7 +5,7 @@ import { Interceptable, MockAgent, setGlobalDispatcher } from "undici";
 import { PassThrough } from "stream";
 import { K8s } from ".";
 import { WatchEvent, kind } from "..";
-import { WatchPhase } from "./types";
+import { WatchPhase } from "./shared-types";
 import { Watcher } from "./watch";
 
 let mockClient: Interceptable;

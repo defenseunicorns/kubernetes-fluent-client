@@ -5,10 +5,9 @@ import { EventEmitter } from "events";
 import { fetch } from "undici";
 import { fetch as wrappedFetch } from "../fetch";
 import { GenericClass, KubernetesListObject } from "../types";
-import { Filters, WatchAction, WatchPhase, K8sConfigPromise } from "./types";
 import { k8sCfg, pathBuilder, getHeaders } from "./utils";
 import { Readable } from "stream";
-
+import { K8sConfigPromise, WatchPhase, WatchAction, Filters } from "./shared-types";
 export enum WatchEvent {
   /** Watch is connected successfully */
   CONNECT = "connect",
