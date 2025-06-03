@@ -39,7 +39,7 @@
     "semantic-release": "semantic-release",
     "test": "jest src --coverage",
     "test:e2e": "jest e2e --runInBand",
-    "test:e2e:prep-crds": "kubectl apply -f test/ && npx ts-node src/cli.ts crd ./test/datastore.crd.yaml e2e && npx ts-node src/cli.ts crd https://raw.githubusercontent.com/defenseunicorns/kubernetes-fluent-client/refs/heads/main/test/webapp.crd.yaml e2e",
+    "test:e2e:prep-crds": "kubectl apply -f test/ && npx tsx src/cli.ts crd ./test/datastore.crd.yaml e2e && npx tsx src/cli.ts crd https://raw.githubusercontent.com/defenseunicorns/kubernetes-fluent-client/refs/heads/main/test/webapp.crd.yaml e2e",
     "test:e2e:prep-cluster": "k3d cluster create kfc-dev --k3s-arg '--debug@server:0' --wait && kubectl rollout status deployment -n kube-system",
     "test:e2e:prep-image": "npm run build && npm pack && npm i kubernetes-fluent-client-0.0.0-development.tgz --no-save",
     "test:e2e:run": "npm run test:e2e:prep-cluster && npm run test:e2e:prep-crds && npm run test:e2e:prep-image && jest e2e --runInBand && npm run test:e2e:cleanup",
@@ -71,6 +71,8 @@
     "@types/yargs": "17.0.33",
     "@typescript-eslint/eslint-plugin": "8.33.1",
     "@typescript-eslint/parser": "8.33.1",
+    "esbuild": "^0.25.5",
+    "esbuild-runner": "^2.2.2",
     "eslint-plugin-jsdoc": "50.7.1",
     "globals": "^16.0.0",
     "husky": "^9.1.6",
@@ -79,6 +81,8 @@
     "prettier": "3.5.3",
     "semantic-release": "24.2.5",
     "ts-jest": "29.3.4",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.19.4",
     "typescript": "5.8.3"
   },
   "overrides": {

@@ -1,55 +1,55 @@
-import { kind } from "kubernetes-fluent-client";
+import { ClusterRole, ClusterRoleBinding, ConfigMap, CoreEvent, CronJob, CustomResourceDefinition, DaemonSet, Deployment, Endpoints, GenericKind, HorizontalPodAutoscaler, Ingress, Job, Namespace, NetworkPolicy, Node, PersistentVolume, PersistentVolumeClaim, Pod, PodDisruptionBudget, PodTemplate, ReplicaSet, ReplicationController, ResourceQuota, Role, RoleBinding, RuntimeClass, Secret, SelfSubjectAccessReview, SelfSubjectRulesReview, Service, ServiceAccount, StatefulSet, StorageClass, SubjectAccessReview, TokenReview, ValidatingWebhookConfiguration, VolumeAttachment } from "../src/upstream";
 import { modelToGroupVersionKind } from "../src/index";
 import { RegisterKind } from "../src/kinds";
 import { expect, it } from "@jest/globals";
 
 const testCases = [
   {
-    name: kind.Event,
+    name: Event,
     expected: { group: "events.k8s.io", version: "v1", kind: "Event" },
   },
   {
-    name: kind.CoreEvent,
+    name: CoreEvent,
     expected: { group: "", version: "v1", kind: "Event" },
   },
   {
-    name: kind.ClusterRole,
+    name: ClusterRole,
     expected: { group: "rbac.authorization.k8s.io", version: "v1", kind: "ClusterRole" },
   },
   {
-    name: kind.ClusterRoleBinding,
+    name: ClusterRoleBinding,
     expected: { group: "rbac.authorization.k8s.io", version: "v1", kind: "ClusterRoleBinding" },
   },
   {
-    name: kind.Role,
+    name: Role,
     expected: { group: "rbac.authorization.k8s.io", version: "v1", kind: "Role" },
   },
   {
-    name: kind.RoleBinding,
+    name: RoleBinding,
     expected: { group: "rbac.authorization.k8s.io", version: "v1", kind: "RoleBinding" },
   },
-  { name: kind.Pod, expected: { group: "", version: "v1", kind: "Pod" } },
-  { name: kind.Deployment, expected: { group: "apps", version: "v1", kind: "Deployment" } },
-  { name: kind.StatefulSet, expected: { group: "apps", version: "v1", kind: "StatefulSet" } },
-  { name: kind.DaemonSet, expected: { group: "apps", version: "v1", kind: "DaemonSet" } },
-  { name: kind.Job, expected: { group: "batch", version: "v1", kind: "Job" } },
-  { name: kind.CronJob, expected: { group: "batch", version: "v1", kind: "CronJob" } },
-  { name: kind.ConfigMap, expected: { group: "", version: "v1", kind: "ConfigMap" } },
-  { name: kind.Secret, expected: { group: "", version: "v1", kind: "Secret" } },
-  { name: kind.Service, expected: { group: "", version: "v1", kind: "Service" } },
-  { name: kind.ServiceAccount, expected: { group: "", version: "v1", kind: "ServiceAccount" } },
-  { name: kind.Namespace, expected: { group: "", version: "v1", kind: "Namespace" } },
+  { name: Pod, expected: { group: "", version: "v1", kind: "Pod" } },
+  { name: Deployment, expected: { group: "apps", version: "v1", kind: "Deployment" } },
+  { name: StatefulSet, expected: { group: "apps", version: "v1", kind: "StatefulSet" } },
+  { name: DaemonSet, expected: { group: "apps", version: "v1", kind: "DaemonSet" } },
+  { name: Job, expected: { group: "batch", version: "v1", kind: "Job" } },
+  { name: CronJob, expected: { group: "batch", version: "v1", kind: "CronJob" } },
+  { name: ConfigMap, expected: { group: "", version: "v1", kind: "ConfigMap" } },
+  { name: Secret, expected: { group: "", version: "v1", kind: "Secret" } },
+  { name: Service, expected: { group: "", version: "v1", kind: "Service" } },
+  { name: ServiceAccount, expected: { group: "", version: "v1", kind: "ServiceAccount" } },
+  { name: Namespace, expected: { group: "", version: "v1", kind: "Namespace" } },
   {
-    name: kind.HorizontalPodAutoscaler,
+    name: HorizontalPodAutoscaler,
     expected: { group: "autoscaling", version: "v2", kind: "HorizontalPodAutoscaler" },
   },
   {
-    name: kind.CustomResourceDefinition,
+    name: CustomResourceDefinition,
     expected: { group: "apiextensions.k8s.io", version: "v1", kind: "CustomResourceDefinition" },
   },
-  { name: kind.Ingress, expected: { group: "networking.k8s.io", version: "v1", kind: "Ingress" } },
+  { name: Ingress, expected: { group: "networking.k8s.io", version: "v1", kind: "Ingress" } },
   {
-    name: kind.NetworkPolicy,
+    name: NetworkPolicy,
     expected: {
       group: "networking.k8s.io",
       version: "v1",
@@ -57,54 +57,54 @@ const testCases = [
       plural: "networkpolicies",
     },
   },
-  { name: kind.Node, expected: { group: "", version: "v1", kind: "Node" } },
-  { name: kind.PersistentVolume, expected: { group: "", version: "v1", kind: "PersistentVolume" } },
+  { name: Node, expected: { group: "", version: "v1", kind: "Node" } },
+  { name: PersistentVolume, expected: { group: "", version: "v1", kind: "PersistentVolume" } },
   {
-    name: kind.PersistentVolumeClaim,
+    name: PersistentVolumeClaim,
     expected: { group: "", version: "v1", kind: "PersistentVolumeClaim" },
   },
-  { name: kind.Pod, expected: { group: "", version: "v1", kind: "Pod" } },
+  { name: Pod, expected: { group: "", version: "v1", kind: "Pod" } },
   {
-    name: kind.PodDisruptionBudget,
+    name: PodDisruptionBudget,
     expected: { group: "policy", version: "v1", kind: "PodDisruptionBudget" },
   },
-  { name: kind.PodTemplate, expected: { group: "", version: "v1", kind: "PodTemplate" } },
-  { name: kind.ReplicaSet, expected: { group: "apps", version: "v1", kind: "ReplicaSet" } },
+  { name: PodTemplate, expected: { group: "", version: "v1", kind: "PodTemplate" } },
+  { name: ReplicaSet, expected: { group: "apps", version: "v1", kind: "ReplicaSet" } },
   {
-    name: kind.ReplicationController,
+    name: ReplicationController,
     expected: { group: "", version: "v1", kind: "ReplicationController" },
   },
-  { name: kind.ResourceQuota, expected: { group: "", version: "v1", kind: "ResourceQuota" } },
+  { name: ResourceQuota, expected: { group: "", version: "v1", kind: "ResourceQuota" } },
   {
-    name: kind.RuntimeClass,
+    name: RuntimeClass,
     expected: { group: "node.k8s.io", version: "v1", kind: "RuntimeClass" },
   },
-  { name: kind.Secret, expected: { group: "", version: "v1", kind: "Secret" } },
+  { name: Secret, expected: { group: "", version: "v1", kind: "Secret" } },
   {
-    name: kind.SelfSubjectAccessReview,
+    name: SelfSubjectAccessReview,
     expected: { group: "authorization.k8s.io", version: "v1", kind: "SelfSubjectAccessReview" },
   },
   {
-    name: kind.SelfSubjectRulesReview,
+    name: SelfSubjectRulesReview,
     expected: { group: "authorization.k8s.io", version: "v1", kind: "SelfSubjectRulesReview" },
   },
-  { name: kind.Service, expected: { group: "", version: "v1", kind: "Service" } },
-  { name: kind.ServiceAccount, expected: { group: "", version: "v1", kind: "ServiceAccount" } },
-  { name: kind.StatefulSet, expected: { group: "apps", version: "v1", kind: "StatefulSet" } },
+  { name: Service, expected: { group: "", version: "v1", kind: "Service" } },
+  { name: ServiceAccount, expected: { group: "", version: "v1", kind: "ServiceAccount" } },
+  { name: StatefulSet, expected: { group: "apps", version: "v1", kind: "StatefulSet" } },
   {
-    name: kind.StorageClass,
+    name: StorageClass,
     expected: { group: "storage.k8s.io", version: "v1", kind: "StorageClass" },
   },
   {
-    name: kind.SubjectAccessReview,
+    name: SubjectAccessReview,
     expected: { group: "authorization.k8s.io", version: "v1", kind: "SubjectAccessReview" },
   },
   {
-    name: kind.TokenReview,
+    name: TokenReview,
     expected: { group: "authentication.k8s.io", version: "v1", kind: "TokenReview" },
   },
   {
-    name: kind.ValidatingWebhookConfiguration,
+    name: ValidatingWebhookConfiguration,
     expected: {
       group: "admissionregistration.k8s.io",
       version: "v1",
@@ -112,11 +112,11 @@ const testCases = [
     },
   },
   {
-    name: kind.VolumeAttachment,
+    name: VolumeAttachment,
     expected: { group: "storage.k8s.io", version: "v1", kind: "VolumeAttachment" },
   },
   {
-    name: kind.Endpoints,
+    name: Endpoints,
     expected: { group: "", version: "v1", kind: "Endpoints", plural: "endpoints" },
   },
 ];
@@ -142,7 +142,7 @@ it.each(testCases)(
 );
 
 it("registers a new type", () => {
-    class UnicornKind extends kind.GenericKind {
+    class UnicornKind extends GenericKind {
     }
 
     try {
@@ -157,7 +157,7 @@ it("registers a new type", () => {
 })
 
 it("throws an error if the kind is already registered", () => {
-    class UnicornKind extends kind.GenericKind {}
+    class UnicornKind extends GenericKind {}
 
     try {
       RegisterKind(UnicornKind, {
