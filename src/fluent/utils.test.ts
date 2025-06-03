@@ -193,7 +193,7 @@ describe("kubeExec Function", () => {
       statusText: "OK",
     });
 
-    const result = await k8sExec(Pod, fakeFilters, fakeMethod, fakePayload);
+    const result = await k8sExec(Pod, fakeFilters, { method: fakeMethod, payload: fakePayload });
 
     expect(result).toEqual(fakePayload);
     expect(mockedFetch).toHaveBeenCalledWith(
@@ -214,7 +214,10 @@ describe("kubeExec Function", () => {
       statusText: "OK",
     });
 
-    const result = await k8sExec(Pod, fakeFilters, "PATCH_STATUS", fakePayload);
+    const result = await k8sExec(Pod, fakeFilters, {
+      method: "PATCH_STATUS",
+      payload: fakePayload,
+    });
 
     expect(result).toEqual(fakePayload);
     expect(mockedFetch).toHaveBeenCalledWith(
@@ -240,7 +243,7 @@ describe("kubeExec Function", () => {
 
     const patchPayload = [{ op: "replace", path: "/status/phase", value: "Ready" }];
 
-    const result = await k8sExec(Pod, fakeFilters, "PATCH", patchPayload);
+    const result = await k8sExec(Pod, fakeFilters, { method: "PATCH", payload: patchPayload });
 
     expect(result).toEqual(fakePayload);
     expect(mockedFetch).toHaveBeenCalledWith(
@@ -264,7 +267,7 @@ describe("kubeExec Function", () => {
       statusText: "OK",
     });
 
-    const result = await k8sExec(Pod, fakeFilters, "APPLY", fakePayload);
+    const result = await k8sExec(Pod, fakeFilters, { method: "APPLY", payload: fakePayload });
 
     expect(result).toEqual(fakePayload);
     expect(mockedFetch).toHaveBeenCalledWith(
@@ -290,7 +293,12 @@ describe("kubeExec Function", () => {
       statusText: "OK",
     });
 
-    const result = await k8sExec(Pod, fakeFilters, "APPLY", fakePayload, { force: true });
+    const result = await k8sExec(
+      Pod,
+      fakeFilters,
+      { method: "APPLY", payload: fakePayload },
+      { force: true },
+    );
 
     expect(result).toEqual(fakePayload);
     expect(mockedFetch).toHaveBeenCalledWith(
@@ -319,7 +327,9 @@ describe("kubeExec Function", () => {
       statusText: fakeStatusText,
     });
 
-    await expect(k8sExec(Pod, fakeFilters, fakeMethod, fakePayload)).rejects.toEqual(
+    await expect(
+      k8sExec(Pod, fakeFilters, { method: fakeMethod, payload: fakePayload }),
+    ).rejects.toEqual(
       expect.objectContaining({
         status: fakeStatus,
         statusText: fakeStatusText,

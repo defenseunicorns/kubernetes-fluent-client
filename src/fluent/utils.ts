@@ -204,12 +204,22 @@ const isEvictionPayload = (payload: unknown): payload is Eviction =>
   (payload as { kind: string }).kind === "Eviction";
 
 /**
+ * Method and payload for the request.
+ *
+ * method - the HTTP method to use
+ *
+ * payload - the payload to send with the request, can be of any type
+ */
+export type MethodPayload<K> = {
+  method: FetchMethods;
+  payload?: K | unknown;
+};
+/**
  * Execute a request against the Kubernetes API server.
  *
  * @param model - the model to use for the API
  * @param filters - (optional) filter overrides, can also be chained
- * @param method - the HTTP method to use
- * @param payload - (optional) the payload to send
+ * @param methodPayload - method and payload for the request
  * @param applyCfg - (optional) configuration for the apply method
  *
  * @returns the parsed JSON response
@@ -217,8 +227,7 @@ const isEvictionPayload = (payload: unknown): payload is Eviction =>
 export async function k8sExec<T extends GenericClass, K>(
   model: T,
   filters: Filters,
-  method: FetchMethods,
-  payload?: K | unknown,
+  methodPayload: MethodPayload<K>,
   applyCfg: ApplyCfg = { force: false },
 ) {
   const reconstruct = async (method: FetchMethods): K8sConfigPromise => {
@@ -226,11 +235,15 @@ export async function k8sExec<T extends GenericClass, K>(
     const { opts, serverUrl } = await k8sCfg(configMethod);
 
     // Build the base path once, using excludeName only for standard POST requests
-    const shouldExcludeName = method === "POST" && !(payload && isEvictionPayload(payload));
-    const baseUrl = pathBuilder(serverUrl.toString(), model, filters, shouldExcludeName);
+    const baseUrl = pathBuilder(
+      serverUrl.toString(),
+      model,
+      filters,
+      method === "POST" && !(methodPayload.payload && isEvictionPayload(methodPayload.payload)),
+    );
 
     // Append appropriate subresource paths
-    if (payload && isEvictionPayload(payload)) {
+    if (methodPayload.payload && isEvictionPayload(methodPayload.payload)) {
       baseUrl.pathname = `${baseUrl.pathname}/eviction`;
     } else if (method === "LOG") {
       baseUrl.pathname = `${baseUrl.pathname}/log`;
@@ -242,7 +255,7 @@ export async function k8sExec<T extends GenericClass, K>(
     };
   };
 
-  const { opts, serverUrl } = await reconstruct(method);
+  const { opts, serverUrl } = await reconstruct(methodPayload.method);
   const url: URL = serverUrl instanceof URL ? serverUrl : new URL(serverUrl);
 
   switch (opts.method) {
@@ -251,7 +264,7 @@ export async function k8sExec<T extends GenericClass, K>(
       opts.method = "PATCH";
       url.pathname = `${url.pathname}/status`;
       (opts.headers as Record<string, string>)["Content-Type"] = PatchStrategy.MergePatch;
-      payload = { status: (payload as { status: unknown }).status };
+      methodPayload.payload = { status: (methodPayload.payload as { status: unknown }).status };
       break;
 
     case "PATCH":
@@ -267,8 +280,8 @@ export async function k8sExec<T extends GenericClass, K>(
       break;
   }
 
-  if (payload) {
-    opts.body = JSON.stringify(payload);
+  if (methodPayload.payload) {
+    opts.body = JSON.stringify(methodPayload.payload);
   }
   const resp = await fetch<K>(url, opts);
 
@@ -276,7 +289,7 @@ export async function k8sExec<T extends GenericClass, K>(
     return resp.data;
   }
 
-  if (resp.status === 404 && method === "PATCH_STATUS") {
+  if (resp.status === 404 && methodPayload.method === "PATCH_STATUS") {
     resp.statusText =
       "Not Found" + " (NOTE: This error is expected if the resource has no status subresource)";
   }
