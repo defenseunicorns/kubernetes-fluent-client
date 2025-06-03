@@ -31,3 +31,24 @@ export interface Filters {
   name?: string;
   namespace?: string;
 }
+
+/**
+ * Configuration for the apply function.
+ */
+export type ApplyCfg = {
+  /**
+   * Force the apply to be a create.
+   */
+  force?: boolean;
+};
+
+export type FetchMethods =
+  | "APPLY"
+  | "DELETE"
+  | "GET"
+  | "LOG"
+  | "PATCH"
+  | "PATCH_STATUS"
+  | "POST"
+  | "PUT"
+  | "WATCH";

@@ -8,9 +8,9 @@ import { GenericClass } from "../types";
 import { WatchCfg, Watcher } from "./watch";
 import https from "https";
 import { SecureClientSessionOptions } from "http2";
-import { WatchAction } from "./shared-types";
+import { WatchAction, FetchMethods, ApplyCfg } from "./shared-types";
 /*
- * Watch Class Type
+ * Watch Class Type - Used in Pepr Watch Processor
  */
 export type WatcherType<T extends GenericClass> = Watcher<T>;
 
@@ -28,17 +28,6 @@ export type AgentOptions = Pick<
 export interface Options {
   agent?: https.Agent & { options?: AgentOptions };
 }
-
-export type FetchMethods =
-  | "APPLY"
-  | "DELETE"
-  | "GET"
-  | "LOG"
-  | "PATCH"
-  | "PATCH_STATUS"
-  | "POST"
-  | "PUT"
-  | "WATCH";
 
 /**
  * Get the resource or resources matching the filters.
@@ -198,16 +187,6 @@ export type K8sWithFilters<T extends GenericClass, K extends KubernetesObject> =
    * @returns the fluent API
    */
   WithLabel: (key: string, value?: string) => K8sWithFilters<T, K>;
-};
-
-/**
- * Configuration for the apply function.
- */
-export type ApplyCfg = {
-  /**
-   * Force the apply to be a create.
-   */
-  force?: boolean;
 };
 
 export type K8sInit<T extends GenericClass, K extends KubernetesObject> = K8sWithFilters<T, K> &
