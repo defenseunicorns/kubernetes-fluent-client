@@ -1,27 +1,32 @@
 // __mocks__/@kubernetes/client-node.ts
 
+import * as k8s from "@kubernetes/client-node";
 import { jest } from "@jest/globals";
 import { RequestOptions } from "https";
 import { HeaderInit, Headers } from "node-fetch";
 
-const actual = jest.requireActual("@kubernetes/client-node") as any;
+// Create a module with all the original exports
+const mockedModule = { ...k8s };
 
-const cloned = { ...actual };
-
-cloned.KubeConfig = class MockedKubeConfig {
+// Override KubeConfig by extending the original class
+mockedModule.KubeConfig = class MockedKubeConfig extends k8s.KubeConfig {
   loadFromDefault = jest.fn();
 
   applyToFetchOptions = jest.fn((data: RequestOptions) => {
-    return {
+    return Promise.resolve({
       method: data.method,
       headers: new Headers(data.headers as HeaderInit),
-    };
+    });
   });
 
-  getCurrentCluster = jest.fn().mockReturnValue({
+  getCurrentCluster = jest.fn<() => k8s.Cluster | null>().mockReturnValue({
     server: "http://jest-test:8080",
-  });
+    name: "test-cluster",
+    caFile: "",
+    caData: "",
+    skipTLSVerify: false,
+  } as k8s.Cluster);
 };
 
-// export all elements of the mocked module
-module.exports = cloned;
+// Export all elements of the module
+module.exports = mockedModule;
