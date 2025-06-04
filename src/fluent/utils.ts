@@ -296,9 +296,10 @@ export async function k8sExec<T extends GenericClass, K>(
 
   const { opts, serverUrl } = await reconstruct(methodPayload.method);
   const url: URL = serverUrl instanceof URL ? serverUrl : new URL(serverUrl);
+
   prepareRequestOptions(
     methodPayload,
-    { method: opts.method, headers: opts.headers as Record<string, string> },
+    opts as { method?: string; headers?: Record<string, string> },
     url,
     applyCfg,
   );
