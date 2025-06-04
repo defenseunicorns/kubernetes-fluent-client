@@ -174,34 +174,6 @@ export function applyCRDPostProcessing(
 }
 
 /**
- * Reads the content of a file from disk.
- *
- * @param filePath The path to the file.
- * @returns The file contents as a string.
- */
-export function readFile(filePath: string): string {
-  try {
-    return fs.readFileSync(filePath, "utf8");
-  } catch (error) {
-    throw new Error(`Failed to read file at ${filePath}: ${error.message}`);
-  }
-}
-
-/**
- * Writes the modified content back to the file.
- *
- * @param filePath The path to the file.
- * @param content The modified content to write.
- */
-export function writeFile(filePath: string, content: string): void {
-  try {
-    fs.writeFileSync(filePath, content, "utf8");
-  } catch (error) {
-    throw new Error(`Failed to write file at ${filePath}: ${error.message}`);
-  }
-}
-
-/**
  * Retrieves the properties of the `GenericKind` class, excluding dynamic properties like `[key: string]: any`.
  *
  * @returns An array of property names that belong to `GenericKind`.
