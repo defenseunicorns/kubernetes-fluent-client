@@ -1,18 +1,17 @@
-import { kind, K8s, fetch, GenericClass, KubernetesObject } from "kubernetes-fluent-client";
-import { beforeAll, jest, test, describe, expect } from "@jest/globals";
+import { kind, K8s, fetch, GenericClass, KubernetesObject } from "../src";
+import { beforeAll, it, describe, expect } from "vitest";
 import { Datastore, Kind as Backing } from "./datastore-v1alpha1";
 import { WebApp, Phase, Language, Theme } from "./webapp-v1alpha1";
 import { V1APIGroup } from "@kubernetes/client-node";
 import { beforeEach } from "node:test";
 
-jest.unmock("@kubernetes/client-node");
 const namespace = `e2e-tests`;
 
 describe("KFC e2e test", () => {
   beforeAll(async () => {
     try {
-      await K8s(kind.Namespace).Apply({ metadata: { name: namespace } },{force: true});
-    } catch (e){
+      await K8s(kind.Namespace).Apply({ metadata: { name: namespace } }, { force: true });
+    } catch (e) {
       expect(e).toBeUndefined();
     }
   }, 30000);
@@ -32,7 +31,7 @@ describe("KFC e2e test", () => {
     await waitForRunningStatusPhase(kind.Pod, { metadata: { name: namespace, namespace } });
   });
 
-  test("Apply", async () => {
+  it("Apply", async () => {
     // No Force Test - NS is already created
     try {
       const ns = await K8s(kind.Namespace).Get(namespace);
@@ -65,7 +64,7 @@ describe("KFC e2e test", () => {
     }
   });
 
-  test("Get by name", async () => {
+  it("Get by name", async () => {
     try {
       const ns = await K8s(kind.Namespace).Get(namespace);
       expect(ns.metadata!.name).toBe(namespace);
@@ -74,7 +73,7 @@ describe("KFC e2e test", () => {
     }
   });
 
-  test("Get by list", async () => {
+  it("Get by list", async () => {
     try {
       const nsList = await K8s(kind.Namespace).Get();
       expect(nsList.items.length).toBeGreaterThan(0);
@@ -86,7 +85,7 @@ describe("KFC e2e test", () => {
     }
   });
 
-  test("Evict by name", async () => {
+  it("Evict by name", async () => {
     try {
       await K8s(kind.Pod).Apply({
         metadata: { name: `${namespace}-evict-me`, namespace },
@@ -95,18 +94,22 @@ describe("KFC e2e test", () => {
     } catch (e) {
       expect(e).toBeUndefined();
     }
-    await waitForRunningStatusPhase(kind.Pod, { metadata: { name: `${namespace}-evict-me`, namespace } });
+    await waitForRunningStatusPhase(kind.Pod, {
+      metadata: { name: `${namespace}-evict-me`, namespace },
+    });
 
     try {
       const result = await K8s(kind.Pod).InNamespace(namespace).Evict(`${namespace}-evict-me`);
       expect(result).toBeUndefined();
-      await untilTrue(() => gone(kind.Pod, { metadata: { name: `${namespace}-evict-me`, namespace } }));
+      await untilTrue(() =>
+        gone(kind.Pod, { metadata: { name: `${namespace}-evict-me`, namespace } }),
+      );
     } catch (e) {
       expect(e).toBeUndefined();
     }
   }, 80000);
 
-  test("Delete by name", async () => {
+  it("Delete by name", async () => {
     try {
       const result = await K8s(kind.Pod).InNamespace(namespace).Delete(`${namespace}`);
       expect(result).toBeUndefined();
@@ -115,17 +118,20 @@ describe("KFC e2e test", () => {
       expect(e).toBeUndefined();
     }
     try {
-      await K8s(kind.Pod).Apply({
-        metadata: { name: namespace, namespace, labels: { app: "nginx" } },
-        spec: { containers: [{ name: "nginx", image: "nginx" }] },
-      },{force: true});
+      await K8s(kind.Pod).Apply(
+        {
+          metadata: { name: namespace, namespace, labels: { app: "nginx" } },
+          spec: { containers: [{ name: "nginx", image: "nginx" }] },
+        },
+        { force: true },
+      );
     } catch (e) {
       expect(e).toBeUndefined();
     }
     await waitForRunningStatusPhase(kind.Pod, { metadata: { name: namespace, namespace } });
   }, 80000);
 
-  test("Create", async () => {
+  it("Create", async () => {
     try {
       await K8s(kind.Pod).Apply({
         metadata: { name: `${namespace}-1`, namespace },
@@ -142,7 +148,7 @@ describe("KFC e2e test", () => {
       expect(e).toBeUndefined();
     }
   });
-  test("Raw", async () => {
+  it("Raw", async () => {
     try {
       const data = await K8s(V1APIGroup).Raw("/api");
       expect(data).toBeDefined();
@@ -152,7 +158,7 @@ describe("KFC e2e test", () => {
     }
   });
 
-  test("kfc crd", async () => {
+  it("kfc crd", async () => {
     await createCR(
       WebApp,
       {
@@ -198,7 +204,7 @@ describe("KFC e2e test", () => {
     }
   });
 
-  test("PatchStatus", async () => {
+  it("PatchStatus", async () => {
     // Create initial CRs
     await createCR(WebApp, {
       metadata: { name: "webapp", namespace },
@@ -261,7 +267,7 @@ describe("KFC e2e test", () => {
     }
   });
 
-  test("filters - InNamespace, WithLabel, WithField", async () => {
+  it("filters - InNamespace, WithLabel, WithField", async () => {
     try {
       const podList = await K8s(kind.Pod)
         .InNamespace(namespace)
@@ -276,7 +282,7 @@ describe("KFC e2e test", () => {
     }
   });
 
-  test("Logs", async () => {
+  it("Logs", async () => {
     try {
       const logs = await K8s(kind.Pod).InNamespace(namespace).Logs(namespace);
       expect(logs).toBeDefined();
@@ -285,7 +291,7 @@ describe("KFC e2e test", () => {
       expect(e).toBeUndefined();
     }
   });
-  test("Patch", async () => {
+  it("Patch", async () => {
     try {
       await K8s(kind.Namespace, { name: namespace }).Patch([
         {
@@ -307,7 +313,7 @@ describe("KFC e2e test", () => {
       expect(e).toBeDefined();
     }
   });
-  test("kfc fetch", async () => {
+  it("kfc fetch", async () => {
     const jsonURL = "https://api.github.com/repositories/1";
     const stringURL = "https://api.github.com/octocat";
 
@@ -322,7 +328,7 @@ describe("KFC e2e test", () => {
       expect(ok).toBe(true);
       expect(data).toBeDefined();
       expect(data).toContain("MMMMMMMMMMMMM");
-    } catch (e){
+    } catch (e) {
       expect(e).toBeUndefined();
     }
 
@@ -340,7 +346,7 @@ describe("KFC e2e test", () => {
 
 /**
  * sleep for a given number of seconds
- * 
+ *
  * @param seconds - number of seconds to sleep
  * @returns Promise<void>
  */
@@ -350,7 +356,7 @@ export function sleep(seconds: number): Promise<void> {
 
 /**
  * Wait for the status phase to be Running
- * 
+ *
  * @param k - GenericClass
  * @param o - KubernetesObject
  * @returns Promise<void>
@@ -371,7 +377,7 @@ export async function waitForRunningStatusPhase(
 
 /**
  * Wait for the status phase to be the given status
- * 
+ *
  * @param k - GenericClass
  * @param o - KubernetesObject
  * @param status - string
@@ -393,7 +399,7 @@ export async function waitForGenericStatusPhase(
 
 /**
  * Check if the object is gone
- * 
+ *
  * @param k - GenericClass
  * @param o - KubernetesObject
  * @returns Promise<boolean>
@@ -406,14 +412,14 @@ export async function gone(k: GenericClass, o: KubernetesObject): Promise<boolea
       .InNamespace(ns)
       .Get(o.metadata?.name || "");
   } catch {
-      return Promise.resolve(true);
+    return Promise.resolve(true);
   }
   return Promise.resolve(false);
 }
 
 /**
  * Wait until the predicate is true
- * 
+ *
  * @param predicate - () => Promise<boolean>
  * @returns Promise<void>
  */
@@ -429,7 +435,7 @@ export async function untilTrue(predicate: () => Promise<boolean>): Promise<void
 
 /**
  * Create a CR
- * 
+ *
  * @param k - GenericClass
  * @param o - KubernetesObject
  * @param force - boolean

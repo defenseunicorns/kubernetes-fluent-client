@@ -1,7 +1,7 @@
 import { execFile } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
-import { describe, beforeEach, test, expect, afterEach } from "@jest/globals";
+import { describe, beforeEach, test, expect, afterEach } from "vitest";
 
 // Utility function to execute the CLI command
 const runCliCommand = (
