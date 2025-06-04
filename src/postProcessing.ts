@@ -156,7 +156,7 @@ export function applyCRDPostProcessing(
     let lines = content.split("\n");
 
     // Wraps with the fluent client if needed
-    if (shouldWrapWithFluentClient(opts)) {
+    if (opts.language === "ts" && !opts.plain) {
       lines = wrapWithFluentClient(lines, name, crd, version, opts.npmPackage);
     }
     const foundInterfaces = collectInterfaceNames(lines);
@@ -409,16 +409,6 @@ export function removePropertyStringAny(lines: CodeLines, opts: GenerateOptions)
     return lines.filter(line => !line.includes("[property: string]: any;"));
   }
   return lines;
-}
-
-/**
- * Determines if the content should be wrapped with the fluent client.
- *
- * @param opts The options for generating the content.
- * @returns True if the content should be wrapped with the fluent client, false otherwise.
- */
-export function shouldWrapWithFluentClient(opts: GenerateOptions): boolean {
-  return opts.language === "ts" && !opts.plain;
 }
 
 /**
