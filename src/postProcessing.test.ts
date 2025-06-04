@@ -9,7 +9,6 @@ import * as fs from "fs";
 import * as path from "path";
 
 // Mock the fs module
-import * as fs from "fs";
 jest.mock("fs");
 
 // Get the mocked fs module
@@ -69,7 +68,7 @@ describe("postProcessing", () => {
     const mockContent = "test content";
 
     // Mock the file system operations
-    mockFs.readFileSync.mockImplementation(() => mockContent);
+    mockFs.readFileSync.mockImplementation(() => mockContent as any);
     mockFs.writeFileSync.mockImplementation(() => {});
 
     await postProcessingModule.processFiles(["testkind-v1.ts"], mockFileResultMap, mockOpts);
@@ -103,7 +102,7 @@ describe("postProcessing", () => {
 
   test("should log start and completion messages", async () => {
     const mockContent = "mock content";
-    mockFs.readdirSync.mockReturnValue(["TestKind-v1.ts"] as unknown as string[]);
+    mockFs.readdirSync.mockReturnValue(["TestKind-v1.ts"] as any);
     mockFs.readFileSync.mockReturnValue(Buffer.from(mockContent));
     mockFs.writeFileSync.mockImplementation(() => {});
 
@@ -139,7 +138,7 @@ describe("postProcessing", () => {
     const mockContent = "test content";
 
     // Mock the file system operations
-    mockFs.readFileSync.mockImplementation(() => mockContent);
+    mockFs.readFileSync.mockImplementation(() => mockContent as any);
     mockFs.writeFileSync.mockImplementation(() => {});
 
     await postProcessingModule.processFiles(["testkind-v1.ts"], mockFileResultMap, mockOpts);
