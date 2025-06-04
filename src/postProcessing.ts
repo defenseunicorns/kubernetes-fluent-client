@@ -113,7 +113,7 @@ export function processAndModifySingleFile(
 
   let fileContent;
   try {
-    fileContent = fs.readFileSync(filePath);
+    fileContent = fs.readFileSync(filePath, "utf8");
   } catch (error) {
     logError(error, filePath, opts.logFn);
     return;
