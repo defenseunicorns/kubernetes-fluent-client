@@ -179,7 +179,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
       filters.name = name;
     }
 
-    return k8sExec<T, K | KubernetesListObject<K>>(model, filters, "GET");
+    return k8sExec<T, K | KubernetesListObject<K>>(model, filters, { method: "GET" });
   }
 
   /**
