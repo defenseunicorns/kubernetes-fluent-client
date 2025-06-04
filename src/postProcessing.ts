@@ -6,7 +6,6 @@ import * as path from "path";
 import { GenerateOptions } from "./generate";
 import { GenericKind } from "./types";
 import { CustomResourceDefinition } from "./upstream";
-import { FileSystem, NodeFileSystem } from "./fileSystem";
 
 type CRDResult = {
   name: string;
@@ -25,23 +24,18 @@ const genericKindProperties = getGenericKindProperties();
  *
  * @param allResults The array of CRD results.
  * @param opts The options for post-processing.
- * @param fileSystem The file system interface for reading and writing files.
  */
-export async function postProcessing(
-  allResults: CRDResult[],
-  opts: GenerateOptions,
-  fileSystem: FileSystem = new NodeFileSystem(),
-) {
+export async function postProcessing(allResults: CRDResult[], opts: GenerateOptions) {
   if (!opts.directory) {
     opts.logFn("⚠️ Error: Directory is not defined.");
     return;
   }
 
-  const files = fileSystem.readdirSync(opts.directory);
+  const files = fs.readdirSync(opts.directory);
   opts.logFn("\n🔧 Post-processing started...");
 
   const fileResultMap = mapFilesToCRD(allResults);
-  await processFiles(files, fileResultMap, opts, fileSystem);
+  await processFiles(files, fileResultMap, opts);
 
   opts.logFn("🔧 Post-processing completed.\n");
 }
@@ -73,13 +67,11 @@ export function mapFilesToCRD(allResults: CRDResult[]): Record<string, CRDResult
  * @param files - The list of file names to process.
  * @param fileResultMap - A map linking file names to their corresponding CRD results.
  * @param opts - Options for the generation process.
- * @param fileSystem - The file system interface for reading and writing files.
  */
 export async function processFiles(
   files: string[],
   fileResultMap: Record<string, CRDResult>,
   opts: GenerateOptions,
-  fileSystem: FileSystem,
 ) {
   for (const file of files) {
     if (!opts.directory) {
@@ -94,7 +86,7 @@ export async function processFiles(
     }
 
     try {
-      processAndModifySingleFile(filePath, fileResult, opts, fileSystem);
+      processAndModifySingleFile(filePath, fileResult, opts);
     } catch (error) {
       logError(error, filePath, opts.logFn);
     }
@@ -110,20 +102,18 @@ export async function processFiles(
  * @param fileResult.crd - The CustomResourceDefinition object.
  * @param fileResult.version - The version of the CRD.
  * @param opts - Options for the generation process.
- * @param fileSystem - The file system interface for reading and writing files.
  */
 export function processAndModifySingleFile(
   filePath: string,
   fileResult: CRDResult,
   opts: GenerateOptions,
-  fileSystem: FileSystem,
 ) {
   opts.logFn(`🔍 Processing file: ${filePath}`);
   const { name, crd, version } = fileResult;
 
   let fileContent;
   try {
-    fileContent = fileSystem.readFile(filePath);
+    fileContent = fs.readFileSync(filePath);
   } catch (error) {
     logError(error, filePath, opts.logFn);
     return;
@@ -138,7 +128,7 @@ export function processAndModifySingleFile(
   }
 
   try {
-    fileSystem.writeFile(filePath, modifiedContent);
+    fs.writeFileSync(filePath, modifiedContent);
     opts.logFn(`✅ Successfully processed and wrote file: ${filePath}`);
   } catch (error) {
     logError(error, filePath, opts.logFn);
