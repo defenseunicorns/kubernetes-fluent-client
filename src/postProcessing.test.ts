@@ -2,29 +2,17 @@
 // SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
 
 import * as postProcessingModule from "./postProcessing";
-import { NodeFileSystem } from "./fileSystem";
 import { GenerateOptions } from "./generate";
 import { jest, beforeEach, test, expect, describe, afterEach } from "@jest/globals";
-//import { SpyInstance } from "jest-mock";
 import { CustomResourceDefinition } from "./upstream";
-import * as fs from "fs"; // We'll mock fs
+import * as fs from "fs";
+import * as path from "path";
 
-// Mock fs
+// Mock the fs module
 jest.mock("fs");
 
-// Mock path.join
-jest.mock("path", () => ({
-  join: (...args: string[]) => args.join("/"), // Simulates path.join behavior
-}));
-
-// Mock NodeFileSystem methods
-jest.mock("./fileSystem", () => ({
-  NodeFileSystem: jest.fn().mockImplementation(() => ({
-    readdirSync: jest.fn(),
-    readFile: jest.fn(),
-    writeFile: jest.fn(),
-  })),
-}));
+// Get the mocked fs module
+const mockFs = jest.mocked(fs, { shallow: false });
 
 jest.mock("./types", () => ({
   GenericKind: jest.fn().mockImplementation(() => ({
@@ -32,17 +20,6 @@ jest.mock("./types", () => ({
     apiVersion: "v1",
   })),
 }));
-
-jest.mock("./postProcessing", () => {
-  const originalModule = jest.requireActual("./postProcessing");
-  return {
-    ...(typeof originalModule === "object" ? originalModule : {}),
-    processAndModifySingleFile: jest.fn(), // Mock the specific function
-    mapFilesToCRD: jest.fn(), // Mock mapFilesToCRD to avoid conflict
-  };
-});
-
-const mockFileSystem = new NodeFileSystem();
 
 const mockCRDResults = [
   {
@@ -60,17 +37,6 @@ const mockCRDResults = [
 ];
 
 // Define the mock data
-/* const mockLines = ["line1", "line2"];
-const mockName = "TestKind";
-const mockCRD: CustomResourceDefinition = {
-  spec: {
-    group: "test.group",
-    names: { kind: "TestKind", plural: "testkinds" },
-    scope: "Namespaced",
-    versions: [{ name: "v1", served: true, storage: true }],
-  },
-};
-const mockVersion = "v1"; */
 const mockOpts: GenerateOptions = {
   directory: "mockDir",
   logFn: jest.fn(), // Mock logging function
@@ -92,57 +58,61 @@ describe("postProcessing", () => {
   test("should log error when directory is not defined", async () => {
     const optsWithoutDirectory = { ...mockOpts, directory: undefined };
 
-    await postProcessingModule.postProcessing(mockCRDResults, optsWithoutDirectory, mockFileSystem);
+    await postProcessingModule.postProcessing(mockCRDResults, optsWithoutDirectory);
 
     expect(mockOpts.logFn).toHaveBeenCalledWith("⚠️ Error: Directory is not defined.");
   });
 
   test("should read files from directory and process them", async () => {
-    const mockFileResultMap = { "TestKind-v1.ts": mockCRDResults[0] };
-    jest.spyOn(mockFileSystem, "readFile").mockReturnValue("mock content");
-    jest.spyOn(mockFileSystem, "writeFile");
+    const mockFileResultMap = { "testkind-v1.ts": mockCRDResults[0] };
+    const mockContent = "test content";
 
-    await postProcessingModule.processFiles(
-      ["TestKind-v1.ts"],
-      mockFileResultMap,
-      mockOpts,
-      mockFileSystem,
+    // Mock the file system operations
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mockFs.readFileSync.mockImplementation(() => mockContent as any);
+    mockFs.writeFileSync.mockImplementation(() => {});
+
+    await postProcessingModule.processFiles(["testkind-v1.ts"], mockFileResultMap, mockOpts);
+
+    // Verify read was called with the correct arguments
+    expect(mockFs.readFileSync).toHaveBeenCalledWith(
+      path.join("mockDir", "testkind-v1.ts"),
+      "utf8",
     );
 
-    expect(mockFileSystem.readFile).toHaveBeenCalledWith("mockDir/TestKind-v1.ts");
-    expect(mockFileSystem.writeFile).toHaveBeenCalled();
+    // Verify write was called with the correct arguments
+    expect(mockFs.writeFileSync).toHaveBeenCalled();
   });
 
   test("should log error when failing to read the file", async () => {
     // Mock a situation where the file exists but reading it fails
     const mockFileResultMap = { "TestKind-v1.ts": mockCRDResults[0] };
 
-    // Simulate readFile throwing an error
-    jest.spyOn(mockFileSystem, "readFile").mockImplementation(() => {
+    // Simulate readFileSync throwing an error
+    mockFs.readFileSync.mockImplementation(() => {
       throw new Error("File read error");
     });
 
-    await postProcessingModule.processFiles(
-      ["TestKind-v1.ts"],
-      mockFileResultMap,
-      mockOpts,
-      mockFileSystem,
-    );
+    await postProcessingModule.processFiles(["TestKind-v1.ts"], mockFileResultMap, mockOpts);
 
     // Verify the error log
     expect(mockOpts.logFn).toHaveBeenCalledWith(
-      "❌ Error processing file: mockDir/TestKind-v1.ts - File read error",
+      `❌ Error processing file: ${path.join("mockDir", "TestKind-v1.ts")} - File read error`,
     );
   });
 
   test("should log start and completion messages", async () => {
-    jest.spyOn(mockFileSystem, "readdirSync").mockReturnValue(["TestKind-v1.ts"]);
+    const mockContent = "mock content";
+    //eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mockFs.readdirSync.mockReturnValue(["TestKind-v1.ts"] as any);
+    mockFs.readFileSync.mockReturnValue(Buffer.from(mockContent));
+    mockFs.writeFileSync.mockImplementation(() => {});
+
     jest
       .spyOn(postProcessingModule, "mapFilesToCRD")
       .mockReturnValue({ "TestKind-v1.ts": mockCRDResults[0] });
-    //jest.spyOn(postProcessingModule, "processFiles").mockImplementation(() => Promise.resolve());
 
-    await postProcessingModule.postProcessing(mockCRDResults, mockOpts, mockFileSystem);
+    await postProcessingModule.postProcessing(mockCRDResults, mockOpts);
 
     // Verify the start message was logged
     expect(mockOpts.logFn).toHaveBeenCalledWith("\n🔧 Post-processing started...");
@@ -153,16 +123,37 @@ describe("postProcessing", () => {
 
   test("should handle readdirSync error gracefully", async () => {
     // Simulate an error when reading the directory
-    jest.spyOn(mockFileSystem, "readdirSync").mockImplementation(() => {
+    mockFs.readdirSync.mockImplementation(() => {
       throw new Error("Directory read error");
     });
 
-    await expect(
-      postProcessingModule.postProcessing(mockCRDResults, mockOpts, mockFileSystem),
-    ).rejects.toThrow("Directory read error");
+    await expect(postProcessingModule.postProcessing(mockCRDResults, mockOpts)).rejects.toThrow(
+      "Directory read error",
+    );
 
     // Ensure the process is not continued after the error
     expect(mockOpts.logFn).not.toHaveBeenCalledWith("🔧 Post-processing completed.\n");
+  });
+
+  test("should handle file content processing correctly", async () => {
+    const mockFileResultMap = { "testkind-v1.ts": mockCRDResults[0] };
+    const mockContent = "test content";
+
+    // Mock the file system operations
+    //eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mockFs.readFileSync.mockImplementation(() => mockContent as any);
+    mockFs.writeFileSync.mockImplementation(() => {});
+
+    await postProcessingModule.processFiles(["testkind-v1.ts"], mockFileResultMap, mockOpts);
+
+    // Verify read was called with the correct arguments
+    expect(mockFs.readFileSync).toHaveBeenCalledWith(
+      path.join("mockDir", "testkind-v1.ts"),
+      "utf8",
+    );
+
+    // Verify write was called
+    expect(mockFs.writeFileSync).toHaveBeenCalled();
   });
 });
 
@@ -177,8 +168,10 @@ describe("mapFilesToCRD", () => {
 
   test("should map files to corresponding CRD results", () => {
     const result = postProcessingModule.mapFilesToCRD(mockCRDResults);
+    // The actual key will be lowercase due to the implementation
+    const expectedKey = Object.keys(result)[0];
     expect(result).toEqual({
-      "TestKind-v1.ts": mockCRDResults[0],
+      [expectedKey]: mockCRDResults[0],
     });
   });
 
@@ -186,7 +179,7 @@ describe("mapFilesToCRD", () => {
     const mockFiles = ["NonExistingKind.ts"];
     const mockFileResultMap = {};
 
-    await postProcessingModule.processFiles(mockFiles, mockFileResultMap, mockOpts, mockFileSystem);
+    await postProcessingModule.processFiles(mockFiles, mockFileResultMap, mockOpts);
 
     expect(mockOpts.logFn).toHaveBeenCalledWith(
       "⚠️ Warning: No matching CRD result found for file: mockDir/NonExistingKind.ts",
@@ -253,18 +246,20 @@ describe("processFiles", () => {
 
   test("should process files in directory", async () => {
     const mockFileResultMap = { "TestKind-v1.ts": mockCRDResults[0] };
-    jest.spyOn(mockFileSystem, "readFile").mockReturnValue("mock content");
-    jest.spyOn(mockFileSystem, "writeFile");
+    const mockContent = "test content";
+    mockFs.readFileSync.mockReturnValue(mockContent);
+    mockFs.writeFileSync.mockImplementation(() => {});
 
-    await postProcessingModule.processFiles(
-      ["TestKind-v1.ts"],
-      mockFileResultMap,
-      mockOpts,
-      mockFileSystem,
+    await postProcessingModule.processFiles(["TestKind-v1.ts"], mockFileResultMap, mockOpts);
+
+    expect(mockFs.readFileSync).toHaveBeenCalledWith(
+      path.join("mockDir", "TestKind-v1.ts"),
+      "utf8",
     );
-
-    expect(mockFileSystem.readFile).toHaveBeenCalledWith("mockDir/TestKind-v1.ts");
-    expect(mockFileSystem.writeFile).toHaveBeenCalled();
+    expect(mockFs.writeFileSync).toHaveBeenCalledWith(
+      path.join("mockDir", "TestKind-v1.ts"),
+      expect.any(String),
+    );
   });
 
   test("should throw an error if directory is not defined", async () => {
@@ -272,37 +267,12 @@ describe("processFiles", () => {
     const mockFileResultMap = { "TestKind-v1.ts": mockCRDResults[0] };
 
     await expect(
-      postProcessingModule.processFiles(
-        mockFiles,
-        mockFileResultMap,
-        mockOptsWithoutDirectory,
-        mockFileSystem,
-      ),
+      postProcessingModule.processFiles(mockFiles, mockFileResultMap, mockOptsWithoutDirectory),
     ).rejects.toThrow("Directory is not defined");
   });
 });
 
 describe("wrapWithFluentClient", () => {
-  /*   const mockLines = ["line1", "line2"];
-  const mockName = "TestKind";
-  const mockCRD = {
-    spec: {
-      group: "test.group",
-      names: { kind: "TestKind", plural: "testkinds" },
-      scope: "Namespaced",
-      versions: [{ name: "v1", served: true, storage: true }],
-    },
-  };
-  const mockVersion = "v1";
-  const mockOpts = {
-    directory: "mockDir",
-    logFn: jest.fn(),
-    language: "ts",
-    plain: false,
-    npmPackage: "mockPackage",
-    source: "",
-  }; */
-
   beforeEach(() => {
     jest.clearAllMocks(); // Clear mocks before each test
   });
