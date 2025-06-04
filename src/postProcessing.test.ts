@@ -68,6 +68,7 @@ describe("postProcessing", () => {
     const mockContent = "test content";
 
     // Mock the file system operations
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mockFs.readFileSync.mockImplementation(() => mockContent as any);
     mockFs.writeFileSync.mockImplementation(() => {});
 
@@ -102,6 +103,7 @@ describe("postProcessing", () => {
 
   test("should log start and completion messages", async () => {
     const mockContent = "mock content";
+    //eslint-disable-next-line @typescript-eslint/no-explicit-any
     mockFs.readdirSync.mockReturnValue(["TestKind-v1.ts"] as any);
     mockFs.readFileSync.mockReturnValue(Buffer.from(mockContent));
     mockFs.writeFileSync.mockImplementation(() => {});
@@ -138,6 +140,7 @@ describe("postProcessing", () => {
     const mockContent = "test content";
 
     // Mock the file system operations
+    //eslint-disable-next-line @typescript-eslint/no-explicit-any
     mockFs.readFileSync.mockImplementation(() => mockContent as any);
     mockFs.writeFileSync.mockImplementation(() => {});
 
