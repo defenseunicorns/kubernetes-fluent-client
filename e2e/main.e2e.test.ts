@@ -11,8 +11,8 @@ const namespace = `e2e-tests`;
 describe("KFC e2e test", () => {
   beforeAll(async () => {
     try {
-      await K8s(kind.Namespace).Apply({ metadata: { name: namespace } },{force: true});
-    } catch (e){
+      await K8s(kind.Namespace).Apply({ metadata: { name: namespace } }, { force: true });
+    } catch (e) {
       expect(e).toBeUndefined();
     }
   }, 30000);
@@ -95,12 +95,16 @@ describe("KFC e2e test", () => {
     } catch (e) {
       expect(e).toBeUndefined();
     }
-    await waitForRunningStatusPhase(kind.Pod, { metadata: { name: `${namespace}-evict-me`, namespace } });
+    await waitForRunningStatusPhase(kind.Pod, {
+      metadata: { name: `${namespace}-evict-me`, namespace },
+    });
 
     try {
       const result = await K8s(kind.Pod).InNamespace(namespace).Evict(`${namespace}-evict-me`);
       expect(result).toBeUndefined();
-      await untilTrue(() => gone(kind.Pod, { metadata: { name: `${namespace}-evict-me`, namespace } }));
+      await untilTrue(() =>
+        gone(kind.Pod, { metadata: { name: `${namespace}-evict-me`, namespace } }),
+      );
     } catch (e) {
       expect(e).toBeUndefined();
     }
@@ -115,10 +119,13 @@ describe("KFC e2e test", () => {
       expect(e).toBeUndefined();
     }
     try {
-      await K8s(kind.Pod).Apply({
-        metadata: { name: namespace, namespace, labels: { app: "nginx" } },
-        spec: { containers: [{ name: "nginx", image: "nginx" }] },
-      },{force: true});
+      await K8s(kind.Pod).Apply(
+        {
+          metadata: { name: namespace, namespace, labels: { app: "nginx" } },
+          spec: { containers: [{ name: "nginx", image: "nginx" }] },
+        },
+        { force: true },
+      );
     } catch (e) {
       expect(e).toBeUndefined();
     }
@@ -322,7 +329,7 @@ describe("KFC e2e test", () => {
       expect(ok).toBe(true);
       expect(data).toBeDefined();
       expect(data).toContain("MMMMMMMMMMMMM");
-    } catch (e){
+    } catch (e) {
       expect(e).toBeUndefined();
     }
 
@@ -340,7 +347,7 @@ describe("KFC e2e test", () => {
 
 /**
  * sleep for a given number of seconds
- * 
+ *
  * @param seconds - number of seconds to sleep
  * @returns Promise<void>
  */
@@ -350,7 +357,7 @@ export function sleep(seconds: number): Promise<void> {
 
 /**
  * Wait for the status phase to be Running
- * 
+ *
  * @param k - GenericClass
  * @param o - KubernetesObject
  * @returns Promise<void>
@@ -371,7 +378,7 @@ export async function waitForRunningStatusPhase(
 
 /**
  * Wait for the status phase to be the given status
- * 
+ *
  * @param k - GenericClass
  * @param o - KubernetesObject
  * @param status - string
@@ -393,7 +400,7 @@ export async function waitForGenericStatusPhase(
 
 /**
  * Check if the object is gone
- * 
+ *
  * @param k - GenericClass
  * @param o - KubernetesObject
  * @returns Promise<boolean>
@@ -406,14 +413,14 @@ export async function gone(k: GenericClass, o: KubernetesObject): Promise<boolea
       .InNamespace(ns)
       .Get(o.metadata?.name || "");
   } catch {
-      return Promise.resolve(true);
+    return Promise.resolve(true);
   }
   return Promise.resolve(false);
 }
 
 /**
  * Wait until the predicate is true
- * 
+ *
  * @param predicate - () => Promise<boolean>
  * @returns Promise<void>
  */
@@ -429,7 +436,7 @@ export async function untilTrue(predicate: () => Promise<boolean>): Promise<void
 
 /**
  * Create a CR
- * 
+ *
  * @param k - GenericClass
  * @param o - KubernetesObject
  * @param force - boolean
