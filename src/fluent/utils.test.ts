@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
 
+import { PatchStrategy } from "@kubernetes/client-node";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import * as fs from "fs";
 import { RequestInit } from "node-fetch";
@@ -9,10 +10,80 @@ import { RegisterKind } from "../kinds";
 import { GenericClass } from "../types";
 import { ClusterRole, Ingress, Pod } from "../upstream";
 import { Filters } from "./types";
-import { k8sExec, pathBuilder, getHTTPSAgent, getHeaders, getToken } from "./utils";
-
+import {
+  k8sExec,
+  pathBuilder,
+  getHTTPSAgent,
+  getHeaders,
+  getToken,
+  prepareRequestOptions,
+} from "./utils";
+import type { MethodPayload } from "./utils";
 jest.mock("https");
 jest.mock("../fetch");
+
+describe("prepareRequestOptions", () => {
+  const baseUrl = () => new URL("https://k8s.local/api/v1/pods/test-pod");
+
+  it("handles PATCH_STATUS", () => {
+    const url = baseUrl();
+    const opts = { method: "PATCH_STATUS", headers: {} as Record<string, string> };
+    const methodPayload: MethodPayload<{ status: string }> = {
+      method: "PATCH_STATUS",
+      payload: { status: "Running" },
+    };
+
+    prepareRequestOptions(methodPayload, opts, url, { force: false });
+
+    expect(opts.method).toBe("PATCH");
+    expect(url.pathname).toMatch(/\/status$/);
+    expect(opts.headers?.["Content-Type"]).toBe(PatchStrategy.MergePatch);
+    expect(methodPayload.payload).toEqual({ status: "Running" });
+  });
+
+  it("handles PATCH", () => {
+    const url = baseUrl();
+    const opts = { method: "PATCH", headers: {} as Record<string, string> };
+    const methodPayload: MethodPayload<{ foo: string }> = {
+      method: "PATCH",
+      payload: { foo: "bar" },
+    };
+
+    prepareRequestOptions(methodPayload, opts, url, { force: false });
+
+    expect(opts.headers?.["Content-Type"]).toBe(PatchStrategy.JsonPatch);
+  });
+
+  it("handles APPLY with force", () => {
+    const url = baseUrl();
+    const opts = { method: "APPLY", headers: {} as Record<string, string> };
+    const methodPayload: MethodPayload<{ spec: object }> = {
+      method: "APPLY",
+      payload: { spec: {} },
+    };
+
+    prepareRequestOptions(methodPayload, opts, url, { force: true });
+
+    expect(opts.method).toBe("PATCH");
+    expect(opts.headers?.["Content-Type"]).toBe("application/apply-patch+yaml");
+    expect(url.searchParams.get("fieldManager")).toBe("pepr");
+    expect(url.searchParams.get("fieldValidation")).toBe("Strict");
+    expect(url.searchParams.get("force")).toBe("true");
+  });
+
+  it("handles APPLY without force", () => {
+    const url = baseUrl();
+    const opts = { method: "APPLY", headers: {} as Record<string, string> };
+    const methodPayload: MethodPayload<{ spec: object }> = {
+      method: "APPLY",
+      payload: { spec: {} },
+    };
+
+    prepareRequestOptions(methodPayload, opts, url, { force: false });
+
+    expect(url.searchParams.get("force")).toBe("false");
+  });
+});
 
 describe("getToken", () => {
   it("should return the token from the service account", async () => {

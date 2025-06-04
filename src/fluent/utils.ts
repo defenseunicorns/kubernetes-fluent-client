@@ -204,12 +204,54 @@ const isEvictionPayload = (payload: unknown): payload is Eviction =>
   (payload as { kind: string }).kind === "Eviction";
 
 /**
- * Method and payload for the request.
+ * Prepares and mutates the request options and URL for Kubernetes PATCH or APPLY operations.
  *
- * method - the HTTP method to use
+ * This function modifies the request's HTTP method, headers, and URL based on the operation type.
+ * It handles the following:
  *
- * payload - the payload to send with the request, can be of any type
+ * - `PATCH_STATUS`: Converts the method to `PATCH`, appends `/status` to the path, sets merge patch headers,
+ *   and rewrites the payload to contain only the `status` field.
+ * - `PATCH`: Sets the content type to `application/json-patch+json`.
+ * - `APPLY`: Converts the method to `PATCH`, sets server-side apply headers, and updates the query string
+ *   with field manager and force options.
+ *
+ * @template K
+ * @param methodPayload - The original method and payload. May be mutated if `PATCH_STATUS` is used.
+ * @param opts - The request options.
+ * @param opts.method - The HTTP method (e.g. `PATCH`, `APPLY`, or `PATCH_STATUS`).
+ * @param opts.headers - The headers to be updated with the correct content type.
+ * @param url - The URL to mutate with subresource path or query parameters.
+ * @param applyCfg - Server-side apply options, such as `force`.
  */
+export function prepareRequestOptions<K>(
+  methodPayload: MethodPayload<K>,
+  opts: { method?: string; headers?: Record<string, string> },
+  url: URL,
+  applyCfg: ApplyCfg,
+): void {
+  switch (opts.method) {
+    // PATCH_STATUS is a special case that uses the PATCH method on status subresources
+    case "PATCH_STATUS":
+      opts.method = "PATCH";
+      url.pathname = `${url.pathname}/status`;
+      (opts.headers as Record<string, string>)["Content-Type"] = PatchStrategy.MergePatch;
+      methodPayload.payload = { status: (methodPayload.payload as { status: unknown }).status };
+      break;
+
+    case "PATCH":
+      (opts.headers as Record<string, string>)["Content-Type"] = PatchStrategy.JsonPatch;
+      break;
+
+    case "APPLY":
+      (opts.headers as Record<string, string>)["Content-Type"] = SSA_CONTENT_TYPE;
+      opts.method = "PATCH";
+      url.searchParams.set("fieldManager", "pepr");
+      url.searchParams.set("fieldValidation", "Strict");
+      url.searchParams.set("force", applyCfg.force ? "true" : "false");
+      break;
+  }
+}
+
 export type MethodPayload<K> = {
   method: FetchMethods;
   payload?: K | unknown;
@@ -235,12 +277,9 @@ export async function k8sExec<T extends GenericClass, K>(
     const { opts, serverUrl } = await k8sCfg(configMethod);
 
     // Build the base path once, using excludeName only for standard POST requests
-    const baseUrl = pathBuilder(
-      serverUrl.toString(),
-      model,
-      filters,
-      method === "POST" && !(methodPayload.payload && isEvictionPayload(methodPayload.payload)),
-    );
+    const shouldExcludeName =
+      method === "POST" && !(methodPayload.payload && isEvictionPayload(methodPayload.payload));
+    const baseUrl = pathBuilder(serverUrl.toString(), model, filters, shouldExcludeName);
 
     // Append appropriate subresource paths
     if (methodPayload.payload && isEvictionPayload(methodPayload.payload)) {
@@ -257,28 +296,12 @@ export async function k8sExec<T extends GenericClass, K>(
 
   const { opts, serverUrl } = await reconstruct(methodPayload.method);
   const url: URL = serverUrl instanceof URL ? serverUrl : new URL(serverUrl);
-
-  switch (opts.method) {
-    // PATCH_STATUS is a special case that uses the PATCH method on status subresources
-    case "PATCH_STATUS":
-      opts.method = "PATCH";
-      url.pathname = `${url.pathname}/status`;
-      (opts.headers as Record<string, string>)["Content-Type"] = PatchStrategy.MergePatch;
-      methodPayload.payload = { status: (methodPayload.payload as { status: unknown }).status };
-      break;
-
-    case "PATCH":
-      (opts.headers as Record<string, string>)["Content-Type"] = PatchStrategy.JsonPatch;
-      break;
-
-    case "APPLY":
-      (opts.headers as Record<string, string>)["Content-Type"] = SSA_CONTENT_TYPE;
-      opts.method = "PATCH";
-      url.searchParams.set("fieldManager", "pepr");
-      url.searchParams.set("fieldValidation", "Strict");
-      url.searchParams.set("force", applyCfg.force ? "true" : "false");
-      break;
-  }
+  prepareRequestOptions(
+    methodPayload,
+    { method: opts.method, headers: opts.headers as Record<string, string> },
+    url,
+    applyCfg,
+  );
 
   if (methodPayload.payload) {
     opts.body = JSON.stringify(methodPayload.payload);
