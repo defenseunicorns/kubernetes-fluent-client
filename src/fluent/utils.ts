@@ -222,7 +222,7 @@ export async function k8sExec<T extends GenericClass, K>(
   applyCfg: ApplyCfg = { force: false },
 ) {
   const reconstruct = async (method: FetchMethods): K8sConfigPromise => {
-    const configMethod = method === "LOG" ? "GET" : method;
+    const configMethod = method === FetchMethods.LOG ? FetchMethods.GET : method;
     const { opts, serverUrl } = await k8sCfg(configMethod);
 
     // Build the base path once, using excludeName only for standard POST requests

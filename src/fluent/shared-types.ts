@@ -42,13 +42,14 @@ export type ApplyCfg = {
   force?: boolean;
 };
 
-export type FetchMethods =
-  | "APPLY"
-  | "DELETE"
-  | "GET"
-  | "LOG"
-  | "PATCH"
-  | "PATCH_STATUS"
-  | "POST"
-  | "PUT"
-  | "WATCH";
+export enum FetchMethods {
+  APPLY = "APPLY",
+  DELETE = "DELETE",
+  GET = "GET",
+  LOG = "LOG",
+  PATCH = "PATCH",
+  PATCH_STATUS = "PATCH_STATUS",
+  POST = "POST",
+  PUT = "PUT",
+  WATCH = "WATCH",
+}
