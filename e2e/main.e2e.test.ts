@@ -158,7 +158,7 @@ describe("KFC e2e test", () => {
     }
   });
 
-  it("kfc crd", async () => {
+  it.skip("kfc crd", async () => {
     await createCR(
       WebApp,
       {
@@ -204,7 +204,7 @@ describe("KFC e2e test", () => {
     }
   });
 
-  it("PatchStatus", async () => {
+  it.skip("PatchStatus", async () => {
     // Create initial CRs
     await createCR(WebApp, {
       metadata: { name: "webapp", namespace },

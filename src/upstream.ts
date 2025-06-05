@@ -51,4 +51,4 @@ export {
   V1ValidatingWebhookConfiguration as ValidatingWebhookConfiguration,
   V1VolumeAttachment as VolumeAttachment,
 } from "@kubernetes/client-node";
-export { GenericKind } from "./types";
+export { GenericKind } from "./types.js";

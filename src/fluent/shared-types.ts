@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
-import { GenericClass, GroupVersionKind } from "../types";
+import { GenericClass, GroupVersionKind } from "../types.js";
 import { RequestInit } from "undici";
 import { KubernetesObject } from "@kubernetes/client-node";
 /**

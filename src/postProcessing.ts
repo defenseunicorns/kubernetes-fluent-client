@@ -3,10 +3,13 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { GenerateOptions } from "./generate";
-import { GenericKind } from "./types";
-import { CustomResourceDefinition } from "./upstream";
-import { modifyAndNormalizeClassProperties, normalizeIndentationAndSpacing } from "./normalization";
+import { GenerateOptions } from "./generate.js";
+import { GenericKind } from "./types.js";
+import { CustomResourceDefinition } from "./upstream.js";
+import {
+  modifyAndNormalizeClassProperties,
+  normalizeIndentationAndSpacing,
+} from "./normalization.js";
 
 type CRDResult = {
   name: string;
@@ -178,8 +181,16 @@ export function applyCRDPostProcessing(
  * @returns An array of property names that belong to `GenericKind`.
  */
 export function getGenericKindProperties(): string[] {
-  const properties = Object.getOwnPropertyNames(new GenericKind());
-  return properties.filter(prop => prop !== "[key: string]");
+  // Ensure we always include standard Kubernetes resource properties
+  const standardProperties = ["kind", "apiVersion", "metadata"];
+
+  // Get actual properties from GenericKind
+  const instanceProperties = Object.getOwnPropertyNames(new GenericKind()).filter(
+    prop => prop !== "[key: string]",
+  );
+
+  // Combine both sets of properties, removing duplicates
+  return Array.from(new Set([...standardProperties, ...instanceProperties]));
 }
 
 /**
