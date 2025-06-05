@@ -234,12 +234,12 @@ describe("KFC e2e test", () => {
       },
       status: { phase: Phase.Ready },
     });
-    // await K8s(Datastore).PatchStatus({
-    //   metadata: { name: "valkey", namespace },
-    //   status: {
-    //     phase: Phase.Ready,
-    //   },
-    // });
+    await K8s(Datastore).PatchStatus({
+      metadata: { name: "valkey", namespace },
+      status: {
+        phase: Phase.Ready,
+      },
+    });
 
     await waitForGenericStatusPhase(
       WebApp,
