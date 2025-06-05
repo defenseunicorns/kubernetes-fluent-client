@@ -212,7 +212,7 @@ describe("readOrFetchCrd with URL", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     mockOpts = {
-      source: "http://example.com/mock-crd",
+      source: "https://example.com/mock-crd",
       logFn: vi.fn(),
     };
 
@@ -226,7 +226,7 @@ describe("readOrFetchCrd with URL", () => {
   test("should fetch CRD from a URL and parse YAML", async () => {
     // Mock tryParseUrl to return a valid URL
     vi.mocked(await import("./generate.js")).tryParseUrl.mockReturnValue(
-      new URL("http://example.com/mock-crd"),
+      new URL("https://example.com/mock-crd"),
     );
 
     // Mock fetch to return a valid response
@@ -245,7 +245,7 @@ describe("readOrFetchCrd with URL", () => {
     const result = await readOrFetchCrd(mockOpts);
 
     // Assert fetch was called with correct URL
-    expect(fetch).toHaveBeenCalledWith("http://example.com/mock-crd");
+    expect(fetch).toHaveBeenCalledWith("https://example.com/mock-crd");
 
     // Assert loadAllYaml was called with fetched data
     expect(loadAllYaml).toHaveBeenCalledWith("mock fetched data");
@@ -255,7 +255,7 @@ describe("readOrFetchCrd with URL", () => {
 
     // Assert log function was called with correct message
     expect(mockOpts.logFn).toHaveBeenCalledWith(
-      "Attempting to load http://example.com/mock-crd as a URL",
+      "Attempting to load https://example.com/mock-crd as a URL",
     );
   });
 });

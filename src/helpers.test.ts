@@ -24,7 +24,7 @@ describe("Cluster Wait Function", () => {
       KubeConfig: vi.fn().mockImplementation(() => ({
         loadFromDefault: vi.fn(),
         getCurrentCluster: vi.fn().mockReturnValue({
-          server: "http://jest-test:8080",
+          server: "https://jest-test:8080",
         }),
       })),
     };
@@ -36,7 +36,7 @@ describe("Cluster Wait Function", () => {
 
   it("should resolve if the cluster is already ready", async () => {
     const cluster = await waitForCluster(5);
-    expect(cluster).toEqual({ server: "http://jest-test:8080" });
+    expect(cluster).toEqual({ server: "https://jest-test:8080" });
   });
 });
 

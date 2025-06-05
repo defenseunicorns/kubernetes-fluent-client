@@ -29,7 +29,7 @@ describe("Watcher", () => {
     mockAgent.disableNetConnect();
     setGlobalDispatcher(mockAgent);
 
-    mockClient = mockAgent.get("http://jest-test:8080");
+    mockClient = mockAgent.get("https://jest-test:8080");
 
     // Mock list operation
     mockClient
@@ -173,7 +173,7 @@ describe("Watcher", () => {
   });
 
   it("should handle the RECONNECT event on an error", () => {
-    mockClient = mockAgent.get("http://jest-test:8080");
+    mockClient = mockAgent.get("https://jest-test:8080");
 
     mockClient
       .intercept({
@@ -277,7 +277,7 @@ describe("Watcher", () => {
 
     setupAndStartWatcher(WatchEvent.NETWORK_ERROR, error => {
       expect(error.message).toEqual(
-        "request to http://jest-test:8080/api/v1/pods?watch=true&resourceVersion=45 failed, reason: Something bad happened",
+        "request to https://jest-test:8080/api/v1/pods?watch=true&resourceVersion=45 failed, reason: Something bad happened",
       );
     });
   });

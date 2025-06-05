@@ -171,7 +171,7 @@ describe("kubeExec Function", () => {
     metadata: { name: "fake", namespace: "default" },
     status: { phase: "Ready" },
   };
-  const fakeServerUrl = "http://jest-test:8080";
+  const fakeServerUrl = "https://jest-test:8080";
 
   // Mock necessary functions to ensure consistent URL construction in tests
   const mockK8sCfg = vi.spyOn(utils, "k8sCfg");

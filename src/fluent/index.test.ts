@@ -269,7 +269,7 @@ describe("Kube", () => {
     mockedKubeCfg.mockReturnValue(
       new Promise(r =>
         r({
-          serverUrl: "http://localhost:8080",
+          serverUrl: "https://localhost:8080",
           opts: {},
         }),
       ),
