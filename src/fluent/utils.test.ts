@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
 
-import { PatchStrategy } from "@kubernetes/client-node";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import * as fs from "fs";
 import { RequestInit } from "node-fetch";
@@ -9,81 +8,11 @@ import { fetch } from "../fetch";
 import { RegisterKind } from "../kinds";
 import { GenericClass } from "../types";
 import { ClusterRole, Ingress, Pod } from "../upstream";
-import { Filters } from "./types";
-import {
-  k8sExec,
-  pathBuilder,
-  getHTTPSAgent,
-  getHeaders,
-  getToken,
-  prepareRequestOptions,
-} from "./utils";
-import type { MethodPayload } from "./utils";
+import { FetchMethods, Filters } from "./shared-types";
+import { k8sExec, pathBuilder, getHTTPSAgent, getHeaders, getToken } from "./utils";
+
 jest.mock("https");
 jest.mock("../fetch");
-
-describe("prepareRequestOptions", () => {
-  const baseUrl = () => new URL("https://k8s.local/api/v1/pods/test-pod");
-
-  it("handles PATCH_STATUS", () => {
-    const url = baseUrl();
-    const opts = { method: "PATCH_STATUS", headers: {} as Record<string, string> };
-    const methodPayload: MethodPayload<{ status: string }> = {
-      method: "PATCH_STATUS",
-      payload: { status: "Running" },
-    };
-
-    prepareRequestOptions(methodPayload, opts, url, { force: false });
-
-    expect(opts.method).toBe("PATCH");
-    expect(url.pathname).toMatch(/\/status$/);
-    expect(opts.headers?.["Content-Type"]).toBe(PatchStrategy.MergePatch);
-    expect(methodPayload.payload).toEqual({ status: "Running" });
-  });
-
-  it("handles PATCH", () => {
-    const url = baseUrl();
-    const opts = { method: "PATCH", headers: {} as Record<string, string> };
-    const methodPayload: MethodPayload<{ foo: string }> = {
-      method: "PATCH",
-      payload: { foo: "bar" },
-    };
-
-    prepareRequestOptions(methodPayload, opts, url, { force: false });
-
-    expect(opts.headers?.["Content-Type"]).toBe(PatchStrategy.JsonPatch);
-  });
-
-  it("handles APPLY with force", () => {
-    const url = baseUrl();
-    const opts = { method: "APPLY", headers: {} as Record<string, string> };
-    const methodPayload: MethodPayload<{ spec: object }> = {
-      method: "APPLY",
-      payload: { spec: {} },
-    };
-
-    prepareRequestOptions(methodPayload, opts, url, { force: true });
-
-    expect(opts.method).toBe("PATCH");
-    expect(opts.headers?.["Content-Type"]).toBe("application/apply-patch+yaml");
-    expect(url.searchParams.get("fieldManager")).toBe("pepr");
-    expect(url.searchParams.get("fieldValidation")).toBe("Strict");
-    expect(url.searchParams.get("force")).toBe("true");
-  });
-
-  it("handles APPLY without force", () => {
-    const url = baseUrl();
-    const opts = { method: "APPLY", headers: {} as Record<string, string> };
-    const methodPayload: MethodPayload<{ spec: object }> = {
-      method: "APPLY",
-      payload: { spec: {} },
-    };
-
-    prepareRequestOptions(methodPayload, opts, url, { force: false });
-
-    expect(url.searchParams.get("force")).toBe("false");
-  });
-});
 
 describe("getToken", () => {
   it("should return the token from the service account", async () => {
@@ -236,7 +165,7 @@ describe("kubeExec Function", () => {
   const mockedFetch = jest.mocked(fetch);
 
   const fakeFilters: Filters = { name: "fake", namespace: "default" };
-  const fakeMethod = "GET";
+  const fakeMethod = FetchMethods.GET;
   const fakePayload = {
     metadata: { name: "fake", namespace: "default" },
     status: { phase: "Ready" },
@@ -264,7 +193,7 @@ describe("kubeExec Function", () => {
       statusText: "OK",
     });
 
-    const result = await k8sExec(Pod, fakeFilters, { method: fakeMethod, payload: fakePayload });
+    const result = await k8sExec(Pod, fakeFilters, fakeMethod, fakePayload);
 
     expect(result).toEqual(fakePayload);
     expect(mockedFetch).toHaveBeenCalledWith(
@@ -285,10 +214,7 @@ describe("kubeExec Function", () => {
       statusText: "OK",
     });
 
-    const result = await k8sExec(Pod, fakeFilters, {
-      method: "PATCH_STATUS",
-      payload: fakePayload,
-    });
+    const result = await k8sExec(Pod, fakeFilters, FetchMethods.PATCH_STATUS, fakePayload);
 
     expect(result).toEqual(fakePayload);
     expect(mockedFetch).toHaveBeenCalledWith(
@@ -314,7 +240,7 @@ describe("kubeExec Function", () => {
 
     const patchPayload = [{ op: "replace", path: "/status/phase", value: "Ready" }];
 
-    const result = await k8sExec(Pod, fakeFilters, { method: "PATCH", payload: patchPayload });
+    const result = await k8sExec(Pod, fakeFilters, FetchMethods.PATCH, patchPayload);
 
     expect(result).toEqual(fakePayload);
     expect(mockedFetch).toHaveBeenCalledWith(
@@ -338,7 +264,7 @@ describe("kubeExec Function", () => {
       statusText: "OK",
     });
 
-    const result = await k8sExec(Pod, fakeFilters, { method: "APPLY", payload: fakePayload });
+    const result = await k8sExec(Pod, fakeFilters, FetchMethods.APPLY, fakePayload);
 
     expect(result).toEqual(fakePayload);
     expect(mockedFetch).toHaveBeenCalledWith(
@@ -364,12 +290,9 @@ describe("kubeExec Function", () => {
       statusText: "OK",
     });
 
-    const result = await k8sExec(
-      Pod,
-      fakeFilters,
-      { method: "APPLY", payload: fakePayload },
-      { force: true },
-    );
+    const result = await k8sExec(Pod, fakeFilters, FetchMethods.APPLY, fakePayload, {
+      force: true,
+    });
 
     expect(result).toEqual(fakePayload);
     expect(mockedFetch).toHaveBeenCalledWith(
@@ -398,9 +321,7 @@ describe("kubeExec Function", () => {
       statusText: fakeStatusText,
     });
 
-    await expect(
-      k8sExec(Pod, fakeFilters, { method: fakeMethod, payload: fakePayload }),
-    ).rejects.toEqual(
+    await expect(k8sExec(Pod, fakeFilters, fakeMethod, fakePayload)).rejects.toEqual(
       expect.objectContaining({
         status: fakeStatus,
         statusText: fakeStatusText,
