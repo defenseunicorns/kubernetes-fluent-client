@@ -156,7 +156,7 @@ export function applyCRDPostProcessing(
     let lines = content.split("\n");
 
     // Wraps with the fluent client if needed
-    if (shouldWrapWithFluentClient(opts)) {
+    if (opts.language === "ts" && !opts.plain) {
       lines = wrapWithFluentClient(lines, name, crd, version, opts.npmPackage);
     }
     const foundInterfaces = collectInterfaceNames(lines);
@@ -170,34 +170,6 @@ export function applyCRDPostProcessing(
     return normalizedLines.join("\n");
   } catch (error) {
     throw new Error(`Error while applying post-processing for ${name}: ${error.message}`);
-  }
-}
-
-/**
- * Reads the content of a file from disk.
- *
- * @param filePath The path to the file.
- * @returns The file contents as a string.
- */
-export function readFile(filePath: string): string {
-  try {
-    return fs.readFileSync(filePath, "utf8");
-  } catch (error) {
-    throw new Error(`Failed to read file at ${filePath}: ${error.message}`);
-  }
-}
-
-/**
- * Writes the modified content back to the file.
- *
- * @param filePath The path to the file.
- * @param content The modified content to write.
- */
-export function writeFile(filePath: string, content: string): void {
-  try {
-    fs.writeFileSync(filePath, content, "utf8");
-  } catch (error) {
-    throw new Error(`Failed to write file at ${filePath}: ${error.message}`);
   }
 }
 
@@ -437,16 +409,6 @@ export function removePropertyStringAny(lines: CodeLines, opts: GenerateOptions)
     return lines.filter(line => !line.includes("[property: string]: any;"));
   }
   return lines;
-}
-
-/**
- * Determines if the content should be wrapped with the fluent client.
- *
- * @param opts The options for generating the content.
- * @returns True if the content should be wrapped with the fluent client, false otherwise.
- */
-export function shouldWrapWithFluentClient(opts: GenerateOptions): boolean {
-  return opts.language === "ts" && !opts.plain;
 }
 
 /**
