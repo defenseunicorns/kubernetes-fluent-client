@@ -165,7 +165,9 @@ describe("readOrFetchCrd", () => {
     // Create a dedicated spy for resolveFilePath that always returns a known value
     // regardless of the input for consistent testing
     const mockFilePath = "mock-file-path";
-    vi.spyOn(await import("./generate"), "resolveFilePath").mockImplementation(() => mockFilePath);
+    vi.spyOn(await import("./generate.js"), "resolveFilePath").mockImplementation(
+      () => mockFilePath,
+    );
   });
 
   test("should load CRD from a local file", async () => {
@@ -215,7 +217,7 @@ describe("readOrFetchCrd with URL", () => {
     };
 
     // Mock resolveFilePath correctly
-    vi.mocked(await import("./generate")).resolveFilePath.mockReturnValue("mock-file-path");
+    vi.mocked(await import("./generate.js")).resolveFilePath.mockReturnValue("mock-file-path");
 
     // Ensure fs.existsSync returns false for URL tests to skip file logic
     vi.mocked(fs).existsSync.mockReturnValue(false);
@@ -223,7 +225,7 @@ describe("readOrFetchCrd with URL", () => {
 
   test("should fetch CRD from a URL and parse YAML", async () => {
     // Mock tryParseUrl to return a valid URL
-    vi.mocked(await import("./generate")).tryParseUrl.mockReturnValue(
+    vi.mocked(await import("./generate.js")).tryParseUrl.mockReturnValue(
       new URL("http://example.com/mock-crd"),
     );
 
@@ -269,7 +271,7 @@ describe("readOrFetchCrd from Kubernetes cluster", () => {
     };
 
     // Mock resolveFilePath and tryParseUrl properly
-    const generateModule = await import("./generate");
+    const generateModule = await import("./generate.js");
     vi.mocked(generateModule.resolveFilePath).mockReturnValue("mock-file-path");
     vi.mocked(generateModule.tryParseUrl).mockReturnValue(null);
 
@@ -397,7 +399,7 @@ describe("readOrFetchCrd error handling", () => {
     };
 
     // Ensure URL check doesn't pass
-    const { tryParseUrl } = await import("./generate");
+    const { tryParseUrl } = await import("./generate.js");
     (tryParseUrl as unknown as ReturnType<typeof vi.fn>).mockReturnValue(null);
 
     // Mock K8s to throw an error with the specific message we're testing for
@@ -440,7 +442,7 @@ describe("readOrFetchCrd error handling", () => {
     });
 
     // Mock tryParseUrl to return null to avoid URL path
-    vi.mocked(await import("./generate")).tryParseUrl.mockReturnValue(null);
+    vi.mocked(await import("./generate.js")).tryParseUrl.mockReturnValue(null);
 
     // We need a minimal K8s mock since the code shouldn't get that far
     const mockK8sGet = vi.fn().mockRejectedValue(new Error("Kubernetes API error"));

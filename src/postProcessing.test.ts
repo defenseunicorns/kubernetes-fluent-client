@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
 
-import * as postProcessingModule from "./postProcessing";
+import * as postProcessingModule from "./postProcessing.js";
 import { vi, beforeEach, it, expect, describe, afterEach } from "vitest";
 import { CustomResourceDefinition } from "./upstream.js";
 import * as fs from "fs";

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { V1APIGroup } from "@kubernetes/client-node";
 import { Operation } from "fast-json-patch";
 
-import { K8s } from ".";
+import { K8s } from "./index.js";
 import { fetch } from "../fetch.js";
 import { Pod } from "../upstream.js";
 import { k8sCfg, k8sExec } from "./utils.js";

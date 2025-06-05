@@ -11,7 +11,7 @@ import { ClusterRole, Ingress, Pod } from "../upstream.js";
 import { FetchMethods, Filters } from "./shared-types.js";
 import { k8sExec, pathBuilder, getHTTPSAgent, getHeaders, getToken } from "./utils.js";
 // Import k8sCfg directly for mocking
-import * as utils from "./utils";
+import * as utils from "./utils.js";
 vi.mock("https");
 vi.mock("../fetch");
 
@@ -181,7 +181,7 @@ describe("kubeExec Function", () => {
     mockedFetch.mockClear();
 
     // Mock k8sCfg to return a consistent URL and options
-    mockK8sCfg.mockImplementation(async method => {
+    mockK8sCfg.mockImplementation(async (method: string | undefined) => {
       return {
         serverUrl: fakeServerUrl,
         opts: {

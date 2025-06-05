@@ -1,4 +1,4 @@
-import * as normalization from "./normalization";
+import * as normalization from "./normalization.js";
 import { GenerateOptions } from "./generate.js";
 import { beforeEach, it, expect, describe, afterEach, vi } from "vitest";
 

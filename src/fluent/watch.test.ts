@@ -3,8 +3,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Interceptable, MockAgent, setGlobalDispatcher } from "undici";
 import { PassThrough } from "stream";
-import { K8s } from ".";
-import { WatchEvent, kind } from "..";
+import { K8s } from "./index.js";
+import { WatchEvent, kind } from "../index.js";
 import { WatchPhase } from "./shared-types.js";
 import { Watcher } from "./watch.js";
 

@@ -30,6 +30,6 @@ export { GenericKind } from "./types.js";
 export * from "./types.js";
 
 // Export the upstream raw models
-export * as models from "@kubernetes/client-node/dist/gen/models/all";
+export * as models from "@kubernetes/client-node/dist/gen/models/all.js";
 
 export { fromEnv, waitForCluster } from "./helpers.js";
