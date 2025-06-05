@@ -121,51 +121,47 @@ const testCases = [
   },
 ];
 
-it.each(testCases)(
-  "should return the correct GroupVersionKind for '%s'",
-  ({ name, expected }) => {
-    const { name: modelName } = name;
-    const gvk = modelToGroupVersionKind(modelName);
-    try {
-      expect(gvk.group).toBe(expected.group);
-      expect(gvk.version).toBe(expected.version);
-      expect(gvk.kind).toBe(expected.kind);
-    } catch (error) {
-      console.error(
-        `Failed for model ${modelName}: Expected GroupVersionKind to be ${JSON.stringify(
-          expected,
-        )}, but got ${JSON.stringify(gvk)}`,
-      );
-      throw error;
-    }
-  },
-);
+it.each(testCases)("should return the correct GroupVersionKind for '%s'", ({ name, expected }) => {
+  const { name: modelName } = name;
+  const gvk = modelToGroupVersionKind(modelName);
+  try {
+    expect(gvk.group).toBe(expected.group);
+    expect(gvk.version).toBe(expected.version);
+    expect(gvk.kind).toBe(expected.kind);
+  } catch (error) {
+    console.error(
+      `Failed for model ${modelName}: Expected GroupVersionKind to be ${JSON.stringify(
+        expected,
+      )}, but got ${JSON.stringify(gvk)}`,
+    );
+    throw error;
+  }
+});
 
 it("registers a new type", () => {
-    class UnicornKind extends kind.GenericKind {
-    }
+  class UnicornKind extends kind.GenericKind {}
 
-    try {
-      RegisterKind(UnicornKind, {
-        group: "pepr.dev",
-        version: "v1",
-        kind: "Unicorn",
-      });
-    }  catch (e) {
-      expect(e).not.toBeDefined();
-    }
-})
+  try {
+    RegisterKind(UnicornKind, {
+      group: "pepr.dev",
+      version: "v1",
+      kind: "Unicorn",
+    });
+  } catch (e) {
+    expect(e).not.toBeDefined();
+  }
+});
 
 it("throws an error if the kind is already registered", () => {
-    class UnicornKind extends kind.GenericKind {}
+  class UnicornKind extends kind.GenericKind {}
 
-    try {
-      RegisterKind(UnicornKind, {
-        group: "pepr.dev",
-        version: "v1",
-        kind: "Unicorn",
-      });
-    }  catch (e) {
-      expect(e).toBeDefined();
-    }
-})
+  try {
+    RegisterKind(UnicornKind, {
+      group: "pepr.dev",
+      version: "v1",
+      kind: "Unicorn",
+    });
+  } catch (e) {
+    expect(e).toBeDefined();
+  }
+});
