@@ -1,5 +1,5 @@
 import * as normalization from "./normalization";
-import { GenerateOptions } from "./generate";
+import { GenerateOptions } from "./generate.js";
 import { jest, beforeEach, it, expect, describe, afterEach } from "@jest/globals";
 
 // Mock the fs module

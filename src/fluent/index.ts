@@ -6,15 +6,15 @@ import { Operation } from "fast-json-patch";
 import { StatusCodes } from "http-status-codes";
 import type { PartialDeep } from "type-fest";
 
-import { fetch } from "../fetch";
-import { modelToGroupVersionKind } from "../kinds";
-import { GenericClass } from "../types";
-import { K8sInit, Paths } from "./types";
-import { Filters, WatchAction, FetchMethods, ApplyCfg } from "./shared-types";
-import { k8sCfg, k8sExec } from "./utils";
-import { WatchCfg, Watcher } from "./watch";
-import { hasLogs } from "../helpers";
-import { Pod, type Service, type ReplicaSet } from "../upstream";
+import { fetch } from "../fetch.js";
+import { modelToGroupVersionKind } from "../kinds.js";
+import { GenericClass } from "../types.js";
+import { K8sInit, Paths } from "./types.js";
+import { Filters, WatchAction, FetchMethods, ApplyCfg } from "./shared-types.js";
+import { k8sCfg, k8sExec } from "./utils.js";
+import { WatchCfg, Watcher } from "./watch.js";
+import { hasLogs } from "../helpers.js";
+import { Pod, type Service, type ReplicaSet } from "../upstream.js";
 /**
  * Kubernetes fluent API inspired by Kubectl. Pass in a model, then call filters and actions on it.
  *

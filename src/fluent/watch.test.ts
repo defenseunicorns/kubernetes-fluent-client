@@ -5,8 +5,8 @@ import { Interceptable, MockAgent, setGlobalDispatcher } from "undici";
 import { PassThrough } from "stream";
 import { K8s } from ".";
 import { WatchEvent, kind } from "..";
-import { WatchPhase } from "./shared-types";
-import { Watcher } from "./watch";
+import { WatchPhase } from "./shared-types.js";
+import { Watcher } from "./watch.js";
 
 let mockClient: Interceptable;
 describe("Watcher", () => {

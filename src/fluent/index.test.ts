@@ -3,9 +3,9 @@ import { V1APIGroup } from "@kubernetes/client-node";
 import { Operation } from "fast-json-patch";
 
 import { K8s } from ".";
-import { fetch } from "../fetch";
-import { Pod } from "../upstream";
-import { k8sCfg, k8sExec } from "./utils";
+import { fetch } from "../fetch.js";
+import { Pod } from "../upstream.js";
+import { k8sCfg, k8sExec } from "./utils.js";
 
 // Setup mocks
 jest.mock("./utils");

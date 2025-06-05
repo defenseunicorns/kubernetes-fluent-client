@@ -4,7 +4,7 @@
 import { expect, test, beforeEach, afterEach } from "@jest/globals";
 import { StatusCodes } from "http-status-codes";
 import { RequestInit } from "undici";
-import { fetch } from "./fetch";
+import { fetch } from "./fetch.js";
 import { MockAgent, setGlobalDispatcher } from "undici";
 
 let mockAgent: MockAgent;

@@ -3,7 +3,7 @@
 
 import { describe, expect, it, test } from "@jest/globals";
 
-import { fromEnv, hasLogs, waitForCluster } from "./helpers";
+import { fromEnv, hasLogs, waitForCluster } from "./helpers.js";
 
 describe("helpers", () => {
   test("fromEnv for NodeJS", () => {
