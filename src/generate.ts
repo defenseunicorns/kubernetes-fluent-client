@@ -12,10 +12,10 @@ import {
   quicktype,
 } from "quicktype-core";
 
-import { fetch } from "./fetch";
-import { K8s } from "./fluent";
-import { CustomResourceDefinition } from "./upstream";
-import { LogFn } from "./types";
+import { fetch } from "./fetch.js";
+import { K8s } from "./fluent/index.js";
+import { CustomResourceDefinition } from "./upstream.js";
+import { LogFn } from "./types.js";
 
 export interface GenerateOptions {
   source: string; // URL, file path, or K8s CRD name

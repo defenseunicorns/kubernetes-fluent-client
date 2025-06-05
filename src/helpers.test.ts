@@ -3,7 +3,7 @@
 
 import { describe, expect, it, test, vi, afterEach } from "vitest";
 
-import { fromEnv, hasLogs, waitForCluster } from "./helpers";
+import { fromEnv, hasLogs, waitForCluster } from "./helpers.js";
 
 describe("helpers", () => {
   test("fromEnv for NodeJS", () => {

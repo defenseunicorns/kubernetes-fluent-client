@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, vi, test } from "vitest";
-import { convertCRDtoTS, GenerateOptions, readOrFetchCrd } from "./generate";
+import { convertCRDtoTS, GenerateOptions, readOrFetchCrd } from "./generate.js";
 import * as fs from "fs";
 import path from "path";
 import { quicktype } from "quicktype-core";
-import { fetch } from "./fetch";
+import { fetch } from "./fetch.js";
 import { loadAllYaml } from "@kubernetes/client-node";
-import { K8s } from "./fluent";
-import { CustomResourceDefinition } from "./upstream";
+import { K8s } from "./fluent/index.js";
+import { CustomResourceDefinition } from "./upstream.js";
 
 // Mock the fs module
 vi.mock("fs", () => ({

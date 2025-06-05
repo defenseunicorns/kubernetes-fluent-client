@@ -1,6 +1,6 @@
 import { kind } from "../src";
-import { modelToGroupVersionKind } from "../src/index";
-import { RegisterKind } from "../src/kinds";
+import { modelToGroupVersionKind } from "../src/index.js";
+import { RegisterKind } from "../src/kinds.js";
 import { expect, it } from "vitest";
 
 const testCases = [

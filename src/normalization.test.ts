@@ -1,6 +1,6 @@
 import * as normalization from "./normalization";
-import { GenerateOptions } from "./generate";
-import { vi, beforeEach, it, expect, describe, afterEach } from "vitest";
+import { GenerateOptions } from "./generate.js";
+import { beforeEach, it, expect, describe, afterEach, vi } from "vitest";
 
 // Mock the fs module
 vi.mock("fs");

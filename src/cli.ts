@@ -5,9 +5,11 @@
 
 import { hideBin } from "yargs/helpers";
 import yargs from "yargs/yargs";
-import { GenerateOptions, generate } from "./generate";
-import { version } from "../package.json";
-import { postProcessing } from "./postProcessing";
+import { GenerateOptions, generate } from "./generate.js";
+import { postProcessing } from "./postProcessing.js";
+import { createRequire } from "node:module";
+const require = createRequire(import.meta.url);
+const { version } = require("../package.json");
 
 void yargs(hideBin(process.argv))
   .version("version", "Display version number", `kubernetes-fluent-client v${version}`)

@@ -4,15 +4,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as fs from "fs";
 import { RequestInit } from "node-fetch";
-import { fetch } from "../fetch";
-import { RegisterKind } from "../kinds";
-import { GenericClass } from "../types";
-import { ClusterRole, Ingress, Pod } from "../upstream";
-import { FetchMethods, Filters } from "./shared-types";
-import { k8sExec, pathBuilder, getHTTPSAgent, getHeaders, getToken } from "./utils";
+import { fetch } from "../fetch.js";
+import { RegisterKind } from "../kinds.js";
+import { GenericClass } from "../types.js";
+import { ClusterRole, Ingress, Pod } from "../upstream.js";
+import { FetchMethods, Filters } from "./shared-types.js";
+import { k8sExec, pathBuilder, getHTTPSAgent, getHeaders, getToken } from "./utils.js";
 // Import k8sCfg directly for mocking
 import * as utils from "./utils";
-
 vi.mock("https");
 vi.mock("../fetch");
 

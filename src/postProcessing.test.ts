@@ -3,10 +3,10 @@
 
 import * as postProcessingModule from "./postProcessing";
 import { vi, beforeEach, it, expect, describe, afterEach } from "vitest";
-import { CustomResourceDefinition } from "./upstream";
+import { CustomResourceDefinition } from "./upstream.js";
 import * as fs from "fs";
 import * as path from "path";
-import { GenerateOptions } from "./generate";
+import { GenerateOptions } from "./generate.js";
 
 // Mock the fs module
 vi.mock("fs");

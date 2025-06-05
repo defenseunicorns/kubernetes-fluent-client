@@ -3,10 +3,13 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { GenerateOptions } from "./generate";
-import { GenericKind } from "./types";
-import { CustomResourceDefinition } from "./upstream";
-import { modifyAndNormalizeClassProperties, normalizeIndentationAndSpacing } from "./normalization";
+import { GenerateOptions } from "./generate.js";
+import { GenericKind } from "./types.js";
+import { CustomResourceDefinition } from "./upstream.js";
+import {
+  modifyAndNormalizeClassProperties,
+  normalizeIndentationAndSpacing,
+} from "./normalization.js";
 
 type CRDResult = {
   name: string;
