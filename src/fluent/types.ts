@@ -4,21 +4,15 @@
 import { KubernetesListObject, KubernetesObject } from "@kubernetes/client-node";
 import { Operation } from "fast-json-patch";
 import type { PartialDeep } from "type-fest";
-import { RequestInit } from "undici";
-import { GenericClass, GroupVersionKind } from "../types";
+import { GenericClass } from "../types";
 import { WatchCfg, Watcher } from "./watch";
 import https from "https";
 import { SecureClientSessionOptions } from "http2";
-
+import { WatchAction, FetchMethods, ApplyCfg } from "./shared-types";
 /*
- * Watch Class Type
+ * Watch Class Type - Used in Pepr Watch Processor
  */
 export type WatcherType<T extends GenericClass> = Watcher<T>;
-
-/**
- * Fetch options and server URL
- */
-export type K8sConfigPromise = Promise<{ opts: RequestInit; serverUrl: string | URL }>;
 
 /**
  * Agent options for the the http2Watch
@@ -33,36 +27,6 @@ export type AgentOptions = Pick<
  */
 export interface Options {
   agent?: https.Agent & { options?: AgentOptions };
-}
-
-/**
- * The Phase matched when using the K8s Watch API.
- */
-export enum WatchPhase {
-  Added = "ADDED",
-  Modified = "MODIFIED",
-  Deleted = "DELETED",
-  Bookmark = "BOOKMARK",
-  Error = "ERROR",
-}
-
-export type FetchMethods =
-  | "APPLY"
-  | "DELETE"
-  | "GET"
-  | "LOG"
-  | "PATCH"
-  | "PATCH_STATUS"
-  | "POST"
-  | "PUT"
-  | "WATCH";
-
-export interface Filters {
-  kindOverride?: GroupVersionKind;
-  fields?: Record<string, string>;
-  labels?: Record<string, string>;
-  name?: string;
-  namespace?: string;
 }
 
 /**
@@ -225,16 +189,6 @@ export type K8sWithFilters<T extends GenericClass, K extends KubernetesObject> =
   WithLabel: (key: string, value?: string) => K8sWithFilters<T, K>;
 };
 
-/**
- * Configuration for the apply function.
- */
-export type ApplyCfg = {
-  /**
-   * Force the apply to be a create.
-   */
-  force?: boolean;
-};
-
 export type K8sInit<T extends GenericClass, K extends KubernetesObject> = K8sWithFilters<T, K> &
   K8sUnfilteredActions<K> & {
     /**
@@ -245,11 +199,6 @@ export type K8sInit<T extends GenericClass, K extends KubernetesObject> = K8sWit
      */
     InNamespace: (namespace: string) => K8sWithFilters<T, K>;
   };
-
-export type WatchAction<T extends GenericClass, K extends KubernetesObject = InstanceType<T>> = (
-  update: K,
-  phase: WatchPhase,
-) => Promise<void> | void;
 
 // Special types to handle the recursive keyof typescript lookup
 type Join<K, P> = K extends string | number

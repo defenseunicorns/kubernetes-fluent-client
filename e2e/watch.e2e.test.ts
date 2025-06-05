@@ -1,7 +1,7 @@
 import { GenericClass, K8s, kind, KubernetesObject } from "../src";
 import { beforeAll, describe, expect, it } from "vitest";
 import { execSync } from "child_process";
-import { WatchPhase } from "../src/fluent/types";
+import { WatchPhase } from "../src/fluent/shared-types";
 import { WatchEvent } from "../src";
 const namespace = `kfc-watch`;
 describe("watcher e2e", () => {

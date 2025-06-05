@@ -8,7 +8,7 @@ import { fetch } from "../fetch";
 import { RegisterKind } from "../kinds";
 import { GenericClass } from "../types";
 import { ClusterRole, Ingress, Pod } from "../upstream";
-import { Filters } from "./types";
+import { FetchMethods, Filters } from "./shared-types";
 import { k8sExec, pathBuilder, getHTTPSAgent, getHeaders, getToken } from "./utils";
 
 jest.mock("https");
@@ -165,7 +165,7 @@ describe("kubeExec Function", () => {
   const mockedFetch = jest.mocked(fetch);
 
   const fakeFilters: Filters = { name: "fake", namespace: "default" };
-  const fakeMethod = "GET";
+  const fakeMethod = FetchMethods.GET;
   const fakePayload = {
     metadata: { name: "fake", namespace: "default" },
     status: { phase: "Ready" },
@@ -214,7 +214,7 @@ describe("kubeExec Function", () => {
       statusText: "OK",
     });
 
-    const result = await k8sExec(Pod, fakeFilters, "PATCH_STATUS", fakePayload);
+    const result = await k8sExec(Pod, fakeFilters, FetchMethods.PATCH_STATUS, fakePayload);
 
     expect(result).toEqual(fakePayload);
     expect(mockedFetch).toHaveBeenCalledWith(
@@ -240,7 +240,7 @@ describe("kubeExec Function", () => {
 
     const patchPayload = [{ op: "replace", path: "/status/phase", value: "Ready" }];
 
-    const result = await k8sExec(Pod, fakeFilters, "PATCH", patchPayload);
+    const result = await k8sExec(Pod, fakeFilters, FetchMethods.PATCH, patchPayload);
 
     expect(result).toEqual(fakePayload);
     expect(mockedFetch).toHaveBeenCalledWith(
@@ -264,7 +264,7 @@ describe("kubeExec Function", () => {
       statusText: "OK",
     });
 
-    const result = await k8sExec(Pod, fakeFilters, "APPLY", fakePayload);
+    const result = await k8sExec(Pod, fakeFilters, FetchMethods.APPLY, fakePayload);
 
     expect(result).toEqual(fakePayload);
     expect(mockedFetch).toHaveBeenCalledWith(
@@ -290,7 +290,9 @@ describe("kubeExec Function", () => {
       statusText: "OK",
     });
 
-    const result = await k8sExec(Pod, fakeFilters, "APPLY", fakePayload, { force: true });
+    const result = await k8sExec(Pod, fakeFilters, FetchMethods.APPLY, fakePayload, {
+      force: true,
+    });
 
     expect(result).toEqual(fakePayload);
     expect(mockedFetch).toHaveBeenCalledWith(

@@ -9,7 +9,8 @@ import type { PartialDeep } from "type-fest";
 import { fetch } from "../fetch";
 import { modelToGroupVersionKind } from "../kinds";
 import { GenericClass } from "../types";
-import { ApplyCfg, FetchMethods, Filters, K8sInit, Paths, WatchAction } from "./types";
+import { K8sInit, Paths } from "./types";
+import { Filters, WatchAction, FetchMethods, ApplyCfg } from "./shared-types";
 import { k8sCfg, k8sExec } from "./utils";
 import { WatchCfg, Watcher } from "./watch";
 import { hasLogs } from "../helpers";
@@ -114,7 +115,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
     }
 
     try {
-      const object = await k8sExec<T, K>(model, filters, "GET");
+      const object = await k8sExec<T, K>(model, filters, FetchMethods.GET);
 
       if (kind !== "Pod") {
         if (kind === "Service") {
@@ -144,7 +145,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
 
     const podModel = { ...model, name: "V1Pod" };
     const logPromises = podList.map(po =>
-      k8sExec<T, string>(podModel, { ...filters, name: po.metadata!.name! }, "LOG"),
+      k8sExec<T, string>(podModel, { ...filters, name: po.metadata!.name! }, FetchMethods.LOG),
     );
 
     const responses = await Promise.all(logPromises);
@@ -179,7 +180,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
       filters.name = name;
     }
 
-    return k8sExec<T, K | KubernetesListObject<K>>(model, filters, "GET");
+    return k8sExec<T, K | KubernetesListObject<K>>(model, filters, FetchMethods.GET);
   }
 
   /**
@@ -195,7 +196,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
 
     try {
       // Try to delete the resource
-      await k8sExec<T, void>(model, filters, "DELETE");
+      await k8sExec<T, void>(model, filters, FetchMethods.DELETE);
     } catch (e) {
       // If the resource doesn't exist, ignore the error
       if (e.status === StatusCodes.NOT_FOUND) {
@@ -215,7 +216,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
     applyCfg: ApplyCfg = { force: false },
   ): Promise<K> {
     syncFilters(resource as K);
-    return k8sExec(model, filters, "APPLY", resource, applyCfg);
+    return k8sExec(model, filters, FetchMethods.APPLY, resource, applyCfg);
   }
 
   /**
@@ -224,7 +225,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
    */
   async function Create(resource: K): Promise<K> {
     syncFilters(resource);
-    return k8sExec(model, filters, "POST", resource);
+    return k8sExec(model, filters, FetchMethods.POST, resource);
   }
 
   /**
@@ -248,7 +249,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
         },
       };
       // Try to evict the resource
-      await k8sExec<T, void>(model, filters, "POST", evictionPayload);
+      await k8sExec<T, void>(model, filters, FetchMethods.POST, evictionPayload);
     } catch (e) {
       // If the resource doesn't exist, ignore the error
       if (e.status === StatusCodes.NOT_FOUND) {
@@ -268,7 +269,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
       throw new Error("No operations specified");
     }
 
-    return k8sExec(model, filters, "PATCH", payload);
+    return k8sExec(model, filters, FetchMethods.PATCH, payload);
   }
 
   /**
@@ -277,7 +278,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
    */
   async function PatchStatus(resource: PartialDeep<K>): Promise<K> {
     syncFilters(resource as K);
-    return k8sExec(model, filters, "PATCH_STATUS", resource);
+    return k8sExec(model, filters, FetchMethods.PATCH_STATUS, resource);
   }
 
   /**
@@ -292,7 +293,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
    * @inheritdoc
    * @see {@link K8sInit.Raw}
    */
-  async function Raw(url: string, method: FetchMethods = "GET") {
+  async function Raw(url: string, method: FetchMethods = FetchMethods.GET) {
     const thing = await k8sCfg(method);
     const { opts, serverUrl } = thing;
     const resp = await fetch<K>(`${serverUrl}${url}`, opts);

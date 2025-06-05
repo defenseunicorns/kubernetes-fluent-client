@@ -5,10 +5,9 @@ import { EventEmitter } from "events";
 import { fetch } from "undici";
 import { fetch as wrappedFetch } from "../fetch";
 import { GenericClass, KubernetesListObject } from "../types";
-import { Filters, WatchAction, WatchPhase, K8sConfigPromise } from "./types";
 import { k8sCfg, pathBuilder, getHeaders } from "./utils";
 import { Readable } from "stream";
-
+import { K8sConfigPromise, WatchPhase, WatchAction, Filters, FetchMethods } from "./shared-types";
 export enum WatchEvent {
   /** Watch is connected successfully */
   CONNECT = "connect",
@@ -196,7 +195,7 @@ export class Watcher<T extends GenericClass> {
     continueToken?: string,
   ): K8sConfigPromise => {
     // Build the path and query params for the resource, excluding the name
-    const { opts, serverUrl } = await k8sCfg("GET");
+    const { opts, serverUrl } = await k8sCfg(FetchMethods.GET);
     const k8sUrl = serverUrl instanceof URL ? serverUrl.toString() : serverUrl;
     const url = pathBuilder(k8sUrl, this.#model, this.#filters, true);
 
