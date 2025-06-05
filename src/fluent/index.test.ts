@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { V1APIGroup } from "@kubernetes/client-node";
 import { Operation } from "fast-json-patch";
 
@@ -8,8 +8,8 @@ import { Pod } from "../upstream";
 import { k8sCfg, k8sExec } from "./utils";
 
 // Setup mocks
-jest.mock("./utils");
-jest.mock("../fetch");
+vi.mock("./utils");
+vi.mock("../fetch");
 
 const generateFakePodManagedFields = (manager: string) => {
   return [
@@ -55,8 +55,8 @@ describe("Kube", () => {
     },
   };
 
-  const mockedKubeCfg = jest.mocked(k8sCfg);
-  const mockedKubeExec = jest.mocked(k8sExec).mockResolvedValue(fakeResource);
+  const mockedKubeCfg = vi.mocked(k8sCfg);
+  const mockedKubeExec = vi.mocked(k8sExec).mockResolvedValue(fakeResource);
 
   beforeEach(() => {
     // Clear all instances and calls to constructor and all methods:
@@ -284,7 +284,7 @@ describe("Kube", () => {
       ],
     };
 
-    jest.mocked(fetch).mockResolvedValue({
+    vi.mocked(fetch).mockResolvedValue({
       ok: true,
       data: mockResp,
       status: 200,

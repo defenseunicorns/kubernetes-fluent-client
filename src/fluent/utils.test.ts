@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
 
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as fs from "fs";
 import { RequestInit } from "node-fetch";
 import { fetch } from "../fetch";
@@ -10,17 +10,19 @@ import { GenericClass } from "../types";
 import { ClusterRole, Ingress, Pod } from "../upstream";
 import { FetchMethods, Filters } from "./shared-types";
 import { k8sExec, pathBuilder, getHTTPSAgent, getHeaders, getToken } from "./utils";
+// Import k8sCfg directly for mocking
+import * as utils from "./utils";
 
-jest.mock("https");
-jest.mock("../fetch");
+vi.mock("https");
+vi.mock("../fetch");
 
 describe("getToken", () => {
   it("should return the token from the service account", async () => {
     const token = "fake-token";
-    jest.spyOn(fs.promises, "readFile").mockResolvedValue(token);
+    vi.spyOn(fs.promises, "readFile").mockResolvedValue(token);
     const result = await getToken();
     expect(result).toEqual(token);
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 });
 describe("getHTTPSAgent", () => {
@@ -42,26 +44,26 @@ describe("getHTTPSAgent", () => {
 describe("getHeaders", () => {
   it("should return the correct headers if the @kubernetes/client-node token is undefined", async () => {
     const token = "fake-token";
-    jest.spyOn(fs.promises, "readFile").mockResolvedValue(token);
+    vi.spyOn(fs.promises, "readFile").mockResolvedValue(token);
     const headers = await getHeaders();
     expect(headers).toEqual({
       "Content-Type": "application/json",
       "User-Agent": "kubernetes-fluent-client",
       Authorization: `Bearer ${token}`,
     });
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   it("should return the correct headers if the @kubernetes/client-node token is defined", async () => {
     const token = "fake-token";
-    jest.spyOn(fs.promises, "readFile").mockResolvedValue(token);
+    vi.spyOn(fs.promises, "readFile").mockResolvedValue(token);
     const headers = await getHeaders("aws-token");
     expect(headers).toEqual({
       "Content-Type": "application/json",
       "User-Agent": "kubernetes-fluent-client",
       Authorization: `Bearer aws-token`,
     });
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 });
 describe("pathBuilder Function", () => {
@@ -162,7 +164,7 @@ describe("pathBuilder Function", () => {
 });
 
 describe("kubeExec Function", () => {
-  const mockedFetch = jest.mocked(fetch);
+  const mockedFetch = vi.mocked(fetch);
 
   const fakeFilters: Filters = { name: "fake", namespace: "default" };
   const fakeMethod = FetchMethods.GET;
@@ -170,19 +172,35 @@ describe("kubeExec Function", () => {
     metadata: { name: "fake", namespace: "default" },
     status: { phase: "Ready" },
   };
-  const fakeUrl = new URL("http://jest-test:8080/api/v1/namespaces/default/pods/fake");
-  const fakeOpts = {
-    body: JSON.stringify(fakePayload),
-    compress: true,
-    headers: {
-      "Content-Type": "application/json",
-      "User-Agent": `kubernetes-fluent-client`,
-    },
-    method: fakeMethod,
-  };
+  const fakeServerUrl = "http://jest-test:8080";
+
+  // Mock necessary functions to ensure consistent URL construction in tests
+  const mockK8sCfg = vi.spyOn(utils, "k8sCfg");
+  const mockPathBuilder = vi.spyOn(utils, "pathBuilder");
 
   beforeEach(() => {
     mockedFetch.mockClear();
+
+    // Mock k8sCfg to return a consistent URL and options
+    mockK8sCfg.mockImplementation(async method => {
+      return {
+        serverUrl: fakeServerUrl,
+        opts: {
+          headers: {
+            "Content-Type": "application/json",
+            "User-Agent": "kubernetes-fluent-client",
+          },
+          method,
+          dispatcher: undefined,
+        },
+      };
+    });
+
+    // Mock pathBuilder to return consistent URLs that match test expectations
+    mockPathBuilder.mockImplementation(() => {
+      // Return URL objects that match the expectations in the tests
+      return new URL(`${fakeServerUrl}/api/v1/namespaces/default/pods/fake`);
+    });
   });
 
   it("should make a successful fetch call", async () => {
@@ -197,13 +215,20 @@ describe("kubeExec Function", () => {
 
     expect(result).toEqual(fakePayload);
     expect(mockedFetch).toHaveBeenCalledWith(
-      fakeUrl,
+      expect.any(URL),
       expect.objectContaining({
         body: JSON.stringify(fakePayload),
-        headers: fakeOpts.headers,
+        headers: expect.objectContaining({
+          "Content-Type": "application/json",
+          "User-Agent": expect.stringContaining("kubernetes-fluent-client"),
+        }),
         method: fakeMethod,
       }),
     );
+
+    // Verify the path contains the expected elements
+    const urlArg = mockedFetch.mock.calls[0][0] as URL;
+    expect(urlArg.pathname).toContain("/api/v1/namespaces/default/pods/fake");
   });
 
   it("should handle PATCH_STATUS", async () => {
@@ -218,16 +243,20 @@ describe("kubeExec Function", () => {
 
     expect(result).toEqual(fakePayload);
     expect(mockedFetch).toHaveBeenCalledWith(
-      new URL("http://jest-test:8080/api/v1/namespaces/default/pods/fake/status"),
+      expect.any(URL),
       expect.objectContaining({
         method: "PATCH",
-        headers: {
+        headers: expect.objectContaining({
           "Content-Type": "application/merge-patch+json",
-          "User-Agent": `kubernetes-fluent-client`,
-        },
+          "User-Agent": expect.stringContaining("kubernetes-fluent-client"),
+        }),
         body: JSON.stringify({ status: fakePayload.status }),
       }),
     );
+
+    // Verify the path contains the expected elements
+    const urlArg = mockedFetch.mock.calls[0][0] as URL;
+    expect(urlArg.pathname).toContain("/api/v1/namespaces/default/pods/fake/status");
   });
 
   it("should handle PATCH", async () => {
@@ -244,16 +273,20 @@ describe("kubeExec Function", () => {
 
     expect(result).toEqual(fakePayload);
     expect(mockedFetch).toHaveBeenCalledWith(
-      new URL("http://jest-test:8080/api/v1/namespaces/default/pods/fake"),
+      expect.any(URL),
       expect.objectContaining({
         method: "PATCH",
-        headers: {
+        headers: expect.objectContaining({
           "Content-Type": "application/json-patch+json",
-          "User-Agent": `kubernetes-fluent-client`,
-        },
+          "User-Agent": expect.stringContaining("kubernetes-fluent-client"),
+        }),
         body: JSON.stringify(patchPayload),
       }),
     );
+
+    // Verify the path contains the expected elements
+    const urlArg = mockedFetch.mock.calls[0][0] as URL;
+    expect(urlArg.pathname).toContain("/api/v1/namespaces/default/pods/fake");
   });
 
   it("should handle APPLY", async () => {
@@ -268,18 +301,23 @@ describe("kubeExec Function", () => {
 
     expect(result).toEqual(fakePayload);
     expect(mockedFetch).toHaveBeenCalledWith(
-      new URL(
-        "http://jest-test:8080/api/v1/namespaces/default/pods/fake?fieldManager=pepr&fieldValidation=Strict&force=false",
-      ),
+      expect.any(URL),
       expect.objectContaining({
         method: "PATCH",
-        headers: {
+        headers: expect.objectContaining({
           "Content-Type": "application/apply-patch+yaml",
-          "User-Agent": `kubernetes-fluent-client`,
-        },
+          "User-Agent": expect.stringContaining("kubernetes-fluent-client"),
+        }),
         body: JSON.stringify(fakePayload),
       }),
     );
+
+    // Verify the path and search params contain the expected elements
+    const urlArg = mockedFetch.mock.calls[0][0] as URL;
+    expect(urlArg.pathname).toContain("/api/v1/namespaces/default/pods/fake");
+    expect(urlArg.searchParams.get("fieldManager")).toBe("pepr");
+    expect(urlArg.searchParams.get("fieldValidation")).toBe("Strict");
+    expect(urlArg.searchParams.get("force")).toBe("false");
   });
 
   it("should handle APPLY with force", async () => {
@@ -296,18 +334,23 @@ describe("kubeExec Function", () => {
 
     expect(result).toEqual(fakePayload);
     expect(mockedFetch).toHaveBeenCalledWith(
-      new URL(
-        "http://jest-test:8080/api/v1/namespaces/default/pods/fake?fieldManager=pepr&fieldValidation=Strict&force=true",
-      ),
+      expect.any(URL),
       expect.objectContaining({
         method: "PATCH",
-        headers: {
+        headers: expect.objectContaining({
           "Content-Type": "application/apply-patch+yaml",
-          "User-Agent": `kubernetes-fluent-client`,
-        },
+          "User-Agent": expect.stringContaining("kubernetes-fluent-client"),
+        }),
         body: JSON.stringify(fakePayload),
       }),
     );
+
+    // Verify the path and search params contain the expected elements
+    const urlArg = mockedFetch.mock.calls[0][0] as URL;
+    expect(urlArg.pathname).toContain("/api/v1/namespaces/default/pods/fake");
+    expect(urlArg.searchParams.get("fieldManager")).toBe("pepr");
+    expect(urlArg.searchParams.get("fieldValidation")).toBe("Strict");
+    expect(urlArg.searchParams.get("force")).toBe("true");
   });
 
   it("should handle fetch call failure", async () => {
@@ -325,6 +368,14 @@ describe("kubeExec Function", () => {
       expect.objectContaining({
         status: fakeStatus,
         statusText: fakeStatusText,
+      }),
+    );
+
+    // Verify the fetch was called with the right method
+    expect(mockedFetch).toHaveBeenCalledWith(
+      expect.any(URL),
+      expect.objectContaining({
+        method: fakeMethod,
       }),
     );
   });

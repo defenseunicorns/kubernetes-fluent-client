@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
 
-import { expect, test, beforeEach, afterEach } from "@jest/globals";
+import { expect, test, beforeEach, afterEach } from "vitest";
 import { StatusCodes } from "http-status-codes";
 import { RequestInit } from "undici";
 import { fetch } from "./fetch";

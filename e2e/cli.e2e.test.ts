@@ -63,9 +63,9 @@ describe("End-to-End CLI tests with multiple test files", () => {
       }
     });
 
-    test(`should generate TypeScript types and run post-processing for ${name}`, done => {
+    test(`should generate TypeScript types and run post-processing for ${name}`, async () => {
       // Run the CLI command with the appropriate arguments
-      runCliCommand(["crd", mockYamlPath, mockDir], (error, stdout) => {
+      await runCliCommand(["crd", mockYamlPath, mockDir], async (error, stdout) => {
         expect(error).toBeNull(); // Ensure no errors occurred
 
         // Get the list of generated files
@@ -81,28 +81,22 @@ describe("End-to-End CLI tests with multiple test files", () => {
 
         // Verify stdout output
         expect(stdout).toContain("✅ Generated");
-
-        // Complete the test
-        done();
       });
     });
 
-    test(`should skip post-processing for ${name} when using --noPost`, done => {
+    test(`should skip post-processing for ${name} when using --noPost`, async () => {
       // Run the CLI command without the --noPost flag
-      runCliCommand(["crd", mockYamlPath, mockDir, "--noPost"], (error, stdout) => {
+      await runCliCommand(["crd", mockYamlPath, mockDir, "--noPost"], async (error, stdout) => {
         expect(error).toBeNull(); // Ensure no errors occurred
 
         // Ensure post-processing was not run (stdout should reflect this)
         expect(stdout).not.toContain("🔧 Post-processing started");
-
-        // Complete the test
-        done();
       });
     });
 
-    test(`should skip post-processing for ${name} when using --noPost`, done => {
+    test(`should skip post-processing for ${name} when using --noPost`, async () => {
       // Run the CLI command without post-processing
-      runCliCommand(["crd", mockYamlPath, mockDir, "--noPost"], (error, stdout) => {
+      await runCliCommand(["crd", mockYamlPath, mockDir, "--noPost"], async (error, stdout) => {
         expect(error).toBeNull(); // Ensure no errors occurred
 
         // Get the list of generated files
@@ -118,9 +112,6 @@ describe("End-to-End CLI tests with multiple test files", () => {
 
         // Ensure post-processing was not run (stdout should reflect this)
         expect(stdout).not.toContain("🔧 Post-processing started");
-
-        // Complete the test
-        done();
       });
     });
   });

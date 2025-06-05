@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
 
-import { expect, test } from "@jest/globals";
+import { expect, test } from "vitest";
 import { kind, modelToGroupVersionKind } from "./index";
 import { RegisterKind } from "./kinds";
 import { GroupVersionKind } from "./types";

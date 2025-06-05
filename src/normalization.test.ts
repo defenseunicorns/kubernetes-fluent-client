@@ -1,12 +1,12 @@
 import * as normalization from "./normalization";
 import { GenerateOptions } from "./generate";
-import { jest, beforeEach, it, expect, describe, afterEach } from "@jest/globals";
+import { vi, beforeEach, it, expect, describe, afterEach } from "vitest";
 
 // Mock the fs module
-jest.mock("fs");
+vi.mock("fs");
 
-jest.mock("./types", () => ({
-  GenericKind: jest.fn().mockImplementation(() => ({
+vi.mock("./types", () => ({
+  GenericKind: vi.fn().mockImplementation(() => ({
     kind: "MockKind",
     apiVersion: "v1",
   })),
@@ -16,15 +16,15 @@ describe("normalizeIndentationAndSpacing", () => {
   const mockOpts = {
     language: "ts",
     source: "",
-    logFn: jest.fn(),
+    logFn: vi.fn(),
   };
 
   beforeEach(() => {
-    jest.clearAllMocks(); // Clear mocks before each test
+    vi.clearAllMocks(); // Clear mocks before each test
   });
 
   afterEach(() => {
-    jest.restoreAllMocks(); // Restore all mocks after each test
+    vi.restoreAllMocks(); // Restore all mocks after each test
   });
 
   it("should normalize indentation to two spaces", () => {
@@ -111,11 +111,11 @@ describe("normalizeIndentationAndSpacing", () => {
 
   describe("processEslintDisable", () => {
     beforeEach(() => {
-      jest.clearAllMocks(); // Clear mocks before each test
+      vi.clearAllMocks(); // Clear mocks before each test
     });
 
     afterEach(() => {
-      jest.restoreAllMocks(); // Restore all mocks after each test
+      vi.restoreAllMocks(); // Restore all mocks after each test
     });
 
     it('should add ESLint disable comment if line contains "[key: string]: any" and is not part of genericKindProperties', () => {
@@ -169,11 +169,11 @@ describe("normalizeIndentationAndSpacing", () => {
 
 describe("makePropertiesOptional", () => {
   beforeEach(() => {
-    jest.clearAllMocks(); // Clear mocks before each test
+    vi.clearAllMocks(); // Clear mocks before each test
   });
 
   afterEach(() => {
-    jest.restoreAllMocks(); // Restore all mocks after each test
+    vi.restoreAllMocks(); // Restore all mocks after each test
   });
 
   it("should make property optional if type is found in interfaces and not already optional", () => {

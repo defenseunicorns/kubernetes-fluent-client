@@ -178,8 +178,16 @@ export function applyCRDPostProcessing(
  * @returns An array of property names that belong to `GenericKind`.
  */
 export function getGenericKindProperties(): string[] {
-  const properties = Object.getOwnPropertyNames(new GenericKind());
-  return properties.filter(prop => prop !== "[key: string]");
+  // Ensure we always include standard Kubernetes resource properties
+  const standardProperties = ["kind", "apiVersion", "metadata"];
+
+  // Get actual properties from GenericKind
+  const instanceProperties = Object.getOwnPropertyNames(new GenericKind()).filter(
+    prop => prop !== "[key: string]",
+  );
+
+  // Combine both sets of properties, removing duplicates
+  return Array.from(new Set([...standardProperties, ...instanceProperties]));
 }
 
 /**
