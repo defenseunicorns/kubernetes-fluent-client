@@ -450,6 +450,6 @@ const createCR = async (
     await K8s(k).Apply(o, { force });
   } catch (e) {
     console.error(`Error creating CR: ${e}`);
-    // expect(e).toBeUndefined();
+    expect(e).toBeUndefined();
   }
 };
