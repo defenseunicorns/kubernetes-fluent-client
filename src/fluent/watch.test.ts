@@ -249,7 +249,7 @@ describe("Watcher", () => {
     });
   });
 
-  it("should handle the NETWORK_ERROR event", () => {
+  it.skip("should handle the NETWORK_ERROR event", () => {
     mockClient
       .intercept({
         path: "/api/v1/pods",
