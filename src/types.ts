@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
 
-import { KubernetesObject, V1ObjectMeta } from "@kubernetes/client-node";
-
-export { KubernetesObject, KubernetesListObject } from "@kubernetes/client-node";
-
+import { V1ObjectMeta } from "@kubernetes/client-node";
+import type { KubernetesListObject, KubernetesObject } from "@kubernetes/client-node";
+export type { KubernetesListObject, KubernetesObject };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type GenericClass = abstract new () => any;
 
