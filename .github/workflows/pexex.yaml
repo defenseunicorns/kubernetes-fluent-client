@@ -109,7 +109,7 @@ jobs:
       - name: create matrix
         run: |
           matrix=$(
-            node "$KUBERNETES_FLUENT_CLIENT/.github/workflows/matrix.js" "$PEPR_EXCELLENT_EXAMPLES_PATH"
+            npx tsx "$KUBERNETES_FLUENT_CLIENT/e2e/matrix.ts" "$PEPR_EXCELLENT_EXAMPLES_PATH"
           )
           echo "matrix=${matrix}" >> "$GITHUB_OUTPUT"
         id: create-matrix
