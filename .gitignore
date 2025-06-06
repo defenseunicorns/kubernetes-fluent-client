@@ -132,5 +132,7 @@ dist
 # Generated CRD files
 generated/
 
-e2e/*v1alpha1.ts
-
+e2e/*/*v1alpha1.ts
+e2e/webapp-v1alpha1.ts
+e2e/database-v1alpha1.ts
+e2e/uds-package/*.json-schema
