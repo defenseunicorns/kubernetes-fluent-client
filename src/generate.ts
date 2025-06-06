@@ -73,7 +73,7 @@ export async function convertCRDtoTS(
     opts.logFn(`- Generating ${crd.spec.group}/${match.name} types for ${name}`);
 
     const inputData = await prepareInputData(name, schema);
-    const generatedTypes = await generateTypes(inputData);
+    const generatedTypes = await generateTypes(inputData, opts);
 
     const fileName = `${name.toLowerCase()}-${match.name.toLowerCase()}`;
     writeGeneratedFile(fileName, opts.directory || "", generatedTypes, opts.language || "ts");
@@ -110,15 +110,19 @@ export async function prepareInputData(name: string, schema: string): Promise<In
  * Generates TypeScript types using quicktype.
  *
  * @param inputData - The input data for quicktype.
+ * @param opts - The options for generating the TypeScript types.
  * @returns A promise that resolves to an array of generated TypeScript type lines.
  */
-export async function generateTypes(inputData: InputData): Promise<string[]> {
+export async function generateTypes(
+  inputData: InputData,
+  opts: GenerateOptions,
+): Promise<string[]> {
   // If the language is not specified, default to TypeScript
-
+  const language = opts.language || "ts";
   // Generate the types
   const out = await quicktype({
     inputData,
-    lang: "ts",
+    lang: language,
     rendererOptions: { "just-types": "true" },
   });
 
