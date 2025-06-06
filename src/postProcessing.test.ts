@@ -7,10 +7,10 @@ import { CustomResourceDefinition } from "./upstream.js";
 import * as fs from "fs";
 import * as path from "path";
 import { GenerateOptions } from "./generate.js";
-
+import type { QuicktypeLang } from "./generate.js";
 // Mock the fs module
 vi.mock("fs");
-
+const language: QuicktypeLang = "ts";
 // Get the mocked fs module
 const mockFs = vi.mocked(fs);
 
@@ -192,7 +192,7 @@ describe("applyCRDPostProcessing", () => {
   const mockOpts = {
     directory: "mockDir",
     logFn: vi.fn(),
-    language: "ts",
+    language,
     plain: false,
     npmPackage: "mockPackage",
     source: "",

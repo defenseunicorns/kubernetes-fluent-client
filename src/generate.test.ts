@@ -51,6 +51,8 @@ vi.mock("./generate", async () => {
   };
 });
 
+const language: QuicktypeLang = "ts";
+
 // Sample CRD content to use in tests
 const sampleCrd = {
   apiVersion: "apiextensions.k8s.io/v1",
@@ -158,6 +160,7 @@ describe("readOrFetchCrd", () => {
 
   beforeEach(async () => {
     mockOpts = {
+      language,
       source: "mock-source",
       logFn: vi.fn(),
     };
@@ -188,6 +191,7 @@ describe("readOrFetchCrd", () => {
 
     // Set options for this test
     mockOpts = {
+      language,
       source: "mock-source",
       logFn: vi.fn(),
     };
@@ -214,6 +218,7 @@ describe("readOrFetchCrd with URL", () => {
     mockOpts = {
       source: "https://example.com/mock-crd",
       logFn: vi.fn(),
+      language,
     };
 
     // Mock resolveFilePath correctly
@@ -266,6 +271,7 @@ describe("readOrFetchCrd from Kubernetes cluster", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     mockOpts = {
+      language,
       source: "my-crd",
       logFn: vi.fn(),
     };
@@ -394,6 +400,7 @@ describe("readOrFetchCrd error handling", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     mockOpts = {
+      language,
       source: "mock-source",
       logFn: vi.fn(),
     };
@@ -492,7 +499,7 @@ describe("convertCRDtoTS with invalid CRD", () => {
 
     const options = {
       source: "mock-source",
-      language: "ts",
+      language,
       logFn: vi.fn(), // Ensure the mock log function is set
       directory: "test-dir",
       plain: false,
@@ -529,7 +536,7 @@ describe("convertCRDtoTS with invalid CRD", () => {
 
     const options = {
       source: "mock-source",
-      language: "ts",
+      language,
       logFn: vi.fn(), // Mock log function
       directory: "test-dir",
       plain: false,
