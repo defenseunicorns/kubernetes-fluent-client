@@ -16,12 +16,12 @@ import { fetch } from "./fetch.js";
 import { K8s } from "./fluent/index.js";
 import { CustomResourceDefinition } from "./upstream.js";
 import { LogFn } from "./types.js";
-
+type QuicktypeLang = Parameters<typeof quicktype>[0]["lang"];
 export interface GenerateOptions {
   source: string; // URL, file path, or K8s CRD name
   directory?: string; // Output directory path
   plain?: boolean; // Disable fluent client wrapping
-  language?: string | TargetLanguage;
+  language: QuicktypeLang; // Language for type generation (default: "ts")
   npmPackage?: string; // Override NPM package
   logFn: LogFn; // Log function callback
   noPost?: boolean; // Enable/disable post-processing
@@ -117,12 +117,10 @@ export async function generateTypes(
   inputData: InputData,
   opts: GenerateOptions,
 ): Promise<string[]> {
-  // If the language is not specified, default to TypeScript
-  const language = opts.language || "ts";
   // Generate the types
   const out = await quicktype({
     inputData,
-    lang: language,
+    lang: opts.language,
     rendererOptions: { "just-types": "true" },
   });
 
