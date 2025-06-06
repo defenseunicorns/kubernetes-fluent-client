@@ -139,18 +139,20 @@ describe("Kube", () => {
         name: "fake",
         namespace: "default",
       }),
-      "PATCH_STATUS",
       {
-        apiVersion: "v1",
-        kind: "Pod",
-        metadata: {
-          name: "fake",
-          namespace: "default",
-          managedFields: generateFakePodManagedFields("pepr"),
-        },
-        spec: { priority: 3 },
-        status: {
-          phase: "Ready",
+        method: "PATCH_STATUS",
+        payload: {
+          apiVersion: "v1",
+          kind: "Pod",
+          metadata: {
+            name: "fake",
+            namespace: "default",
+            managedFields: generateFakePodManagedFields("pepr"),
+          },
+          spec: { priority: 3 },
+          status: {
+            phase: "Ready",
+          },
         },
       },
     );
