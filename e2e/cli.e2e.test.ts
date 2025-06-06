@@ -1,7 +1,7 @@
 import { execFile } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
-import { describe, beforeEach, test, expect, afterEach } from "vitest";
+import { describe, beforeEach, it, expect, afterEach } from "vitest";
 
 // Utility function to execute the CLI command
 const runCliCommand = (
@@ -22,7 +22,13 @@ const compareGeneratedToExpected = (generatedFile: string, expectedFile: string)
 
   expect(generatedContent).toBe(expectedContent);
 };
-
+it("should generate a json schema for package crd", async () => {
+  const jsonSchema = fs.readFileSync(
+    path.join(__dirname, "crds/uds-package/package-v1alpha1.json-schema"),
+    "utf8",
+  );
+  expect(jsonSchema).toContain('"$schema": "http://json-schema.org/draft-06/schema#"');
+});
 describe("End-to-End CLI tests with multiple test files", () => {
   const testFolder = path.join(__dirname, "crds/test.yaml"); // Directory containing .test.yaml files
 
@@ -63,7 +69,7 @@ describe("End-to-End CLI tests with multiple test files", () => {
       }
     });
 
-    test(`should generate TypeScript types and run post-processing for ${name}`, async () => {
+    it(`should generate TypeScript types and run post-processing for ${name}`, async () => {
       // Run the CLI command with the appropriate arguments
       await runCliCommand(["crd", mockYamlPath, mockDir], async (error, stdout) => {
         expect(error).toBeNull(); // Ensure no errors occurred
@@ -84,7 +90,7 @@ describe("End-to-End CLI tests with multiple test files", () => {
       });
     });
 
-    test(`should skip post-processing for ${name} when using --noPost`, async () => {
+    it(`should skip post-processing for ${name} when using --noPost`, async () => {
       // Run the CLI command without the --noPost flag
       await runCliCommand(["crd", mockYamlPath, mockDir, "--noPost"], async (error, stdout) => {
         expect(error).toBeNull(); // Ensure no errors occurred
@@ -94,7 +100,7 @@ describe("End-to-End CLI tests with multiple test files", () => {
       });
     });
 
-    test(`should skip post-processing for ${name} when using --noPost`, async () => {
+    it(`should skip post-processing for ${name} when using --noPost`, async () => {
       // Run the CLI command without post-processing
       await runCliCommand(["crd", mockYamlPath, mockDir, "--noPost"], async (error, stdout) => {
         expect(error).toBeNull(); // Ensure no errors occurred

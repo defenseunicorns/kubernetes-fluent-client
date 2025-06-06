@@ -16,12 +16,12 @@ import { fetch } from "./fetch.js";
 import { K8s } from "./fluent/index.js";
 import { CustomResourceDefinition } from "./upstream.js";
 import { LogFn } from "./types.js";
-
+export type QuicktypeLang = Parameters<typeof quicktype>[0]["lang"];
 export interface GenerateOptions {
   source: string; // URL, file path, or K8s CRD name
   directory?: string; // Output directory path
   plain?: boolean; // Disable fluent client wrapping
-  language?: string | TargetLanguage;
+  language: QuicktypeLang; // Language for type generation (default: "ts")
   npmPackage?: string; // Override NPM package
   logFn: LogFn; // Log function callback
   noPost?: boolean; // Enable/disable post-processing
@@ -73,7 +73,7 @@ export async function convertCRDtoTS(
     opts.logFn(`- Generating ${crd.spec.group}/${match.name} types for ${name}`);
 
     const inputData = await prepareInputData(name, schema);
-    const generatedTypes = await generateTypes(inputData);
+    const generatedTypes = await generateTypes(inputData, opts);
 
     const fileName = `${name.toLowerCase()}-${match.name.toLowerCase()}`;
     writeGeneratedFile(fileName, opts.directory || "", generatedTypes, opts.language || "ts");
@@ -110,15 +110,17 @@ export async function prepareInputData(name: string, schema: string): Promise<In
  * Generates TypeScript types using quicktype.
  *
  * @param inputData - The input data for quicktype.
+ * @param opts - The options for generating the TypeScript types.
  * @returns A promise that resolves to an array of generated TypeScript type lines.
  */
-export async function generateTypes(inputData: InputData): Promise<string[]> {
-  // If the language is not specified, default to TypeScript
-
+export async function generateTypes(
+  inputData: InputData,
+  opts: GenerateOptions,
+): Promise<string[]> {
   // Generate the types
   const out = await quicktype({
     inputData,
-    lang: "ts",
+    lang: opts.language,
     rendererOptions: { "just-types": "true" },
   });
 
