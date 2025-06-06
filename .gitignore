@@ -136,3 +136,9 @@ e2e/*/*v1alpha1.ts
 e2e/webapp-v1alpha1.ts
 e2e/database-v1alpha1.ts
 e2e/uds-package/*.json-schema
+e2e/crds/policyreports/policyreport-v1alpha1.ts
+e2e/crds/policyreports/policyreport-v1alpha2.ts
+e2e/crds/policyreports/policyreport-v1beta1.ts
+e2e/crds/uds-package/package-v1alpha1.json-schema
+e2e/crds/uds-podmonitors/podmonitor-v1.ts
+e2e/*v1alpha1.ts
