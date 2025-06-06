@@ -7,7 +7,7 @@ import { fetch } from "./fetch.js";
 import { loadAllYaml } from "@kubernetes/client-node";
 import { K8s } from "./fluent/index.js";
 import { CustomResourceDefinition } from "./upstream.js";
-
+import type { QuicktypeLang } from "./generate.js";
 // Mock the fs module
 vi.mock("fs", () => ({
   existsSync: vi.fn(),
@@ -121,10 +121,10 @@ describe("CRD Generate", () => {
 
     // Make sure directory exists check passes
     vi.mocked(fs).existsSync.mockReturnValue(true);
-
+    const language: QuicktypeLang = "ts";
     const options = {
       source: "test-crd.yaml",
-      language: "ts",
+      language,
       logFn,
       directory: "test-dir",
       plain: false,

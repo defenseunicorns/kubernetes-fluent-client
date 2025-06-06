@@ -16,7 +16,7 @@ import { fetch } from "./fetch.js";
 import { K8s } from "./fluent/index.js";
 import { CustomResourceDefinition } from "./upstream.js";
 import { LogFn } from "./types.js";
-type QuicktypeLang = Parameters<typeof quicktype>[0]["lang"];
+export type QuicktypeLang = Parameters<typeof quicktype>[0]["lang"];
 export interface GenerateOptions {
   source: string; // URL, file path, or K8s CRD name
   directory?: string; // Output directory path
