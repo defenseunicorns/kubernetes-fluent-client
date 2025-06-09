@@ -40,7 +40,7 @@
     "semantic-release": "semantic-release",
     "test": "vitest src run --coverage",
     "test:e2e": "vitest run e2e/",
-    "test:e2e:prep-crds": "kubectl apply -f test/ && npx tsx src/cli.ts crd ./test/datastore.crd.yaml e2e && npx tsx src/cli.ts crd https://raw.githubusercontent.com/defenseunicorns/kubernetes-fluent-client/refs/heads/main/test/webapp.crd.yaml e2e && npx tsx src/cli.ts crd e2e/crds/uds-package/package.crd.yaml -l json-schema e2e/crds/uds-package",
+    "test:e2e:prep-crds": "kubectl apply -f test/ && npx tsx src/cli.ts crd ./test/datastore.crd.yaml e2e && npx tsx src/cli.ts crd https://raw.githubusercontent.com/defenseunicorns/kubernetes-fluent-client/refs/heads/main/test/webapp.crd.yaml e2e && npx tsx src/cli.ts crd https://raw.githubusercontent.com/defenseunicorns/kubernetes-fluent-client/refs/heads/main/test/webapp.crd.yaml -l json-schema e2e",
     "test:e2e:prep-cluster": "k3d cluster create kfc-dev --k3s-arg '--debug@server:0' --wait && kubectl rollout status deployment -n kube-system",
     "test:e2e:prep-image": "npm run build && npm pack && npm i kubernetes-fluent-client-0.0.0-development.tgz --no-save",
     "test:e2e:run": "npm run test:e2e:prep-cluster && npm run test:e2e:prep-crds && npm run test:e2e:prep-image && npm run test:e2e && npm run test:e2e:cleanup",
