@@ -4,11 +4,11 @@
 import { KubernetesListObject, KubernetesObject } from "@kubernetes/client-node";
 import { Operation } from "fast-json-patch";
 import type { PartialDeep } from "type-fest";
-import { GenericClass } from "../types";
-import { WatchCfg, Watcher } from "./watch";
+import { GenericClass } from "../types.js";
+import { WatchCfg, Watcher } from "./watch.js";
 import https from "https";
 import { SecureClientSessionOptions } from "http2";
-import { WatchAction, FetchMethods, ApplyCfg } from "./shared-types";
+import { WatchAction, FetchMethods, ApplyCfg } from "./shared-types.js";
 /*
  * Watch Class Type - Used in Pepr Watch Processor
  */

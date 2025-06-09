@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
 
-import * as postProcessingModule from "./postProcessing";
-import { jest, beforeEach, it, expect, describe, afterEach } from "@jest/globals";
-import { CustomResourceDefinition } from "./upstream";
+import * as postProcessingModule from "./postProcessing.js";
+import { vi, beforeEach, it, expect, describe, afterEach } from "vitest";
+import { CustomResourceDefinition } from "./upstream.js";
 import * as fs from "fs";
 import * as path from "path";
-import { GenerateOptions } from "./generate";
+import { GenerateOptions } from "./generate.js";
 
 // Mock the fs module
-jest.mock("fs");
+vi.mock("fs");
 
 // Get the mocked fs module
-const mockFs = jest.mocked(fs, { shallow: false });
+const mockFs = vi.mocked(fs);
 
-jest.mock("./types", () => ({
-  GenericKind: jest.fn().mockImplementation(() => ({
+vi.mock("./types", () => ({
+  GenericKind: vi.fn().mockImplementation(() => ({
     kind: "MockKind",
     apiVersion: "v1",
   })),
@@ -39,7 +39,7 @@ const mockCRDResults = [
 // Define the mock data
 const mockOpts: GenerateOptions = {
   directory: "mockDir",
-  logFn: jest.fn(), // Mock logging function
+  logFn: vi.fn(), // Mock logging function
   language: "ts",
   plain: false,
   npmPackage: "mockPackage",
@@ -48,11 +48,11 @@ const mockOpts: GenerateOptions = {
 
 describe("postProcessing", () => {
   beforeEach(() => {
-    jest.clearAllMocks(); // Clear mocks before each test
+    vi.clearAllMocks(); // Clear mocks before each test
   });
 
   afterEach(() => {
-    jest.restoreAllMocks(); // Restore all mocks after each test
+    vi.restoreAllMocks(); // Restore all mocks after each test
   });
 
   it("should log error when directory is not defined", async () => {
@@ -108,9 +108,9 @@ describe("postProcessing", () => {
     mockFs.readFileSync.mockReturnValue(Buffer.from(mockContent));
     mockFs.writeFileSync.mockImplementation(() => {});
 
-    jest
-      .spyOn(postProcessingModule, "mapFilesToCRD")
-      .mockReturnValue({ "TestKind-v1.ts": mockCRDResults[0] });
+    vi.spyOn(postProcessingModule, "mapFilesToCRD").mockReturnValue({
+      "TestKind-v1.ts": mockCRDResults[0],
+    });
 
     await postProcessingModule.postProcessing(mockCRDResults, mockOpts);
 
@@ -159,11 +159,11 @@ describe("postProcessing", () => {
 
 describe("mapFilesToCRD", () => {
   beforeEach(() => {
-    jest.clearAllMocks(); // Clear mocks before each test
+    vi.clearAllMocks(); // Clear mocks before each test
   });
 
   afterEach(() => {
-    jest.restoreAllMocks(); // Restore all mocks after each test
+    vi.restoreAllMocks(); // Restore all mocks after each test
   });
 
   it("should map files to corresponding CRD results", () => {
@@ -191,7 +191,7 @@ describe("applyCRDPostProcessing", () => {
   const mockContent = "mock content";
   const mockOpts = {
     directory: "mockDir",
-    logFn: jest.fn(),
+    logFn: vi.fn(),
     language: "ts",
     plain: false,
     npmPackage: "mockPackage",
@@ -199,11 +199,11 @@ describe("applyCRDPostProcessing", () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks(); // Clear mocks before each test
+    vi.clearAllMocks(); // Clear mocks before each test
   });
 
   afterEach(() => {
-    jest.restoreAllMocks(); // Restore all mocks after each test
+    vi.restoreAllMocks(); // Restore all mocks after each test
   });
 
   describe("when processing TypeScript file content", () => {
@@ -239,11 +239,11 @@ describe("processFiles", () => {
   const mockOptsWithoutDirectory = { ...mockOpts, directory: undefined };
 
   beforeEach(() => {
-    jest.clearAllMocks(); // Clear mocks before each test
+    vi.clearAllMocks(); // Clear mocks before each test
   });
 
   afterEach(() => {
-    jest.restoreAllMocks(); // Restore all mocks after each test
+    vi.restoreAllMocks(); // Restore all mocks after each test
   });
 
   describe("when processing files with valid directory", () => {
@@ -280,7 +280,7 @@ describe("processFiles", () => {
 
 describe("wrapWithFluentClient", () => {
   beforeEach(() => {
-    jest.clearAllMocks(); // Clear mocks before each test
+    vi.clearAllMocks(); // Clear mocks before each test
   });
 
   describe("when transforming an interface to a fluent client class", () => {
@@ -323,11 +323,11 @@ describe("wrapWithFluentClient", () => {
 
 describe("getGenericKindProperties", () => {
   beforeEach(() => {
-    jest.clearAllMocks(); // Clear mocks before each test
+    vi.clearAllMocks(); // Clear mocks before each test
   });
 
   afterEach(() => {
-    jest.restoreAllMocks(); // Restore all mocks after each test
+    vi.restoreAllMocks(); // Restore all mocks after each test
   });
 
   describe("when retrieving generic kind properties", () => {
@@ -346,11 +346,11 @@ describe("processLines", () => {
   const mockFoundInterfaces = new Set<string>(["TestKind"]);
 
   beforeEach(() => {
-    jest.clearAllMocks(); // Clear mocks before each test
+    vi.clearAllMocks(); // Clear mocks before each test
   });
 
   afterEach(() => {
-    jest.restoreAllMocks(); // Restore all mocks after each test
+    vi.restoreAllMocks(); // Restore all mocks after each test
   });
 
   describe("when processing class lines extending GenericKind", () => {
@@ -374,11 +374,11 @@ describe("processClassContext", () => {
   const mockFoundInterfaces = new Set<string>(["TestKind"]);
 
   beforeEach(() => {
-    jest.clearAllMocks(); // Clear mocks before each test
+    vi.clearAllMocks(); // Clear mocks before each test
   });
 
   afterEach(() => {
-    jest.restoreAllMocks(); // Restore all mocks after each test
+    vi.restoreAllMocks(); // Restore all mocks after each test
   });
 
   describe("when encountering a class declaration", () => {
@@ -414,11 +414,11 @@ describe("processClassContext", () => {
 
 describe("collectInterfaceNames", () => {
   beforeEach(() => {
-    jest.clearAllMocks(); // Clear mocks before each test
+    vi.clearAllMocks(); // Clear mocks before each test
   });
 
   afterEach(() => {
-    jest.restoreAllMocks(); // Restore all mocks after each test
+    vi.restoreAllMocks(); // Restore all mocks after each test
   });
 
   it("should collect interface names from lines", () => {

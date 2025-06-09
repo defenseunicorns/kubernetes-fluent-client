@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
 
-import { describe, expect, it, test } from "@jest/globals";
+import { describe, expect, it, test, vi, afterEach } from "vitest";
 
-import { fromEnv, hasLogs, waitForCluster } from "./helpers";
+import { fromEnv, hasLogs, waitForCluster } from "./helpers.js";
 
 describe("helpers", () => {
   test("fromEnv for NodeJS", () => {
@@ -18,9 +18,25 @@ describe("helpers", () => {
 });
 
 describe("Cluster Wait Function", () => {
+  // Mock the KubeConfig class
+  vi.mock("@kubernetes/client-node", () => {
+    return {
+      KubeConfig: vi.fn().mockImplementation(() => ({
+        loadFromDefault: vi.fn(),
+        getCurrentCluster: vi.fn().mockReturnValue({
+          server: "https://jest-test:8080",
+        }),
+      })),
+    };
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("should resolve if the cluster is already ready", async () => {
     const cluster = await waitForCluster(5);
-    expect(cluster).toEqual({ server: "http://jest-test:8080" });
+    expect(cluster).toEqual({ server: "https://jest-test:8080" });
   });
 });
 

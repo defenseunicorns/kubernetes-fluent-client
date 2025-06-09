@@ -1,4 +1,4 @@
-import { GenerateOptions } from "./generate";
+import { GenerateOptions } from "./generate.js";
 
 /**
  * Normalizes indentation for TypeScript lines to a consistent format.
