@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { PatchStrategy } from "@kubernetes/client-node";
 import * as fs from "fs";
 import { RequestInit } from "node-fetch";
 import { fetch } from "../fetch.js";
@@ -9,12 +10,82 @@ import { RegisterKind } from "../kinds.js";
 import { GenericClass } from "../types.js";
 import { ClusterRole, Ingress, Pod } from "../upstream.js";
 import { FetchMethods, Filters } from "./shared-types.js";
-import { k8sExec, pathBuilder, getHTTPSAgent, getHeaders, getToken } from "./utils.js";
+import {
+  k8sExec,
+  pathBuilder,
+  getHTTPSAgent,
+  getHeaders,
+  getToken,
+  prepareRequestOptions,
+} from "./utils.js";
+import type { MethodPayload } from "./utils.js";
 // Import k8sCfg directly for mocking
 import * as utils from "./utils.js";
 vi.mock("https");
 vi.mock("../fetch");
 
+describe("prepareRequestOptions", () => {
+  const baseUrl = () => new URL("https://k8s.local/api/v1/pods/test-pod");
+
+  it("handles PATCH_STATUS", () => {
+    const url = baseUrl();
+    const opts = { method: "PATCH_STATUS", headers: {} as Record<string, string> };
+    const methodPayload: MethodPayload<{ status: string }> = {
+      method: FetchMethods.PATCH_STATUS,
+      payload: { status: "Running" },
+    };
+
+    prepareRequestOptions(methodPayload, opts, url, { force: false });
+
+    expect(opts.method).toBe("PATCH");
+    expect(url.pathname).toMatch(/\/status$/);
+    expect(opts.headers?.["Content-Type"]).toBe(PatchStrategy.MergePatch);
+    expect(methodPayload.payload).toEqual({ status: "Running" });
+  });
+
+  it("handles PATCH", () => {
+    const url = baseUrl();
+    const opts = { method: "PATCH", headers: {} as Record<string, string> };
+    const methodPayload: MethodPayload<{ foo: string }> = {
+      method: "PATCH",
+      payload: { foo: "bar" },
+    };
+
+    prepareRequestOptions(methodPayload, opts, url, { force: false });
+
+    expect(opts.headers?.["Content-Type"]).toBe(PatchStrategy.JsonPatch);
+  });
+
+  it("handles APPLY with force", () => {
+    const url = baseUrl();
+    const opts = { method: "APPLY", headers: {} as Record<string, string> };
+    const methodPayload: MethodPayload<{ spec: object }> = {
+      method: "APPLY",
+      payload: { spec: {} },
+    };
+
+    prepareRequestOptions(methodPayload, opts, url, { force: true });
+
+    expect(opts.method).toBe("PATCH");
+    expect(opts.headers?.["Content-Type"]).toBe("application/apply-patch+yaml");
+    expect(url.searchParams.get("fieldManager")).toBe("pepr");
+    expect(url.searchParams.get("fieldValidation")).toBe("Strict");
+    expect(url.searchParams.get("force")).toBe("true");
+  });
+
+  it("handles APPLY without force", () => {
+    const url = baseUrl();
+    const opts = { method: "APPLY", headers: {} as Record<string, string> };
+    const methodPayload: MethodPayload<{ spec: object }> = {
+      method: "APPLY",
+      payload: { spec: {} },
+    };
+
+    prepareRequestOptions(methodPayload, opts, url, { force: false });
+
+    expect(url.searchParams.get("force")).toBe("false");
+  });
+});
 describe("getToken", () => {
   it("should return the token from the service account", async () => {
     const token = "fake-token";
@@ -210,7 +281,7 @@ describe("kubeExec Function", () => {
       statusText: "OK",
     });
 
-    const result = await k8sExec(Pod, fakeFilters, fakeMethod, fakePayload);
+    const result = await k8sExec(Pod, fakeFilters, { method: fakeMethod, payload: fakePayload });
 
     expect(result).toEqual(fakePayload);
     expect(mockedFetch).toHaveBeenCalledWith(
@@ -238,7 +309,10 @@ describe("kubeExec Function", () => {
       statusText: "OK",
     });
 
-    const result = await k8sExec(Pod, fakeFilters, FetchMethods.PATCH_STATUS, fakePayload);
+    const result = await k8sExec(Pod, fakeFilters, {
+      method: FetchMethods.PATCH_STATUS,
+      payload: fakePayload,
+    });
 
     expect(result).toEqual(fakePayload);
     expect(mockedFetch).toHaveBeenCalledWith(

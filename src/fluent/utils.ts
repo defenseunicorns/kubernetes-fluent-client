@@ -204,54 +204,38 @@ const isEvictionPayload = (payload: unknown): payload is Eviction =>
   (payload as { kind: string }).kind === "Eviction";
 
 /**
- * Execute a request against the Kubernetes API server.
+ * Prepares and mutates the request options and URL for Kubernetes PATCH or APPLY operations.
  *
- * @param model - the model to use for the API
- * @param filters - (optional) filter overrides, can also be chained
- * @param method - the HTTP method to use
- * @param payload - (optional) the payload to send
- * @param applyCfg - (optional) configuration for the apply method
+ * This function modifies the request's HTTP method, headers, and URL based on the operation type.
+ * It handles the following:
  *
- * @returns the parsed JSON response
+ * - `PATCH_STATUS`: Converts the method to `PATCH`, appends `/status` to the path, sets merge patch headers,
+ *   and rewrites the payload to contain only the `status` field.
+ * - `PATCH`: Sets the content type to `application/json-patch+json`.
+ * - `APPLY`: Converts the method to `PATCH`, sets server-side apply headers, and updates the query string
+ *   with field manager and force options.
+ *
+ * @template K
+ * @param methodPayload - The original method and payload. May be mutated if `PATCH_STATUS` is used.
+ * @param opts - The request options.
+ * @param opts.method - The HTTP method (e.g. `PATCH`, `APPLY`, or `PATCH_STATUS`).
+ * @param opts.headers - The headers to be updated with the correct content type.
+ * @param url - The URL to mutate with subresource path or query parameters.
+ * @param applyCfg - Server-side apply options, such as `force`.
  */
-export async function k8sExec<T extends GenericClass, K>(
-  model: T,
-  filters: Filters,
-  method: FetchMethods,
-  payload?: K | unknown,
-  applyCfg: ApplyCfg = { force: false },
-) {
-  const reconstruct = async (method: FetchMethods): K8sConfigPromise => {
-    const configMethod = method === FetchMethods.LOG ? FetchMethods.GET : method;
-    const { opts, serverUrl } = await k8sCfg(configMethod);
-
-    // Build the base path once, using excludeName only for standard POST requests
-    const shouldExcludeName = method === "POST" && !(payload && isEvictionPayload(payload));
-    const baseUrl = pathBuilder(serverUrl.toString(), model, filters, shouldExcludeName);
-
-    // Append appropriate subresource paths
-    if (payload && isEvictionPayload(payload)) {
-      baseUrl.pathname = `${baseUrl.pathname}/eviction`;
-    } else if (method === "LOG") {
-      baseUrl.pathname = `${baseUrl.pathname}/log`;
-    }
-
-    return {
-      serverUrl: baseUrl,
-      opts,
-    };
-  };
-
-  const { opts, serverUrl } = await reconstruct(method);
-  const url: URL = serverUrl instanceof URL ? serverUrl : new URL(serverUrl);
-
+export function prepareRequestOptions<K>(
+  methodPayload: MethodPayload<K>,
+  opts: { method?: string; headers?: Record<string, string> },
+  url: URL,
+  applyCfg: ApplyCfg,
+): void {
   switch (opts.method) {
     // PATCH_STATUS is a special case that uses the PATCH method on status subresources
     case "PATCH_STATUS":
       opts.method = "PATCH";
       url.pathname = `${url.pathname}/status`;
       (opts.headers as Record<string, string>)["Content-Type"] = PatchStrategy.MergePatch;
-      payload = { status: (payload as { status: unknown }).status };
+      methodPayload.payload = { status: (methodPayload.payload as { status: unknown }).status };
       break;
 
     case "PATCH":
@@ -266,9 +250,63 @@ export async function k8sExec<T extends GenericClass, K>(
       url.searchParams.set("force", applyCfg.force ? "true" : "false");
       break;
   }
+}
 
-  if (payload) {
-    opts.body = JSON.stringify(payload);
+export type MethodPayload<K> = {
+  method: FetchMethods;
+  payload?: K | unknown;
+};
+
+/**
+ * Execute a request against the Kubernetes API server.
+ *
+ * @param model - the model to use for the API
+ * @param filters - (optional) filter overrides, can also be chained
+ * @param methodPayload - method and payload for the request
+ * @param applyCfg - (optional) configuration for the apply method
+ *
+ * @returns the parsed JSON response
+ */
+export async function k8sExec<T extends GenericClass, K>(
+  model: T,
+  filters: Filters,
+  methodPayload: MethodPayload<K>,
+  applyCfg: ApplyCfg = { force: false },
+) {
+  const reconstruct = async (method: FetchMethods): K8sConfigPromise => {
+    const configMethod = method === "LOG" ? "GET" : method;
+    const { opts, serverUrl } = await k8sCfg(configMethod);
+
+    // Build the base path once, using excludeName only for standard POST requests
+    const shouldExcludeName =
+      method === "POST" && !(methodPayload.payload && isEvictionPayload(methodPayload.payload));
+    const baseUrl = pathBuilder(serverUrl.toString(), model, filters, shouldExcludeName);
+
+    // Append appropriate subresource paths
+    if (methodPayload.payload && isEvictionPayload(methodPayload.payload)) {
+      baseUrl.pathname = `${baseUrl.pathname}/eviction`;
+    } else if (method === "LOG") {
+      baseUrl.pathname = `${baseUrl.pathname}/log`;
+    }
+
+    return {
+      serverUrl: baseUrl,
+      opts,
+    };
+  };
+
+  const { opts, serverUrl } = await reconstruct(methodPayload.method);
+  const url: URL = serverUrl instanceof URL ? serverUrl : new URL(serverUrl);
+
+  prepareRequestOptions(
+    methodPayload,
+    opts as { method?: string; headers?: Record<string, string> },
+    url,
+    applyCfg,
+  );
+
+  if (methodPayload.payload) {
+    opts.body = JSON.stringify(methodPayload.payload);
   }
   const resp = await fetch<K>(url, opts);
 
@@ -276,7 +314,7 @@ export async function k8sExec<T extends GenericClass, K>(
     return resp.data;
   }
 
-  if (resp.status === 404 && method === "PATCH_STATUS") {
+  if (resp.status === 404 && methodPayload.method === "PATCH_STATUS") {
     resp.statusText =
       "Not Found" + " (NOTE: This error is expected if the resource has no status subresource)";
   }

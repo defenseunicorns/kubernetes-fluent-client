@@ -115,7 +115,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
     }
 
     try {
-      const object = await k8sExec<T, K>(model, filters, FetchMethods.GET);
+      const object = await k8sExec<T, K>(model, filters, { method: FetchMethods.GET });
 
       if (kind !== "Pod") {
         if (kind === "Service") {
@@ -180,7 +180,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
       filters.name = name;
     }
 
-    return k8sExec<T, K | KubernetesListObject<K>>(model, filters, FetchMethods.GET);
+    return k8sExec<T, K | KubernetesListObject<K>>(model, filters, { method: FetchMethods.GET });
   }
 
   /**
@@ -196,7 +196,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
 
     try {
       // Try to delete the resource
-      await k8sExec<T, void>(model, filters, FetchMethods.DELETE);
+      await k8sExec<T, void>(model, filters, { method: FetchMethods.DELETE });
     } catch (e) {
       // If the resource doesn't exist, ignore the error
       if (e.status === StatusCodes.NOT_FOUND) {
@@ -216,7 +216,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
     applyCfg: ApplyCfg = { force: false },
   ): Promise<K> {
     syncFilters(resource as K);
-    return k8sExec(model, filters, FetchMethods.APPLY, resource, applyCfg);
+    return k8sExec(model, filters, { method: FetchMethods.APPLY, payload: resource }, applyCfg);
   }
 
   /**
@@ -225,7 +225,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
    */
   async function Create(resource: K): Promise<K> {
     syncFilters(resource);
-    return k8sExec(model, filters, FetchMethods.POST, resource);
+    return k8sExec(model, filters, { method: FetchMethods.POST, payload: resource });
   }
 
   /**
@@ -249,7 +249,10 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
         },
       };
       // Try to evict the resource
-      await k8sExec<T, void>(model, filters, FetchMethods.POST, evictionPayload);
+      await k8sExec<T, void>(model, filters, {
+        method: FetchMethods.POST,
+        payload: evictionPayload,
+      });
     } catch (e) {
       // If the resource doesn't exist, ignore the error
       if (e.status === StatusCodes.NOT_FOUND) {
@@ -269,7 +272,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
       throw new Error("No operations specified");
     }
 
-    return k8sExec(model, filters, FetchMethods.PATCH, payload);
+    return k8sExec(model, filters, { method: FetchMethods.PATCH, payload });
   }
 
   /**
@@ -278,7 +281,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
    */
   async function PatchStatus(resource: PartialDeep<K>): Promise<K> {
     syncFilters(resource as K);
-    return k8sExec(model, filters, FetchMethods.PATCH_STATUS, resource);
+    return k8sExec(model, filters, { method: FetchMethods.PATCH_STATUS, payload: resource });
   }
 
   /**
