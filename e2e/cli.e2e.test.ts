@@ -23,7 +23,10 @@ const compareGeneratedToExpected = (generatedFile: string, expectedFile: string)
   expect(generatedContent).toBe(expectedContent);
 };
 it("should generate a json schema for package crd", async () => {
-  const jsonSchema = fs.readFileSync(path.join(__dirname, "webapp-v1alpha1.json-schema"), "utf8");
+  const jsonSchema = fs.readFileSync(
+    path.join(__dirname, "schemas/webapp/webapp-v1alpha1.json-schema"),
+    "utf8",
+  );
   expect(jsonSchema).toContain('"$schema": "http://json-schema.org/draft-06/schema#"');
 });
 describe("End-to-End CLI tests with multiple test files", () => {
