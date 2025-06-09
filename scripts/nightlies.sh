@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
+# SPDX-FileCopyrightText: 2023-Present The Pepr Authors
 
 # Script to build and publish nightly versions of kubernetes-fluent-client.
 
@@ -36,5 +36,4 @@ npm version --no-git-tag-version "$FULL_VERSION"
 npm install 
 npm run build
 
-echo "beep boop"
-# npm publish --tag "nightly"
+npm publish --tag "nightly"
