@@ -274,18 +274,19 @@ export async function k8sExec<T extends GenericClass, K>(
   applyCfg: ApplyCfg = { force: false },
 ) {
   const reconstruct = async (method: FetchMethods): K8sConfigPromise => {
-    const configMethod = method === "LOG" ? "GET" : method;
+    const configMethod = method === FetchMethods.LOG ? FetchMethods.GET : method;
     const { opts, serverUrl } = await k8sCfg(configMethod);
 
     // Build the base path once, using excludeName only for standard POST requests
     const shouldExcludeName =
-      method === "POST" && !(methodPayload.payload && isEvictionPayload(methodPayload.payload));
+      method === FetchMethods.POST &&
+      !(methodPayload.payload && isEvictionPayload(methodPayload.payload));
     const baseUrl = pathBuilder(serverUrl.toString(), model, filters, shouldExcludeName);
 
     // Append appropriate subresource paths
     if (methodPayload.payload && isEvictionPayload(methodPayload.payload)) {
       baseUrl.pathname = `${baseUrl.pathname}/eviction`;
-    } else if (method === "LOG") {
+    } else if (method === FetchMethods.LOG) {
       baseUrl.pathname = `${baseUrl.pathname}/log`;
     }
 
@@ -314,7 +315,7 @@ export async function k8sExec<T extends GenericClass, K>(
     return resp.data;
   }
 
-  if (resp.status === 404 && methodPayload.method === "PATCH_STATUS") {
+  if (resp.status === 404 && methodPayload.method === FetchMethods.PATCH_STATUS) {
     resp.statusText =
       "Not Found" + " (NOTE: This error is expected if the resource has no status subresource)";
   }

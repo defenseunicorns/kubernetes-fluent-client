@@ -47,7 +47,7 @@ describe("prepareRequestOptions", () => {
     const url = baseUrl();
     const opts = { method: "PATCH", headers: {} as Record<string, string> };
     const methodPayload: MethodPayload<{ foo: string }> = {
-      method: "PATCH",
+      method: FetchMethods.PATCH,
       payload: { foo: "bar" },
     };
 
@@ -60,7 +60,7 @@ describe("prepareRequestOptions", () => {
     const url = baseUrl();
     const opts = { method: "APPLY", headers: {} as Record<string, string> };
     const methodPayload: MethodPayload<{ spec: object }> = {
-      method: "APPLY",
+      method: FetchMethods.APPLY,
       payload: { spec: {} },
     };
 
@@ -77,7 +77,7 @@ describe("prepareRequestOptions", () => {
     const url = baseUrl();
     const opts = { method: "APPLY", headers: {} as Record<string, string> };
     const methodPayload: MethodPayload<{ spec: object }> = {
-      method: "APPLY",
+      method: FetchMethods.APPLY,
       payload: { spec: {} },
     };
 
@@ -318,7 +318,7 @@ describe("kubeExec Function", () => {
     expect(mockedFetch).toHaveBeenCalledWith(
       expect.any(URL),
       expect.objectContaining({
-        method: "PATCH",
+        method: FetchMethods.PATCH,
         headers: expect.objectContaining({
           "Content-Type": "application/merge-patch+json",
           "User-Agent": expect.stringContaining("kubernetes-fluent-client"),
@@ -342,7 +342,10 @@ describe("kubeExec Function", () => {
 
     const patchPayload = [{ op: "replace", path: "/status/phase", value: "Ready" }];
 
-    const result = await k8sExec(Pod, fakeFilters, FetchMethods.PATCH, patchPayload);
+    const result = await k8sExec(Pod, fakeFilters, {
+      method: FetchMethods.PATCH,
+      payload: patchPayload,
+    });
 
     expect(result).toEqual(fakePayload);
     expect(mockedFetch).toHaveBeenCalledWith(
@@ -370,7 +373,10 @@ describe("kubeExec Function", () => {
       statusText: "OK",
     });
 
-    const result = await k8sExec(Pod, fakeFilters, FetchMethods.APPLY, fakePayload);
+    const result = await k8sExec(Pod, fakeFilters, {
+      method: FetchMethods.APPLY,
+      payload: fakePayload,
+    });
 
     expect(result).toEqual(fakePayload);
     expect(mockedFetch).toHaveBeenCalledWith(
@@ -401,9 +407,14 @@ describe("kubeExec Function", () => {
       statusText: "OK",
     });
 
-    const result = await k8sExec(Pod, fakeFilters, FetchMethods.APPLY, fakePayload, {
-      force: true,
-    });
+    const result = await k8sExec(
+      Pod,
+      fakeFilters,
+      { method: FetchMethods.APPLY, payload: fakePayload },
+      {
+        force: true,
+      },
+    );
 
     expect(result).toEqual(fakePayload);
     expect(mockedFetch).toHaveBeenCalledWith(
@@ -437,7 +448,9 @@ describe("kubeExec Function", () => {
       statusText: fakeStatusText,
     });
 
-    await expect(k8sExec(Pod, fakeFilters, fakeMethod, fakePayload)).rejects.toEqual(
+    await expect(
+      k8sExec(Pod, fakeFilters, { method: fakeMethod, payload: fakePayload }),
+    ).rejects.toEqual(
       expect.objectContaining({
         status: fakeStatus,
         statusText: fakeStatusText,

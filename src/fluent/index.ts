@@ -145,7 +145,11 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
 
     const podModel = { ...model, name: "V1Pod" };
     const logPromises = podList.map(po =>
-      k8sExec<T, string>(podModel, { ...filters, name: po.metadata!.name! }, FetchMethods.LOG),
+      k8sExec<T, string>(
+        podModel,
+        { ...filters, name: po.metadata!.name! },
+        { method: FetchMethods.LOG },
+      ),
     );
 
     const responses = await Promise.all(logPromises);
