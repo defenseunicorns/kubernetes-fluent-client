@@ -37,7 +37,7 @@ describe("watcher e2e", () => {
           watcher.close();
           resolve();
         });
-      watcher.start();
+      void watcher.start();
     });
   });
 
@@ -51,7 +51,7 @@ describe("watcher e2e", () => {
           watcher.close();
           resolve();
         });
-      watcher.start();
+      void watcher.start();
     });
   });
 
@@ -69,7 +69,7 @@ describe("watcher e2e", () => {
       });
     });
 
-    watcher.start();
+    void watcher.start();
     await connectPromise;
     watcher.close();
   });
@@ -81,7 +81,7 @@ describe("watcher e2e", () => {
         .Watch(po => {
           expect(po.metadata!.name).toBe(namespace);
         });
-      watcher.start();
+      void watcher.start();
 
       watcher.events.on(WatchEvent.RECONNECT, num => {
         expect(num).toBe(1);
@@ -100,7 +100,7 @@ describe("watcher e2e", () => {
         .Watch(po => {
           expect(po.metadata!.name).toBe(namespace);
         });
-      watcher.start();
+      void watcher.start();
 
       watcher.events.on(WatchEvent.DATA, po => {
         expect(po.metadata.name).toBe(namespace);
@@ -123,7 +123,7 @@ describe("watcher e2e", () => {
             resyncFailureMax: 1,
           },
         );
-      watcher.start();
+      void watcher.start();
 
       watcher.events.on(WatchEvent.GIVE_UP, err => {
         expect(err).toBeDefined();
@@ -146,7 +146,7 @@ describe("watcher e2e", () => {
             resyncFailureMax: 1,
           },
         );
-      watcher.start();
+      void watcher.start();
 
       watcher.events.on(WatchEvent.GIVE_UP, err => {
         expect(err).toBeDefined();
@@ -169,7 +169,7 @@ describe("watcher e2e", () => {
             resyncFailureMax: 1,
           },
         );
-      watcher.start();
+      void watcher.start();
 
       watcher.events.on(WatchEvent.RECONNECT, num => {
         expect(num).toBe(1);
