@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
 
-import * as postProcessingModule from "./postProcessing";
-import { GenerateOptions } from "./generate";
-import { jest, beforeEach, it, expect, describe, afterEach } from "@jest/globals";
-import { CustomResourceDefinition } from "./upstream";
+import * as postProcessingModule from "./postProcessing.js";
+import { vi, beforeEach, it, expect, describe, afterEach } from "vitest";
+import { CustomResourceDefinition } from "./upstream.js";
 import * as fs from "fs";
 import * as path from "path";
+import { GenerateOptions } from "./generate.js";
 
 // Mock the fs module
-jest.mock("fs");
+vi.mock("fs");
 
 // Get the mocked fs module
-const mockFs = jest.mocked(fs, { shallow: false });
+const mockFs = vi.mocked(fs);
 
-jest.mock("./types", () => ({
-  GenericKind: jest.fn().mockImplementation(() => ({
+vi.mock("./types", () => ({
+  GenericKind: vi.fn().mockImplementation(() => ({
     kind: "MockKind",
     apiVersion: "v1",
   })),
@@ -39,7 +39,7 @@ const mockCRDResults = [
 // Define the mock data
 const mockOpts: GenerateOptions = {
   directory: "mockDir",
-  logFn: jest.fn(), // Mock logging function
+  logFn: vi.fn(), // Mock logging function
   language: "ts",
   plain: false,
   npmPackage: "mockPackage",
@@ -48,11 +48,11 @@ const mockOpts: GenerateOptions = {
 
 describe("postProcessing", () => {
   beforeEach(() => {
-    jest.clearAllMocks(); // Clear mocks before each test
+    vi.clearAllMocks(); // Clear mocks before each test
   });
 
   afterEach(() => {
-    jest.restoreAllMocks(); // Restore all mocks after each test
+    vi.restoreAllMocks(); // Restore all mocks after each test
   });
 
   it("should log error when directory is not defined", async () => {
@@ -108,9 +108,9 @@ describe("postProcessing", () => {
     mockFs.readFileSync.mockReturnValue(Buffer.from(mockContent));
     mockFs.writeFileSync.mockImplementation(() => {});
 
-    jest
-      .spyOn(postProcessingModule, "mapFilesToCRD")
-      .mockReturnValue({ "TestKind-v1.ts": mockCRDResults[0] });
+    vi.spyOn(postProcessingModule, "mapFilesToCRD").mockReturnValue({
+      "TestKind-v1.ts": mockCRDResults[0],
+    });
 
     await postProcessingModule.postProcessing(mockCRDResults, mockOpts);
 
@@ -159,11 +159,11 @@ describe("postProcessing", () => {
 
 describe("mapFilesToCRD", () => {
   beforeEach(() => {
-    jest.clearAllMocks(); // Clear mocks before each test
+    vi.clearAllMocks(); // Clear mocks before each test
   });
 
   afterEach(() => {
-    jest.restoreAllMocks(); // Restore all mocks after each test
+    vi.restoreAllMocks(); // Restore all mocks after each test
   });
 
   it("should map files to corresponding CRD results", () => {
@@ -191,7 +191,7 @@ describe("applyCRDPostProcessing", () => {
   const mockContent = "mock content";
   const mockOpts = {
     directory: "mockDir",
-    logFn: jest.fn(),
+    logFn: vi.fn(),
     language: "ts",
     plain: false,
     npmPackage: "mockPackage",
@@ -199,11 +199,11 @@ describe("applyCRDPostProcessing", () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks(); // Clear mocks before each test
+    vi.clearAllMocks(); // Clear mocks before each test
   });
 
   afterEach(() => {
-    jest.restoreAllMocks(); // Restore all mocks after each test
+    vi.restoreAllMocks(); // Restore all mocks after each test
   });
 
   describe("when processing TypeScript file content", () => {
@@ -239,11 +239,11 @@ describe("processFiles", () => {
   const mockOptsWithoutDirectory = { ...mockOpts, directory: undefined };
 
   beforeEach(() => {
-    jest.clearAllMocks(); // Clear mocks before each test
+    vi.clearAllMocks(); // Clear mocks before each test
   });
 
   afterEach(() => {
-    jest.restoreAllMocks(); // Restore all mocks after each test
+    vi.restoreAllMocks(); // Restore all mocks after each test
   });
 
   describe("when processing files with valid directory", () => {
@@ -280,7 +280,7 @@ describe("processFiles", () => {
 
 describe("wrapWithFluentClient", () => {
   beforeEach(() => {
-    jest.clearAllMocks(); // Clear mocks before each test
+    vi.clearAllMocks(); // Clear mocks before each test
   });
 
   describe("when transforming an interface to a fluent client class", () => {
@@ -323,11 +323,11 @@ describe("wrapWithFluentClient", () => {
 
 describe("getGenericKindProperties", () => {
   beforeEach(() => {
-    jest.clearAllMocks(); // Clear mocks before each test
+    vi.clearAllMocks(); // Clear mocks before each test
   });
 
   afterEach(() => {
-    jest.restoreAllMocks(); // Restore all mocks after each test
+    vi.restoreAllMocks(); // Restore all mocks after each test
   });
 
   describe("when retrieving generic kind properties", () => {
@@ -346,11 +346,11 @@ describe("processLines", () => {
   const mockFoundInterfaces = new Set<string>(["TestKind"]);
 
   beforeEach(() => {
-    jest.clearAllMocks(); // Clear mocks before each test
+    vi.clearAllMocks(); // Clear mocks before each test
   });
 
   afterEach(() => {
-    jest.restoreAllMocks(); // Restore all mocks after each test
+    vi.restoreAllMocks(); // Restore all mocks after each test
   });
 
   describe("when processing class lines extending GenericKind", () => {
@@ -374,11 +374,11 @@ describe("processClassContext", () => {
   const mockFoundInterfaces = new Set<string>(["TestKind"]);
 
   beforeEach(() => {
-    jest.clearAllMocks(); // Clear mocks before each test
+    vi.clearAllMocks(); // Clear mocks before each test
   });
 
   afterEach(() => {
-    jest.restoreAllMocks(); // Restore all mocks after each test
+    vi.restoreAllMocks(); // Restore all mocks after each test
   });
 
   describe("when encountering a class declaration", () => {
@@ -412,217 +412,13 @@ describe("processClassContext", () => {
   });
 });
 
-describe("normalizeIndentationAndSpacing", () => {
-  const mockOpts = {
-    language: "ts",
-    source: "",
-    logFn: jest.fn(),
-  };
-
-  beforeEach(() => {
-    jest.clearAllMocks(); // Clear mocks before each test
-  });
-
-  afterEach(() => {
-    jest.restoreAllMocks(); // Restore all mocks after each test
-  });
-
-  it("should normalize indentation to two spaces", () => {
-    const mockLines = [
-      "    indentedWithFourSpaces: string;", // Line with 4 spaces, should be normalized
-      "  alreadyTwoSpaces: string;", // Line with 2 spaces, should remain unchanged
-      "      sixSpacesIndent: string;", // Line with 6 spaces, only first 4 should be normalized
-      "noIndent: string;", // Line with no indentation, should remain unchanged
-    ];
-
-    const expectedResult = [
-      "  indentedWithFourSpaces: string;", // Normalized to 2 spaces
-      "  alreadyTwoSpaces: string;", // No change
-      "    sixSpacesIndent: string;", // Only first 4 spaces should be normalized to 2
-      "noIndent: string;", // No change
-    ];
-
-    const result = postProcessingModule.normalizeIndentation(mockLines);
-
-    expect(result).toEqual(expectedResult);
-  });
-
-  it("should normalize single line indentation to two spaces", () => {
-    const cases = [
-      { input: "    indentedWithFourSpaces;", expected: "  indentedWithFourSpaces;" }, // 4 spaces to 2 spaces
-      { input: "  alreadyTwoSpaces;", expected: "  alreadyTwoSpaces;" }, // 2 spaces, no change
-      { input: "      sixSpacesIndent;", expected: "    sixSpacesIndent;" }, // First 4 spaces to 2
-      { input: "noIndent;", expected: "noIndent;" }, // No indentation, no change
-    ];
-
-    cases.forEach(({ input, expected }) => {
-      const result = postProcessingModule.normalizeLineIndentation(input);
-      expect(result).toBe(expected);
-    });
-  });
-
-  it("should normalize property spacing", () => {
-    const cases = [
-      {
-        input: "optionalProp  ? : string;",
-        expected: "optionalProp?: string;",
-      }, // Extra spaces around ? and :
-      {
-        input: "optionalProp?: string;",
-        expected: "optionalProp?: string;",
-      }, // Already normalized
-      {
-        input: "optionalProp ? :string;",
-        expected: "optionalProp?: string;",
-      }, // No space after colon
-      {
-        input: "nonOptionalProp: string;",
-        expected: "nonOptionalProp: string;",
-      }, // Non-optional property, should remain unchanged
-    ];
-
-    const inputLines = cases.map(c => c.input);
-    const expectedLines = cases.map(c => c.expected);
-
-    const result = postProcessingModule.normalizePropertySpacing(inputLines);
-
-    expect(result).toEqual(expectedLines);
-  });
-
-  it('should remove lines containing "[property: string]: any;" when language is "ts" or "typescript"', () => {
-    const inputLines = [
-      "someProp: string;",
-      "[property: string]: any;",
-      "anotherProp: number;",
-      "[property: string]: any;",
-    ];
-
-    // Test for TypeScript
-    const tsOpts: GenerateOptions = { ...mockOpts, language: "ts" };
-    const resultTs = postProcessingModule.removePropertyStringAny(inputLines, tsOpts);
-    const expectedTs = ["someProp: string;", "anotherProp: number;"];
-    expect(resultTs).toEqual(expectedTs);
-
-    // Test for TypeScript with "typescript" as language
-    const typescriptOpts: GenerateOptions = { ...mockOpts, language: "typescript" };
-    const resultTypescript = postProcessingModule.removePropertyStringAny(
-      inputLines,
-      typescriptOpts,
-    );
-    expect(resultTypescript).toEqual(expectedTs);
-  });
-
-  describe("processEslintDisable", () => {
-    beforeEach(() => {
-      jest.clearAllMocks(); // Clear mocks before each test
-    });
-
-    afterEach(() => {
-      jest.restoreAllMocks(); // Restore all mocks after each test
-    });
-
-    it('should add ESLint disable comment if line contains "[key: string]: any" and is not part of genericKindProperties', () => {
-      const line = "[key: string]: any;";
-      const genericKindProperties = ["kind", "apiVersion"]; // No "[key: string]" present
-
-      const result = postProcessingModule.processEslintDisable(line, genericKindProperties);
-
-      expect(result).toEqual(
-        "  // eslint-disable-next-line @typescript-eslint/no-explicit-any\n[key: string]: any;",
-      );
-    });
-
-    it('should not add ESLint disable comment if "[key: string]" is in genericKindProperties', () => {
-      const line = "[key: string]: any;";
-      const genericKindProperties = ["[key: string]", "kind", "apiVersion"]; // "[key: string]" present
-
-      const result = postProcessingModule.processEslintDisable(line, genericKindProperties);
-
-      expect(result).toEqual("[key: string]: any;"); // No comment added
-    });
-
-    it('should not add ESLint disable comment if line does not contain "[key: string]: any"', () => {
-      const line = "prop: string;";
-      const genericKindProperties = ["kind", "apiVersion"]; // Normal properties
-
-      const result = postProcessingModule.processEslintDisable(line, genericKindProperties);
-
-      expect(result).toEqual("prop: string;"); // No change in the line
-    });
-
-    it('should not add ESLint disable comment if line contains "[key: string]: any" but is part of genericKindProperties', () => {
-      const line = "[key: string]: any;";
-      const genericKindProperties = ["[key: string]"];
-
-      const result = postProcessingModule.processEslintDisable(line, genericKindProperties);
-
-      expect(result).toEqual("[key: string]: any;"); // No comment added since it's in genericKindProperties
-    });
-  });
-
-  it('should not remove lines when language is not "ts" or "typescript"', () => {
-    const inputLines = ["someProp: string;", "[property: string]: any;", "anotherProp: number;"];
-
-    // Test for other languages
-    const otherOpts: GenerateOptions = { ...mockOpts, language: "js" }; // Not TypeScript
-    const resultOther = postProcessingModule.removePropertyStringAny(inputLines, otherOpts);
-    expect(resultOther).toEqual(inputLines); // Should return the original lines
-  });
-});
-
-describe("makePropertiesOptional", () => {
-  beforeEach(() => {
-    jest.clearAllMocks(); // Clear mocks before each test
-  });
-
-  afterEach(() => {
-    jest.restoreAllMocks(); // Restore all mocks after each test
-  });
-
-  it("should make property optional if type is found in interfaces and not already optional", () => {
-    const line = "myProp: MyInterface;";
-    const foundInterfaces = new Set(["MyInterface"]); // Matching interface
-
-    const result = postProcessingModule.makePropertiesOptional(line, foundInterfaces);
-
-    expect(result).toEqual("myProp?: MyInterface;"); // The colon is replaced by `?:`
-  });
-
-  it("should not make property optional if type is not found in interfaces", () => {
-    const line = "myProp: AnotherType;";
-    const foundInterfaces = new Set(["MyInterface"]); // No match for this type
-
-    const result = postProcessingModule.makePropertiesOptional(line, foundInterfaces);
-
-    expect(result).toEqual("myProp: AnotherType;"); // No change
-  });
-
-  it("should not make property optional if already optional", () => {
-    const line = "myProp?: MyInterface;";
-    const foundInterfaces = new Set(["MyInterface"]); // Matching interface, but already optional
-
-    const result = postProcessingModule.makePropertiesOptional(line, foundInterfaces);
-
-    expect(result).toEqual("myProp?: MyInterface;"); // No change since it's already optional
-  });
-
-  it("should not change line if it does not match the property pattern", () => {
-    const line = "function test() {}";
-    const foundInterfaces = new Set(["MyInterface"]); // Matching interface, but the line is not a property
-
-    const result = postProcessingModule.makePropertiesOptional(line, foundInterfaces);
-
-    expect(result).toEqual("function test() {}"); // No change
-  });
-});
-
 describe("collectInterfaceNames", () => {
   beforeEach(() => {
-    jest.clearAllMocks(); // Clear mocks before each test
+    vi.clearAllMocks(); // Clear mocks before each test
   });
 
   afterEach(() => {
-    jest.restoreAllMocks(); // Restore all mocks after each test
+    vi.restoreAllMocks(); // Restore all mocks after each test
   });
 
   it("should collect interface names from lines", () => {

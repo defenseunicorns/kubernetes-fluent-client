@@ -6,10 +6,10 @@ import { RequestInit } from "node-fetch";
 import { URL } from "url";
 import { Agent, Dispatcher } from "undici";
 import { Agent as httpsAgent } from "https";
-import { fetch } from "../fetch";
-import { modelToGroupVersionKind } from "../kinds";
-import { GenericClass } from "../types";
-import { ApplyCfg, FetchMethods, Filters, K8sConfigPromise } from "./types";
+import { fetch } from "../fetch.js";
+import { modelToGroupVersionKind } from "../kinds.js";
+import { GenericClass } from "../types.js";
+import { ApplyCfg, Filters, K8sConfigPromise, FetchMethods } from "./shared-types.js";
 import fs from "fs";
 import { V1Eviction as Eviction } from "@kubernetes/client-node";
 const SSA_CONTENT_TYPE = "application/apply-patch+yaml";
@@ -222,7 +222,7 @@ export async function k8sExec<T extends GenericClass, K>(
   applyCfg: ApplyCfg = { force: false },
 ) {
   const reconstruct = async (method: FetchMethods): K8sConfigPromise => {
-    const configMethod = method === "LOG" ? "GET" : method;
+    const configMethod = method === FetchMethods.LOG ? FetchMethods.GET : method;
     const { opts, serverUrl } = await k8sCfg(configMethod);
 
     // Build the base path once, using excludeName only for standard POST requests

@@ -1,7 +1,7 @@
-import { kind } from "kubernetes-fluent-client";
-import { modelToGroupVersionKind } from "../src/index";
-import { RegisterKind } from "../src/kinds";
-import { expect, it } from "@jest/globals";
+import { kind } from "../src";
+import { modelToGroupVersionKind } from "../src/index.js";
+import { RegisterKind } from "../src/kinds.js";
+import { expect, it } from "vitest";
 
 const testCases = [
   {
