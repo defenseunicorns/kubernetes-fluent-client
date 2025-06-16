@@ -273,7 +273,7 @@ describe("kubeExec Function", () => {
     });
   });
 
-  it.skip("should make a successful fetch call", async () => {
+  it("should make a successful fetch call", async () => {
     mockedFetch.mockResolvedValueOnce({
       ok: true,
       data: fakePayload,
@@ -301,7 +301,7 @@ describe("kubeExec Function", () => {
     expect(urlArg.pathname).toContain("/api/v1/namespaces/default/pods/fake");
   });
 
-  it.skip("should handle PATCH_STATUS", async () => {
+  it("should handle PATCH_STATUS", async () => {
     mockedFetch.mockResolvedValueOnce({
       ok: true,
       data: fakePayload,
@@ -332,7 +332,7 @@ describe("kubeExec Function", () => {
     expect(urlArg.pathname).toContain("/api/v1/namespaces/default/pods/fake/status");
   });
 
-  it.skip("should handle PATCH", async () => {
+  it("should handle PATCH", async () => {
     mockedFetch.mockResolvedValueOnce({
       ok: true,
       data: fakePayload,
@@ -365,7 +365,7 @@ describe("kubeExec Function", () => {
     expect(urlArg.pathname).toContain("/api/v1/namespaces/default/pods/fake");
   });
 
-  it.skip("should handle APPLY", async () => {
+  it("should handle APPLY", async () => {
     mockedFetch.mockResolvedValueOnce({
       ok: true,
       data: fakePayload,
@@ -399,7 +399,7 @@ describe("kubeExec Function", () => {
     expect(urlArg.searchParams.get("force")).toBe("false");
   });
 
-  it.skip("should handle APPLY with force", async () => {
+  it("should handle APPLY with force", async () => {
     mockedFetch.mockResolvedValueOnce({
       ok: true,
       data: fakePayload,
@@ -437,7 +437,7 @@ describe("kubeExec Function", () => {
     expect(urlArg.searchParams.get("force")).toBe("true");
   });
 
-  it.skip("should handle fetch call failure", async () => {
+  it("should handle fetch call failure", async () => {
     const fakeStatus = 404;
     const fakeStatusText = "Not Found";
 
