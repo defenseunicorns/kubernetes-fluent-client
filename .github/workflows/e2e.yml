@@ -55,8 +55,6 @@ jobs:
         run: |
           cd "$KFC"
           npm run test:e2e:prep-crds
-          sed -i 's|from "kubernetes-fluent-client"|from "../src"|g' e2e/datastore-v1alpha1.ts
-          sed -i 's|from "kubernetes-fluent-client"|from "../src"|g' e2e/webapp-v1alpha1.ts
         shell: bash
 
       - name: Prepare Image and Test
