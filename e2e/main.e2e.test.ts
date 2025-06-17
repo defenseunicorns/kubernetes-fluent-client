@@ -1,4 +1,4 @@
-import { kind, K8s, fetch, GenericClass, KubernetesObject } from "../src";
+import { kind, K8s, fetch, GenericClass, KubernetesObject } from "kubernetes-fluent-client";
 import { beforeAll, it, describe, expect } from "vitest";
 import { Datastore, Kind as Backing } from "./datastore-v1alpha1";
 import { WebApp, Phase, Language, Theme } from "./webapp-v1alpha1";
@@ -158,7 +158,7 @@ describe("KFC e2e test", () => {
     }
   });
 
-  it.skip("kfc crd", async () => {
+  it("kfc crd", async () => {
     await createCR(
       WebApp,
       {
@@ -204,7 +204,7 @@ describe("KFC e2e test", () => {
     }
   });
 
-  it.skip("PatchStatus", async () => {
+  it("PatchStatus", async () => {
     // Create initial CRs
     await createCR(WebApp, {
       metadata: { name: "webapp", namespace },
