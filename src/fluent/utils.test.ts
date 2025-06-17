@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { PatchStrategy } from "@kubernetes/client-node";
+import { PatchStrategy, KubeConfig } from "@kubernetes/client-node";
 import * as fs from "fs";
 import { RequestInit } from "node-fetch";
 import { fetch } from "../fetch.js";
@@ -10,6 +10,7 @@ import { RegisterKind } from "../kinds.js";
 import { GenericClass } from "../types.js";
 import { ClusterRole, Ingress, Pod } from "../upstream.js";
 import { FetchMethods, Filters } from "./shared-types.js";
+import type { RequestOptions } from "https";
 import {
   k8sExec,
   pathBuilder,
@@ -19,10 +20,35 @@ import {
   prepareRequestOptions,
 } from "./utils.js";
 import type { MethodPayload } from "./utils.js";
-// Import k8sCfg directly for mocking
 import * as utils from "./utils.js";
+
 vi.mock("https");
 vi.mock("../fetch");
+
+beforeEach(() => {
+  vi.spyOn(KubeConfig.prototype, "getCurrentCluster").mockReturnValue({
+    name: "mock-cluster",
+    server: "https://jest-test:8080",
+    skipTLSVerify: true,
+  });
+
+  vi.spyOn(KubeConfig.prototype, "applyToFetchOptions").mockImplementation(
+    async (opts: RequestOptions): Promise<RequestInit> => {
+      const safeHeaders: HeadersInit = {
+        ...((opts.headers as Record<string, string>) ?? {}),
+        Authorization: "Bearer fake-token",
+        "Content-Type": "application/json",
+        "User-Agent": "kubernetes-fluent-client",
+      };
+
+      return {
+        // Only preserve expected Fetch API keys
+        method: opts.method,
+        headers: safeHeaders,
+      };
+    },
+  );
+});
 
 describe("prepareRequestOptions", () => {
   const baseUrl = () => new URL("https://k8s.local/api/v1/pods/test-pod");
@@ -273,7 +299,7 @@ describe("kubeExec Function", () => {
     });
   });
 
-  it.skip("should make a successful fetch call", async () => {
+  it("should make a successful fetch call", async () => {
     mockedFetch.mockResolvedValueOnce({
       ok: true,
       data: fakePayload,
@@ -301,7 +327,7 @@ describe("kubeExec Function", () => {
     expect(urlArg.pathname).toContain("/api/v1/namespaces/default/pods/fake");
   });
 
-  it.skip("should handle PATCH_STATUS", async () => {
+  it("should handle PATCH_STATUS", async () => {
     mockedFetch.mockResolvedValueOnce({
       ok: true,
       data: fakePayload,
@@ -332,7 +358,7 @@ describe("kubeExec Function", () => {
     expect(urlArg.pathname).toContain("/api/v1/namespaces/default/pods/fake/status");
   });
 
-  it.skip("should handle PATCH", async () => {
+  it("should handle PATCH", async () => {
     mockedFetch.mockResolvedValueOnce({
       ok: true,
       data: fakePayload,
@@ -365,7 +391,7 @@ describe("kubeExec Function", () => {
     expect(urlArg.pathname).toContain("/api/v1/namespaces/default/pods/fake");
   });
 
-  it.skip("should handle APPLY", async () => {
+  it("should handle APPLY", async () => {
     mockedFetch.mockResolvedValueOnce({
       ok: true,
       data: fakePayload,
@@ -399,7 +425,7 @@ describe("kubeExec Function", () => {
     expect(urlArg.searchParams.get("force")).toBe("false");
   });
 
-  it.skip("should handle APPLY with force", async () => {
+  it("should handle APPLY with force", async () => {
     mockedFetch.mockResolvedValueOnce({
       ok: true,
       data: fakePayload,
@@ -437,7 +463,7 @@ describe("kubeExec Function", () => {
     expect(urlArg.searchParams.get("force")).toBe("true");
   });
 
-  it.skip("should handle fetch call failure", async () => {
+  it("should handle fetch call failure", async () => {
     const fakeStatus = 404;
     const fakeStatusText = "Not Found";
 
