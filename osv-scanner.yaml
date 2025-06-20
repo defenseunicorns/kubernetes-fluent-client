@@ -1,0 +1,16 @@
+# One entry for each vulnerability group
+[[IgnoredVulns]]
+id = "GHSA-x4c5-c7rf-jjgv"
+reason = "Library does not accept regex, but strong, well defined types."
+[[IgnoredVulns]]
+id = "GHSA-h5c3-5r3r-rr8q"
+reason = "Library does not accept regex, but strong, well defined types."
+[[IgnoredVulns]]
+id = "GHSA-rmvr-2pp2-xj38"
+reason = "Library does not accept regex, but strong, well defined types."
+[[IgnoredVulns]]
+id = "GHSA-xx4v-prfh-6cgc"
+reason = "Library does not accept regex, but strong, well defined types."
+[[IgnoredVulns]]
+id = "GHSA-v6h2-p8h4-qcjw"
+reason = "Library does not accept regex, but strong, well defined types."
