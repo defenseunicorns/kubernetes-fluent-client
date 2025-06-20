@@ -7,6 +7,9 @@ import { K8s } from "./index.js";
 import { WatchEvent, kind } from "../index.js";
 import { WatchPhase } from "./shared-types.js";
 import { Watcher } from "./watch.js";
+import { KubeConfig } from "@kubernetes/client-node";
+import type { RequestOptions } from "https";
+import type { RequestInit, HeadersInit } from "node-fetch";
 
 let mockClient: Interceptable;
 describe("Watcher", () => {
@@ -23,6 +26,34 @@ describe("Watcher", () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
+
+    vi.spyOn(KubeConfig.prototype, "getCurrentCluster").mockReturnValue({
+      name: "mock-cluster",
+      server: "https://jest-test:8080",
+      skipTLSVerify: true,
+    });
+
+    vi.spyOn(KubeConfig.prototype, "applyToFetchOptions").mockImplementation(
+      async (opts: RequestOptions): Promise<RequestInit> => {
+        const safeHeaders: HeadersInit = {
+          ...((opts.headers as Record<string, string>) ?? {}),
+          Authorization: "Bearer fake-token",
+          "Content-Type": "application/json",
+          "User-Agent": "kubernetes-fluent-client",
+        };
+
+        return {
+          method: opts.method,
+          headers: safeHeaders,
+        };
+      },
+    );
+
+    mockAgent = new MockAgent();
+    mockAgent.disableNetConnect();
+    setGlobalDispatcher(mockAgent);
+
+    mockClient = mockAgent.get("https://jest-test:8080");
 
     // Setup MockAgent from undici
     mockAgent = new MockAgent();

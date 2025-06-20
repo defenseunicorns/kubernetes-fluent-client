@@ -73,8 +73,7 @@ describe("Kube", () => {
         name: "fake",
         namespace: "default",
       }),
-      "POST",
-      fakeResource,
+      { method: "POST", payload: fakeResource },
     );
   });
 
@@ -87,7 +86,7 @@ describe("Kube", () => {
         name: "fake",
         namespace: "default",
       }),
-      "DELETE",
+      { method: "DELETE" },
     );
   });
 
@@ -100,11 +99,13 @@ describe("Kube", () => {
         name: "fake",
         namespace: "default",
       }),
-      "POST",
       {
-        apiVersion: "policy/v1",
-        kind: "Eviction",
-        metadata: { name: "fake", namespace: "default" },
+        method: "POST",
+        payload: {
+          apiVersion: "policy/v1",
+          kind: "Eviction",
+          metadata: { name: "fake", namespace: "default" },
+        },
       },
     );
   });
@@ -117,7 +118,11 @@ describe("Kube", () => {
     const result = await K8s(Pod).Patch(patchOperations);
 
     expect(result).toEqual(fakeResource);
-    expect(mockedKubeExec).toHaveBeenCalledWith(Pod, {}, "PATCH", patchOperations);
+    expect(mockedKubeExec).toHaveBeenCalledWith(
+      Pod,
+      {},
+      { method: "PATCH", payload: patchOperations },
+    );
   });
 
   it("should patch the status of a resource", async () => {
@@ -139,18 +144,20 @@ describe("Kube", () => {
         name: "fake",
         namespace: "default",
       }),
-      "PATCH_STATUS",
       {
-        apiVersion: "v1",
-        kind: "Pod",
-        metadata: {
-          name: "fake",
-          namespace: "default",
-          managedFields: generateFakePodManagedFields("pepr"),
-        },
-        spec: { priority: 3 },
-        status: {
-          phase: "Ready",
+        method: "PATCH_STATUS",
+        payload: {
+          apiVersion: "v1",
+          kind: "Pod",
+          metadata: {
+            name: "fake",
+            namespace: "default",
+            managedFields: generateFakePodManagedFields("pepr"),
+          },
+          spec: { priority: 3 },
+          status: {
+            phase: "Ready",
+          },
         },
       },
     );
@@ -166,7 +173,7 @@ describe("Kube", () => {
           "metadata.name": "fake",
         },
       }),
-      "GET",
+      { method: "GET" },
     );
   });
 
@@ -180,7 +187,7 @@ describe("Kube", () => {
           app: "fakeApp",
         },
       }),
-      "GET",
+      { method: "GET" },
     );
   });
 
@@ -192,7 +199,7 @@ describe("Kube", () => {
       expect.objectContaining({
         namespace: "fakeNamespace",
       }),
-      "GET",
+      { method: "GET" },
     );
   });
 
@@ -221,7 +228,7 @@ describe("Kube", () => {
       expect.objectContaining({
         name: "fakeResource",
       }),
-      "GET",
+      { method: "GET" },
     );
   });
 

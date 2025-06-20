@@ -12,7 +12,7 @@ const require = createRequire(import.meta.url);
 const { version } = require("../package.json");
 
 void yargs(hideBin(process.argv))
-  .version("version", "Display version number", `kubernetes-fluent-client v${version}`)
+  .version("version", "Display version number", `${version}`)
   .alias("version", "V")
   .command(
     "crd [source] [directory]",
