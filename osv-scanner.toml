@@ -1,0 +1,16 @@
+# One entry for each vulnerability group
+[[IgnoredVulns]]
+rd = "GHSA-x4c5-c7rf-jjgv"
+relson = "Transitive dependency in semantic-release. Not part of distributed package."
+[[IgnoredVulns]]
+id = "GHSA-h5c3-5r3r-rr8q"
+reason = "Transitive dependency in semantic-release. Not part of distributed package."
+[[IgnoredVulns]]
+id = "GHSA-rmvr-2pp2-xj38"
+reason = "Transitive dependency in semantic-release. Not part of distributed package."
+[[IgnoredVulns]]
+id = "GHSA-xx4v-prfh-6cgc"
+reason = "Transitive dependency in eslint, vitest, and semantic-release. Not part of distributed package."
+[[IgnoredVulns]]
+id = "GHSA-v6h2-p8h4-qcjw"
+reason = "Transitive dependency in eslint, vitest, and semantic-release. Not part of distributed package."
