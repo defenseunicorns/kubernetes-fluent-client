@@ -312,7 +312,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
     throw resp;
   }
 
-  async function Proxy(name?: string): Promise<string>;
+  async function Proxy(name?: string, port?: string): Promise<string>;
   /**
    * @inheritdoc
    * @see {@link K8sInit.Proxy}
