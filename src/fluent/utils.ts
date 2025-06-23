@@ -255,6 +255,13 @@ export function prepareRequestOptions<K>(
 export type MethodPayload<K> = {
   method: FetchMethods;
   payload?: K | unknown;
+  subResourceConfig?: SubResourceConfig;
+};
+
+export type SubResourceConfig = {
+  ProxyConfig?: {
+    port: string;
+  };
 };
 
 /**
@@ -290,6 +297,12 @@ export async function k8sExec<T extends GenericClass, K>(
       baseUrl.pathname = `${baseUrl.pathname}/log`;
     }
 
+    baseUrl.pathname = handleSubResourceConfig(
+      model.name,
+      baseUrl.pathname,
+      methodPayload.subResourceConfig,
+    );
+
     return {
       serverUrl: baseUrl,
       opts,
@@ -321,4 +334,27 @@ export async function k8sExec<T extends GenericClass, K>(
   }
 
   throw resp;
+}
+
+/**
+ * Handles subresource configuration for specific Kubernetes resources.
+ *
+ * @param kind - The kind of the Kubernetes resource (e.g., "Pod", "Service", "Node").
+ * @param urlPath - The base URL path to append the subresource to.
+ * @param subResourceConfig - The subresource configuration object.
+ * @returns The modified URL path with the subresource appended, or the urlPath if no subresource is configured.
+ * @throws Error if the kind is not supported for proxy configuration.
+ */
+export function handleSubResourceConfig(
+  kind: string,
+  urlPath: string,
+  subResourceConfig?: SubResourceConfig,
+): string {
+  if (subResourceConfig && subResourceConfig.ProxyConfig) {
+    if (kind !== "V1Pod" && kind !== "V1Service" && kind !== "V1Node") {
+      throw new Error("Proxy is only supported for Pod, Service, and Node resources");
+    }
+    return `${urlPath}:${subResourceConfig.ProxyConfig.port}/proxy`;
+  }
+  return urlPath;
 }
