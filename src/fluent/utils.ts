@@ -354,7 +354,11 @@ export function handleSubResourceConfig(
     if (kind !== "V1Pod" && kind !== "V1Service" && kind !== "V1Node") {
       throw new Error("Proxy is only supported for Pod, Service, and Node resources");
     }
-    return `${urlPath}:${subResourceConfig.ProxyConfig.port}/proxy`;
+    if (!subResourceConfig.ProxyConfig.port) {
+      return `${urlPath}/proxy`;
+    } else {
+      return `${urlPath}:${subResourceConfig.ProxyConfig.port}/proxy`;
+    }
   }
   return urlPath;
 }

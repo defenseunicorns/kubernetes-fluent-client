@@ -326,7 +326,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
     }
     const object = await k8sExec<T, K>(model, filters, {
       method: FetchMethods.GET,
-      subResourceConfig: { ProxyConfig: { port: port || "80" } },
+      subResourceConfig: { ProxyConfig: { port: port || "" } },
     });
     return `${object}`;
   }
