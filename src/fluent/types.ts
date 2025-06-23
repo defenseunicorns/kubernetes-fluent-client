@@ -47,9 +47,11 @@ export type K8sFilteredActions<T extends GenericClass, K extends KubernetesObjec
    * Proxy request to the Kubernetes API for the given resource.
    * This uses the `/proxy` subresource, usually for pods or services.
    *
+   * @param name - (optional) the name of the resource to proxy
+   * @param port - (optional) the port to proxy to, defaults to the first
    * @returns the proxied response body as a string
    */
-  Proxy: (name: string) => Promise<string>;
+  Proxy: (name?: string, port?: string) => Promise<string>;
   /**
    * Gets the logs.
    *
