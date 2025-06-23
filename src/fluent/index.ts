@@ -220,7 +220,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
     applyCfg: ApplyCfg = { force: false },
   ): Promise<K> {
     syncFilters(resource as K);
-    return k8sExec(model, filters, { method: FetchMethods.APPLY, payload: resource }, {}, applyCfg);
+    return k8sExec(model, filters, { method: FetchMethods.APPLY, payload: resource }, applyCfg);
   }
 
   /**
