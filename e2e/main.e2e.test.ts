@@ -313,6 +313,29 @@ describe("KFC e2e test", () => {
       expect(e).toBeDefined();
     }
   });
+
+  it("Proxy", async () => {
+    try {
+      await K8s(kind.Pod).Apply({
+        metadata: { name: `${namespace}-proxy`, namespace },
+        spec: { containers: [{ name: "nginx", image: "nginx" }] },
+      });
+      await waitForRunningStatusPhase(kind.Pod, {
+        metadata: { name: `${namespace}-proxy`, namespace },
+      });
+    } catch (e) {
+      expect(e).toBeUndefined();
+    }
+
+    try {
+      const proxyMessage = await K8s(kind.Pod)
+        .InNamespace(namespace)
+        .Proxy(`${namespace}-proxy`, 80);
+      expect(proxyMessage).toContain("Welcome to nginx!");
+    } catch (e) {
+      expect(e).toBeUndefined();
+    }
+  });
   it("kfc fetch", async () => {
     const jsonURL = "https://api.github.com/repositories/1";
     const stringURL = "https://api.github.com/octocat";

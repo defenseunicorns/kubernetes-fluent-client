@@ -17,6 +17,7 @@ import {
   getHTTPSAgent,
   getHeaders,
   getToken,
+  handleSubResourceConfig,
   prepareRequestOptions,
 } from "./utils.js";
 import type { MethodPayload } from "./utils.js";
@@ -490,5 +491,26 @@ describe("kubeExec Function", () => {
         method: fakeMethod,
       }),
     );
+  });
+});
+
+describe("handleSubResourceConfig", () => {
+  it("should throw an error if the type subResource is proxy and the kind is not a svc, po, or node", () => {
+    expect(() => {
+      handleSubResourceConfig("Deployment", "", { ProxyConfig: { port: "8080" } });
+    }).toThrow("Proxy is only supported for Pod, Service, and Node resources");
+  });
+
+  it("should not throw an error if the resource is a Pod, Service, or Node", () => {
+    expect(() => {
+      handleSubResourceConfig("V1Pod", "", { ProxyConfig: { port: "8080" } });
+      handleSubResourceConfig("V1Service", "", { ProxyConfig: { port: "8080" } });
+      handleSubResourceConfig("V1Node", "", { ProxyConfig: { port: "8080" } });
+    }).not.toThrow();
+  });
+
+  it("should return a urlPath with the proxy port and proxy appeneded to the urlPath", () => {
+    const urlPath = handleSubResourceConfig("V1Pod", "fake", { ProxyConfig: { port: "8080" } });
+    expect(urlPath).toBe("fake:8080/proxy");
   });
 });

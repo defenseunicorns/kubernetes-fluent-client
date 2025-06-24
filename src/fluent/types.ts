@@ -44,6 +44,15 @@ export type GetFunction<K extends KubernetesObject> = {
 
 export type K8sFilteredActions<T extends GenericClass, K extends KubernetesObject> = {
   /**
+   * Proxy request to the Kubernetes API for the given resource.
+   * This uses the `/proxy` subresource, usually for pods or services.
+   *
+   * @param name - (optional) the name of the resource to proxy
+   * @param port - (optional) the port to proxy to, defaults to the first port of the resource
+   * @returns the proxied response body as a string
+   */
+  Proxy: (name?: string, port?: string) => Promise<string>;
+  /**
    * Gets the logs.
    *
    * @param name - the name of the Object to get logs from

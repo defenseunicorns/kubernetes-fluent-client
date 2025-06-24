@@ -26,7 +26,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
   model: T,
   filters: Filters = {},
 ): K8sInit<T, K> {
-  const withFilters = { WithField, WithLabel, Get, Delete, Evict, Watch, Logs };
+  const withFilters = { WithField, WithLabel, Get, Delete, Evict, Watch, Logs, Proxy };
   const matchedKind = filters.kindOverride || modelToGroupVersionKind(model.name);
 
   /**
@@ -310,6 +310,25 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
     }
 
     throw resp;
+  }
+
+  async function Proxy(name?: string, port?: string): Promise<string>;
+  /**
+   * @inheritdoc
+   * @see {@link K8sInit.Proxy}
+   */
+  async function Proxy(name?: string, port?: string): Promise<string> {
+    if (name) {
+      if (filters.name) {
+        throw new Error(`Name already specified: ${filters.name}`);
+      }
+      filters.name = name;
+    }
+    const object = await k8sExec<T, K>(model, filters, {
+      method: FetchMethods.GET,
+      subResourceConfig: { ProxyConfig: { port: port || "" } },
+    });
+    return `${object}`;
   }
 
   return { InNamespace, Apply, Create, Patch, PatchStatus, Raw, ...withFilters };
