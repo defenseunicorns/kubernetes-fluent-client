@@ -27,6 +27,11 @@ void yargs(hideBin(process.argv))
           describe: "the directory to output the generated types to",
           type: "string",
         })
+        .option("overrideClassName", {
+          type: "string",
+          description:
+            "override the class name for the generated types, useful for generating types when multiple CRDs have the same kind",
+        })
         .option("plain", {
           alias: "p",
           type: "boolean",
@@ -51,6 +56,7 @@ void yargs(hideBin(process.argv))
     async argv => {
       const opts = argv as unknown as GenerateOptions;
       opts.logFn = console.log;
+      opts.npmPackage = "kubernetes-fluent-client";
 
       // Pass the `post` flag to opts
       opts.noPost = argv.noPost as boolean;
