@@ -242,7 +242,7 @@ export function updateBraceBalance(line: string, braceBalance: number): number {
  * @param name The name of the schema.
  * @param crd The CustomResourceDefinition object.
  * @param version The version of the CRD.
- * @param opts the options for the generation process.
+ * @param opts The options for the generation process.
  * @returns The processed TypeScript lines.
  */
 export function wrapWithFluentClient(
