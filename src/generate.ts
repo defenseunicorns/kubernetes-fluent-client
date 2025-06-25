@@ -20,6 +20,7 @@ export type QuicktypeLang = Parameters<typeof quicktype>[0]["lang"];
 export interface GenerateOptions {
   source: string; // URL, file path, or K8s CRD name
   directory?: string; // Output directory path
+  overrideClassName?: string; // Override class name for generated types
   plain?: boolean; // Disable fluent client wrapping
   language: QuicktypeLang; // Language for type generation (default: "ts")
   npmPackage?: string; // Override NPM package
@@ -45,7 +46,8 @@ export async function convertCRDtoTS(
     version: string;
   }[]
 > {
-  const name = crd.spec.names.kind;
+  const name = opts.overrideClassName || crd.spec.names.kind;
+  const originalKind = crd.spec.names.kind;
   const results: Record<string, string[]> = {};
   const output: {
     results: Record<string, string[]>;
@@ -75,7 +77,7 @@ export async function convertCRDtoTS(
     const inputData = await prepareInputData(name, schema);
     const generatedTypes = await generateTypes(inputData, opts);
 
-    const fileName = `${name.toLowerCase()}-${match.name.toLowerCase()}`;
+    const fileName = `${originalKind.toLowerCase()}-${match.name.toLowerCase()}`;
     writeGeneratedFile(fileName, opts.directory || "", generatedTypes, opts.language || "ts");
 
     results[fileName] = generatedTypes;

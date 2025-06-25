@@ -290,7 +290,7 @@ describe("wrapWithFluentClient", () => {
       const crd = {
         spec: {
           group: "test.group",
-          names: { plural: "testkinds" },
+          names: { plural: "testkinds", kind: "TestKind" },
         },
       } as CustomResourceDefinition; // mock the CRD
 
@@ -313,7 +313,7 @@ describe("wrapWithFluentClient", () => {
         "TestKind",
         crd,
         "v1",
-        "mockPackage",
+        mockOpts,
       );
 
       expect(result).toEqual(expectedOutputLines);
