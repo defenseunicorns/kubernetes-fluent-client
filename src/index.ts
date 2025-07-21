@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
 
+import "./patch.js";
+
 // Export kinds as a single object
 import * as kind from "./upstream.js";
 
