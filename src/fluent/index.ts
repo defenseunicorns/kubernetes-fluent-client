@@ -15,6 +15,7 @@ import { k8sCfg, k8sExec } from "./utils.js";
 import { WatchCfg, Watcher } from "./watch.js";
 import { hasLogs } from "../helpers.js";
 import { Pod, type Service, type ReplicaSet } from "../upstream.js";
+
 /**
  * Kubernetes fluent API inspired by Kubectl. Pass in a model, then call filters and actions on it.
  *
@@ -26,7 +27,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
   model: T,
   filters: Filters = {},
 ): K8sInit<T, K> {
-  const withFilters = { WithField, WithLabel, Get, Delete, Evict, Watch, Logs, Proxy };
+  const withFilters = { WithField, WithLabel, Get, Delete, Evict, Watch, Logs, Proxy, Scale };
   const matchedKind = filters.kindOverride || modelToGroupVersionKind(model.name);
 
   /**
@@ -312,6 +313,37 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
     throw resp;
   }
 
+  async function Scale(replicas: number, name?: string): Promise<void>;
+  /**
+   *
+   * @param replicas - the number of replicas to scale to
+   * @inheritdoc
+   * @see {@link K8sInit.Scale}
+   * @param name - (optional) the name of the resource to scale, if not provided, uses filters
+   */
+  async function Scale(replicas: number, name?: string): Promise<void> {
+    if (name) {
+      if (filters.name) {
+        throw new Error(`Name already specified: ${filters.name}`);
+      }
+      filters.name = name;
+    }
+
+    await k8sExec<T, K>(
+      model,
+      filters,
+      {
+        method: FetchMethods.PATCH,
+        payload: [{ op: "replace", path: "/spec/replicas", value: replicas }],
+        subResourceConfig: {
+          ScaleConfig: {
+            replicas,
+          },
+        },
+      },
+      {},
+    );
+  }
   async function Proxy(name?: string, port?: string): Promise<string>;
   /**
    * @inheritdoc
