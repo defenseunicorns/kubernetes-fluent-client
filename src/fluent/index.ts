@@ -317,9 +317,9 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
   /**
    *
    * @param replicas - the number of replicas to scale to
+   * @param name - (optional) the name of the resource to scale, if not provided, uses filters
    * @inheritdoc
    * @see {@link K8sInit.Scale}
-   * @param name - (optional) the name of the resource to scale, if not provided, uses filters
    */
   async function Scale(replicas: number, name?: string): Promise<void> {
     if (name) {
