@@ -262,6 +262,9 @@ export type SubResourceConfig = {
   ProxyConfig?: {
     port: string;
   };
+  ScaleConfig?: {
+    replicas: number;
+  };
 };
 
 /**
@@ -322,6 +325,7 @@ export async function k8sExec<T extends GenericClass, K>(
   if (methodPayload.payload) {
     opts.body = JSON.stringify(methodPayload.payload);
   }
+
   const resp = await fetch<K>(url, opts);
 
   if (resp.ok) {
@@ -359,6 +363,15 @@ export function handleSubResourceConfig(
     } else {
       return `${urlPath}:${subResourceConfig.ProxyConfig.port}/proxy`;
     }
+  }
+
+  if (subResourceConfig && subResourceConfig.ScaleConfig) {
+    if (kind !== "V1Deployment" && kind !== "V1ReplicaSet" && kind !== "V1StatefulSet") {
+      throw new Error(
+        "Scale is only supported for Deployment, ReplicaSet, and StatefulSet resources",
+      );
+    }
+    return `${urlPath}/scale`;
   }
   return urlPath;
 }

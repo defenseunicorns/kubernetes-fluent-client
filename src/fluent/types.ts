@@ -47,6 +47,14 @@ export type K8sFilteredActions<T extends GenericClass, K extends KubernetesObjec
    * Proxy request to the Kubernetes API for the given resource.
    * This uses the `/proxy` subresource, usually for pods or services.
    *
+   * @param replicas - The number of replicas to scale to
+   * @param name - (optional) the name of the resource to scale
+   */
+  Scale: (replicas: number, name?: string) => Promise<void>;
+  /**
+   * Proxy request to the Kubernetes API for the given resource.
+   * This uses the `/proxy` subresource, usually for pods or services.
+   *
    * @param name - (optional) the name of the resource to proxy
    * @param port - (optional) the port to proxy to, defaults to the first port of the resource
    * @returns the proxied response body as a string
