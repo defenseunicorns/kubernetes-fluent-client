@@ -44,9 +44,11 @@ describe("KFC e2e test", () => {
   });
 
   it("Scales Deployment", async () => {
+    const before = await K8s(kind.Deployment).InNamespace(namespace).Get(`${namespace}-scale`);
+    expect(before.spec?.replicas).toBe(1);
     await K8s(kind.Deployment).InNamespace(namespace).Scale(3, `${namespace}-scale`);
-    const deployment = await K8s(kind.Deployment).InNamespace(namespace).Get(`${namespace}-scale`);
-    expect(deployment.spec?.replicas).toBe(3);
+    const after = await K8s(kind.Deployment).InNamespace(namespace).Get(`${namespace}-scale`);
+    expect(after.spec?.replicas).toBe(3);
   });
 }, 40000);
 
