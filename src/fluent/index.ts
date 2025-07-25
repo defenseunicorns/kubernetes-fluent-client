@@ -27,7 +27,18 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
   model: T,
   filters: Filters = {},
 ): K8sInit<T, K> {
-  const withFilters = { WithField, WithLabel, Get, Delete, Evict, Watch, Logs, Proxy, Scale };
+  const withFilters = {
+    WithField,
+    WithLabel,
+    Get,
+    Delete,
+    Evict,
+    Watch,
+    Logs,
+    Proxy,
+    Scale,
+    Finalize,
+  };
   const matchedKind = filters.kindOverride || modelToGroupVersionKind(model.name);
 
   /**
@@ -312,7 +323,47 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
 
     throw resp;
   }
+  type FinalizeOperation = "add" | "remove";
+  async function Finalize(operation: FinalizeOperation, finalizer: string): Promise<void>;
+  /**
+   *
+   * @param operation - The operation to perform, either "ADD" or "REMOVE"
+   * @param finalizer - The finalizer to add or remove
+   * @inheritdoc
+   * @see {@link K8sInit.Finalize}
+   */
+  async function Finalize(operation: FinalizeOperation, finalizer: string): Promise<void> {
+    if (name) {
+      if (filters.name) {
+        throw new Error(`Name already specified: ${filters.name}`);
+      }
+      filters.name = name;
+    }
+    // need to do a GET to get the array index of the finalizer
+    const object = await k8sExec<T, K>(model, filters, { method: FetchMethods.GET });
+    const finalizers = object.metadata?.finalizers || [];
 
+    if (finalizers.length === 0) {
+      throw new Error("No finalizers to remove");
+    }
+
+    const index = finalizers.indexOf(finalizer);
+
+    await k8sExec<T, K>(
+      model,
+      filters,
+      {
+        method: FetchMethods.APPLY,
+        payload: {
+          metadata: {
+            finalizers:
+              index === -1 ? [...finalizers, finalizer] : finalizers.filter(f => f !== finalizer),
+          },
+        },
+      },
+      {},
+    );
+  }
   async function Scale(replicas: number, name?: string): Promise<void>;
   /**
    *
