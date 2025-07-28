@@ -16,6 +16,8 @@ import { WatchCfg, Watcher } from "./watch.js";
 import { hasLogs } from "../helpers.js";
 import { Pod, type Service, type ReplicaSet } from "../upstream.js";
 
+type FinalizeOperation = "add" | "remove";
+
 /**
  * Kubernetes fluent API inspired by Kubectl. Pass in a model, then call filters and actions on it.
  *
@@ -323,7 +325,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
 
     throw resp;
   }
-  type FinalizeOperation = "add" | "remove";
+
   async function Finalize(
     operation: FinalizeOperation,
     finalizer: string,
@@ -353,31 +355,10 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
     if (!object) {
       throw new Error("Resource not found");
     }
-    const finalizers = object.metadata?.finalizers || [];
+    const finalizers = updateFinalizersOrSkip(operation, finalizer, object);
+    if (!finalizers) return;
+    removeControllerFields(object);
 
-    if (finalizers.length === 0 && operation === "remove") {
-      throw new Error("No finalizers to remove");
-    }
-
-    if (operation === "add" && finalizers.includes(finalizer)) {
-      // If the finalizer already exists, do nothing
-      return;
-    }
-    if (operation === "remove" && !finalizers.includes(finalizer)) {
-      // If the finalizer does not exist, do nothing
-      return;
-    }
-    if (operation === "add") {
-      finalizers.push(finalizer);
-    } else if (operation === "remove") {
-      finalizers.splice(finalizers.indexOf(finalizer), 1);
-    }
-    delete object.metadata?.managedFields;
-    delete object.metadata?.resourceVersion;
-    delete object.metadata?.uid;
-    delete object.metadata?.creationTimestamp;
-    delete object.metadata?.generation;
-    delete object.metadata?.finalizers;
     await k8sExec<T, K>(
       model,
       filters,
@@ -445,4 +426,52 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
   }
 
   return { InNamespace, Apply, Create, Patch, PatchStatus, Raw, ...withFilters };
+}
+/**
+ *
+ * Remove controller fields from the Kubernetes object.
+ * This is necessary for ensuring that the object can be applied without conflicts.
+ *
+ * @param object - the Kubernetes object to remove controller fields from
+ */
+export function removeControllerFields(object: KubernetesObject): void {
+  delete object.metadata?.managedFields;
+  delete object.metadata?.resourceVersion;
+  delete object.metadata?.uid;
+  delete object.metadata?.creationTimestamp;
+  delete object.metadata?.generation;
+  delete object.metadata?.finalizers;
+}
+
+/**
+ * Mutates the finalizers list based on the operation.
+ * Throws or returns early if no update is necessary.
+ *
+ * @param operation - "add" or "remove"
+ * @param finalizer - The finalizer to add/remove
+ * @param object - The Kubernetes resource object
+ * @returns The updated finalizers list or `null` if no update is needed
+ */
+export function updateFinalizersOrSkip(
+  operation: FinalizeOperation,
+  finalizer: string,
+  object: KubernetesObject,
+): string[] | null {
+  const current = object.metadata?.finalizers ?? [];
+
+  if (operation === "remove") {
+    if (!current.includes(finalizer)) {
+      return null; // no-op
+    }
+    return current.filter(f => f !== finalizer);
+  }
+
+  if (operation === "add") {
+    if (current.includes(finalizer)) {
+      return null; // no-op
+    }
+    return [...current, finalizer];
+  }
+
+  throw new Error(`Unsupported operation: ${operation}`);
 }
