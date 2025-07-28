@@ -327,6 +327,7 @@ describe("readOrFetchCrd from Kubernetes cluster", () => {
       WithLabel: vi.fn(),
       InNamespace: vi.fn(),
       Proxy: vi.fn(),
+      Finalize: vi.fn(),
     };
 
     // Make circular references for WithField and WithLabel
@@ -376,6 +377,7 @@ describe("readOrFetchCrd from Kubernetes cluster", () => {
       InNamespace: vi.fn(),
       Proxy: vi.fn(),
       Scale: vi.fn(),
+      Finalize: vi.fn(),
     };
 
     // Make circular references for WithField and WithLabel
@@ -434,6 +436,7 @@ describe("readOrFetchCrd error handling", () => {
       InNamespace: vi.fn(),
       Proxy: vi.fn(),
       Scale: vi.fn(),
+      Finalize: vi.fn(),
     };
 
     // Make circular references for methods that return the fluent API
@@ -476,6 +479,7 @@ describe("readOrFetchCrd error handling", () => {
       WithLabel: vi.fn(),
       InNamespace: vi.fn(),
       Proxy: vi.fn(),
+      Finalize: vi.fn(),
     };
 
     // Make circular references for method chaining

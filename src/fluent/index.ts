@@ -324,15 +324,24 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
     throw resp;
   }
   type FinalizeOperation = "add" | "remove";
-  async function Finalize(operation: FinalizeOperation, finalizer: string): Promise<void>;
+  async function Finalize(
+    operation: FinalizeOperation,
+    finalizer: string,
+    name?: string,
+  ): Promise<void>;
   /**
    *
-   * @param operation - The operation to perform, either "ADD" or "REMOVE"
+   * @param operation - The operation to perform, either "add" or "remove"
    * @param finalizer - The finalizer to add or remove
+   * @param name - (optional) the name of the resource to finalize, if not provided, uses filters
    * @inheritdoc
    * @see {@link K8sInit.Finalize}
    */
-  async function Finalize(operation: FinalizeOperation, finalizer: string): Promise<void> {
+  async function Finalize(
+    operation: FinalizeOperation,
+    finalizer: string,
+    name?: string,
+  ): Promise<void> {
     if (name) {
       if (filters.name) {
         throw new Error(`Name already specified: ${filters.name}`);
@@ -341,27 +350,48 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
     }
     // need to do a GET to get the array index of the finalizer
     const object = await k8sExec<T, K>(model, filters, { method: FetchMethods.GET });
+    if (!object) {
+      throw new Error("Resource not found");
+    }
     const finalizers = object.metadata?.finalizers || [];
 
-    if (finalizers.length === 0) {
+    if (finalizers.length === 0 && operation === "remove") {
       throw new Error("No finalizers to remove");
     }
 
-    const index = finalizers.indexOf(finalizer);
-
+    if (operation === "add" && finalizers.includes(finalizer)) {
+      // If the finalizer already exists, do nothing
+      return;
+    }
+    if (operation === "remove" && !finalizers.includes(finalizer)) {
+      // If the finalizer does not exist, do nothing
+      return;
+    }
+    if (operation === "add") {
+      finalizers.push(finalizer);
+    } else if (operation === "remove") {
+      finalizers.splice(finalizers.indexOf(finalizer), 1);
+    }
+    delete object.metadata?.managedFields;
+    delete object.metadata?.resourceVersion;
+    delete object.metadata?.uid;
+    delete object.metadata?.creationTimestamp;
+    delete object.metadata?.generation;
+    delete object.metadata?.finalizers;
     await k8sExec<T, K>(
       model,
       filters,
       {
         method: FetchMethods.APPLY,
         payload: {
+          ...object,
           metadata: {
-            finalizers:
-              index === -1 ? [...finalizers, finalizer] : finalizers.filter(f => f !== finalizer),
+            ...object.metadata,
+            finalizers,
           },
         },
       },
-      {},
+      { force: true },
     );
   }
   async function Scale(replicas: number, name?: string): Promise<void>;
