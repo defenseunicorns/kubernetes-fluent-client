@@ -43,6 +43,22 @@ describe("KFC e2e test", () => {
     await waitForRunningStatusPhase(kind.Pod, { metadata: { name: namespace, namespace } });
   });
 
+  it("Adds Finalizer to Deployment", async () => {
+    await K8s(kind.Deployment)
+      .InNamespace(namespace)
+      .Finalize("add", "example.com/finalizer", `${namespace}-scale`);
+    const deployment = await K8s(kind.Deployment).InNamespace(namespace).Get(`${namespace}-scale`);
+    expect(deployment.metadata?.finalizers).toContain("example.com/finalizer");
+  });
+
+  it("Removes Finalizer from Deployment", async () => {
+    await K8s(kind.Deployment)
+      .InNamespace(namespace)
+      .Finalize("remove", "example.com/finalizer", `${namespace}-scale`);
+    const deployment = await K8s(kind.Deployment).InNamespace(namespace).Get(`${namespace}-scale`);
+    expect(deployment.metadata?.finalizers ?? []).not.toContain("example.com/finalizer");
+  });
+
   it("Scales Deployment", async () => {
     const before = await K8s(kind.Deployment).InNamespace(namespace).Get(`${namespace}-scale`);
     expect(before.spec?.replicas).toBe(1);

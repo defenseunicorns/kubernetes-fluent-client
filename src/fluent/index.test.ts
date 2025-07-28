@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { V1APIGroup } from "@kubernetes/client-node";
 import { Operation } from "fast-json-patch";
-
-import { K8s } from "./index.js";
+import { KubernetesObject } from "@kubernetes/client-node";
+import { K8s, removeControllerFields, updateFinalizersOrSkip } from "./index.js";
 import { fetch } from "../fetch.js";
 import { Pod } from "../upstream.js";
 import { k8sCfg, k8sExec } from "./utils.js";
@@ -301,5 +301,106 @@ describe("Kube", () => {
     const result = await K8s(V1APIGroup).Raw("/api");
 
     expect(result).toEqual(mockResp);
+  });
+
+  it("should remove controller fields from the object", () => {
+    const obj = {
+      metadata: {
+        name: "test",
+        managedFields: [
+          {
+            manager: "kubectl",
+            operation: "Apply",
+            apiVersion: "v1",
+            time: new Date("2010-10-10T00:00:00Z"),
+            fieldsType: "FieldsV1",
+            fieldsV1: {
+              f: {
+                metadata: {
+                  f: {
+                    labels: {
+                      f: {
+                        "test-label": {},
+                      },
+                    },
+                  },
+                },
+                data: {
+                  f: {
+                    key: {},
+                  },
+                },
+              },
+            },
+          },
+        ],
+        uid: "abcde",
+        creationTimestamp: new Date("2023-10-01T00:00:00Z"),
+        generation: 1,
+        finalizers: ["test.finalizer"],
+      },
+    };
+
+    removeControllerFields(obj);
+
+    expect(obj.metadata).toEqual({
+      name: "test",
+    });
+  });
+
+  it("should skip 'add' if the finalizer is already present", async () => {
+    const fakePod: KubernetesObject = {
+      metadata: {
+        name: "fake",
+        namespace: "default",
+        finalizers: ["test.finalizer1"],
+      },
+    };
+
+    const updatedFinalizers = await updateFinalizersOrSkip("add", "test.finalizer1", fakePod);
+    // Finalizer is already there
+    expect(updatedFinalizers).toBe(null);
+  });
+
+  it("should add if the finalizer is not present", async () => {
+    const fakePod: KubernetesObject = {
+      metadata: {
+        name: "fake",
+        namespace: "default",
+        finalizers: ["test.finalizer1"],
+      },
+    };
+
+    const updatedFinalizers = await updateFinalizersOrSkip("add", "test.finalizer2", fakePod);
+
+    expect(updatedFinalizers).toContain("test.finalizer2");
+  });
+
+  it("should skip 'remove' if the finalizer is not present", async () => {
+    const fakePod: KubernetesObject = {
+      metadata: {
+        name: "fake",
+        namespace: "default",
+        finalizers: [],
+      },
+    };
+
+    const updatedFinalizers = await updateFinalizersOrSkip("remove", "test.finalizer1", fakePod);
+    // Finalizer is not there
+    expect(updatedFinalizers).toBe(null);
+  });
+
+  it("should remove finalizers if they are present", async () => {
+    const fakePod: KubernetesObject = {
+      metadata: {
+        name: "fake",
+        namespace: "default",
+        finalizers: ["test.finalizer"],
+      },
+    };
+
+    const updatedFinalizers = await updateFinalizersOrSkip("remove", "test.finalizer", fakePod);
+
+    expect(updatedFinalizers).toStrictEqual([]);
   });
 });

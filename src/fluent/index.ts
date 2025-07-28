@@ -16,6 +16,8 @@ import { WatchCfg, Watcher } from "./watch.js";
 import { hasLogs } from "../helpers.js";
 import { Pod, type Service, type ReplicaSet } from "../upstream.js";
 
+type FinalizeOperation = "add" | "remove";
+
 /**
  * Kubernetes fluent API inspired by Kubectl. Pass in a model, then call filters and actions on it.
  *
@@ -27,7 +29,18 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
   model: T,
   filters: Filters = {},
 ): K8sInit<T, K> {
-  const withFilters = { WithField, WithLabel, Get, Delete, Evict, Watch, Logs, Proxy, Scale };
+  const withFilters = {
+    WithField,
+    WithLabel,
+    Get,
+    Delete,
+    Evict,
+    Watch,
+    Logs,
+    Proxy,
+    Scale,
+    Finalize,
+  };
   const matchedKind = filters.kindOverride || modelToGroupVersionKind(model.name);
 
   /**
@@ -313,6 +326,55 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
     throw resp;
   }
 
+  async function Finalize(
+    operation: FinalizeOperation,
+    finalizer: string,
+    name?: string,
+  ): Promise<void>;
+  /**
+   *
+   * @param operation - The operation to perform, either "add" or "remove"
+   * @param finalizer - The finalizer to add or remove
+   * @param name - (optional) the name of the resource to finalize, if not provided, uses filters
+   * @inheritdoc
+   * @see {@link K8sInit.Finalize}
+   */
+  async function Finalize(
+    operation: FinalizeOperation,
+    finalizer: string,
+    name?: string,
+  ): Promise<void> {
+    if (name) {
+      if (filters.name) {
+        throw new Error(`Name already specified: ${filters.name}`);
+      }
+      filters.name = name;
+    }
+    // need to do a GET to get the array index of the finalizer
+    const object = await k8sExec<T, K>(model, filters, { method: FetchMethods.GET });
+    if (!object) {
+      throw new Error("Resource not found");
+    }
+    const finalizers = updateFinalizersOrSkip(operation, finalizer, object);
+    if (!finalizers) return;
+    removeControllerFields(object);
+
+    await k8sExec<T, K>(
+      model,
+      filters,
+      {
+        method: FetchMethods.APPLY,
+        payload: {
+          ...object,
+          metadata: {
+            ...object.metadata,
+            finalizers,
+          },
+        },
+      },
+      { force: true },
+    );
+  }
   async function Scale(replicas: number, name?: string): Promise<void>;
   /**
    *
@@ -364,4 +426,50 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
   }
 
   return { InNamespace, Apply, Create, Patch, PatchStatus, Raw, ...withFilters };
+}
+/**
+ *
+ * Remove controller fields from the Kubernetes object.
+ * This is necessary for ensuring that the object can be applied without conflicts.
+ *
+ * @param object - the Kubernetes object to remove controller fields from
+ */
+export function removeControllerFields(object: KubernetesObject): void {
+  delete object.metadata?.managedFields;
+  delete object.metadata?.resourceVersion;
+  delete object.metadata?.uid;
+  delete object.metadata?.creationTimestamp;
+  delete object.metadata?.generation;
+  delete object.metadata?.finalizers;
+}
+
+/**
+ * Mutates the finalizers list based on the operation.
+ * Throws or returns early if no update is necessary.
+ *
+ * @param operation - "add" or "remove"
+ * @param finalizer - The finalizer to add/remove
+ * @param object - The Kubernetes resource object
+ * @returns The updated finalizers list or `null` if no update is needed
+ */
+export function updateFinalizersOrSkip(
+  operation: FinalizeOperation,
+  finalizer: string,
+  object: KubernetesObject,
+): string[] | null {
+  const current = object.metadata?.finalizers ?? [];
+  const isPresent = current.includes(finalizer);
+
+  if ((operation === "remove" && !isPresent) || (operation === "add" && isPresent)) {
+    return null; // no-op
+  }
+
+  switch (operation) {
+    case "remove":
+      return current.filter(f => f !== finalizer);
+    case "add":
+      return [...current, finalizer];
+    default:
+      throw new Error(`Unsupported operation: ${operation}`);
+  }
 }

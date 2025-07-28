@@ -44,6 +44,15 @@ export type GetFunction<K extends KubernetesObject> = {
 
 export type K8sFilteredActions<T extends GenericClass, K extends KubernetesObject> = {
   /**
+   * Perform a server-side apply to add or remove a finalizer from the resource.
+   *
+   * @param operation - the operation to perform, either "add" or "remove"
+   * @param finalizer - the finalizer to add or remove
+   * @param name - the name of the resource to perform the operation
+   * @returns a promise that resolves when the operation is complete
+   */
+  Finalize: (operation: "add" | "remove", finalizer: string, name?: string) => Promise<void>;
+  /**
    * Proxy request to the Kubernetes API for the given resource.
    * This uses the `/proxy` subresource, usually for pods or services.
    *
