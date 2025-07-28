@@ -348,7 +348,7 @@ describe("Kube", () => {
     });
   });
 
-  it("should update finalizers or skip if the finalizer is already present", async () => {
+  it("should skip 'add' if the finalizer is already present", async () => {
     const fakePod1: KubernetesObject = {
       metadata: {
         name: "fake",
@@ -360,7 +360,9 @@ describe("Kube", () => {
     const updatedFinalizers = await updateFinalizersOrSkip("add", "test.finalizer1", fakePod1);
     // Finalizer is already there
     expect(updatedFinalizers).toBe(null);
+  });
 
+  it("should add if the finalizer is not present", async () => {
     const fakePod2: KubernetesObject = {
       metadata: {
         name: "fake",
@@ -374,7 +376,7 @@ describe("Kube", () => {
     expect(updatedFinalizers2).toContain("test.finalizer2");
   });
 
-  it("should remove finalizers or skip if the finalizer is not present", async () => {
+  it("should skip 'remove' if the finalizer is not present", async () => {
     const fakePod1: KubernetesObject = {
       metadata: {
         name: "fake",
@@ -386,8 +388,10 @@ describe("Kube", () => {
     const updatedFinalizers = await updateFinalizersOrSkip("remove", "test.finalizer1", fakePod1);
     // Finalizer is not there
     expect(updatedFinalizers).toBe(null);
+  });
 
-    const fakePod2: KubernetesObject = {
+  it("should remove finalizers if they are present", async () => {
+    const fakePod: KubernetesObject = {
       metadata: {
         name: "fake",
         namespace: "default",
@@ -395,8 +399,8 @@ describe("Kube", () => {
       },
     };
 
-    const updatedFinalizers2 = await updateFinalizersOrSkip("remove", "test.finalizer", fakePod2);
+    const updatedFinalizers = await updateFinalizersOrSkip("remove", "test.finalizer", fakePod);
 
-    expect(updatedFinalizers2).toStrictEqual([]);
+    expect(updatedFinalizers).toStrictEqual([]);
   });
 });

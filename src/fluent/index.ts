@@ -459,12 +459,11 @@ export function updateFinalizersOrSkip(
 ): string[] | null {
   const current = object.metadata?.finalizers ?? [];
   const isPresent = current.includes(finalizer);
-  
-  if ((operation === "remove" && !isPresent) || 
-      (operation === "add" && isPresent)) {
+
+  if ((operation === "remove" && !isPresent) || (operation === "add" && isPresent)) {
     return null; // no-op
   }
-  
+
   switch (operation) {
     case "remove":
       return current.filter(f => f !== finalizer);
