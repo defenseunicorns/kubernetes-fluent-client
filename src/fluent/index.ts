@@ -458,20 +458,19 @@ export function updateFinalizersOrSkip(
   object: KubernetesObject,
 ): string[] | null {
   const current = object.metadata?.finalizers ?? [];
-
-  if (operation === "remove") {
-    if (!current.includes(finalizer)) {
-      return null; // no-op
-    }
-    return current.filter(f => f !== finalizer);
+  const isPresent = current.includes(finalizer);
+  
+  if ((operation === "remove" && !isPresent) || 
+      (operation === "add" && isPresent)) {
+    return null; // no-op
   }
-
-  if (operation === "add") {
-    if (current.includes(finalizer)) {
-      return null; // no-op
-    }
-    return [...current, finalizer];
+  
+  switch (operation) {
+    case "remove":
+      return current.filter(f => f !== finalizer);
+    case "add":
+      return [...current, finalizer];
+    default:
+      throw new Error(`Unsupported operation: ${operation}`);
   }
-
-  throw new Error(`Unsupported operation: ${operation}`);
 }
