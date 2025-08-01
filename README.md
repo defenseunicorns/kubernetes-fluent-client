@@ -27,7 +27,7 @@ async function demo() {
 
   // You can use watch to monitor resources in the cluster and react to changes
   const watcher = K8s(kind.Pod).Watch((pod, phase) => {
-    console.log(`Pod ${pod.metadata?.name} is ${phase}`);
+    console.log(`Pod ${pod.metadata?.name} is ${phase}.`);
   });
 
   // This will run until the process is terminated or the watch is aborted
