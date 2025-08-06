@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import js from "@eslint/js";
 import { FlatCompat } from "@eslint/eslintrc";
+import jsdocPlugin from "eslint-plugin-jsdoc";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -24,11 +25,15 @@ export default [
       "**/e2e/crds/**",
     ],
   },
-  ...compat.extends(
-    "eslint:recommended",
-    "plugin:@typescript-eslint/recommended",
-    "plugin:jsdoc/recommended-typescript-error",
-  ),
+  ...compat.extends("eslint:recommended", "plugin:@typescript-eslint/recommended"),
+  {
+    plugins: {
+      jsdoc: jsdocPlugin,
+    },
+    rules: {
+      ...jsdocPlugin.configs["recommended-typescript"].rules,
+    },
+  },
   {
     plugins: {
       "@typescript-eslint": typescriptEslint,
