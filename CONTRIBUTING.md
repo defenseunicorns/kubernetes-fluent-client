@@ -65,7 +65,7 @@ Please follow the coding conventions and style used in the project. Use ESLint a
 ### Running Development Version Locally
 
 1. Run `npm run build` to build the package.
-2. For CLI, you can run `npx ts-node src/cli.ts`.
+2. For CLI, you can run `npx tsx src/cli.ts`.
 3. To consume the package in another project, you can run `npm pack` to generate the `kubernetes-fluent-client-0.0.0-development.tgz`, then you can install with `npm i kubernetes-fluent-client-0.0.0-development.tgz --no-save`.
 
 > [!TIP]
