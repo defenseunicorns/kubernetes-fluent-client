@@ -16,6 +16,37 @@ import { fetch } from "./fetch.js";
 import { K8s } from "./fluent/index.js";
 import { CustomResourceDefinition } from "./upstream.js";
 import { LogFn } from "./types.js";
+
+/**
+ * Recursively fixes _enum properties to enum for quicktype compatibility.
+ * The Kubernetes client library converts 'enum' to '_enum' to avoid JS reserved keywords,
+ * but quicktype expects 'enum'.
+ *
+ * @param obj - The schema object to fix
+ * @returns The fixed schema object with enum properties restored
+ */
+export function fixEnumProperties(obj: unknown): unknown {
+  if (!obj || typeof obj !== "object") {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(fixEnumProperties);
+  }
+
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
+    if (key === "_enum") {
+      // Convert _enum back to enum
+      result.enum = value;
+    } else {
+      // Recursively fix nested objects
+      result[key] = fixEnumProperties(value);
+    }
+  }
+
+  return result;
+}
 export type QuicktypeLang = Parameters<typeof quicktype>[0]["lang"];
 export interface GenerateOptions {
   source: string; // URL, file path, or K8s CRD name
@@ -71,7 +102,9 @@ export async function convertCRDtoTS(
       continue;
     }
 
-    const schema = JSON.stringify(match.schema.openAPIV3Schema);
+    // Fix _enum properties to enum for quicktype compatibility
+    const fixedSchema = fixEnumProperties(match.schema.openAPIV3Schema);
+    const schema = JSON.stringify(fixedSchema);
     opts.logFn(`- Generating ${crd.spec.group}/${match.name} types for ${name}`);
 
     const inputData = await prepareInputData(name, schema);

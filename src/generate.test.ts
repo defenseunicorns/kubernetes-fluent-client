@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, vi, test } from "vitest";
-import { convertCRDtoTS, GenerateOptions, readOrFetchCrd } from "./generate.js";
+import { convertCRDtoTS, GenerateOptions, readOrFetchCrd, fixEnumProperties } from "./generate.js";
 import * as fs from "fs";
 import path from "path";
 import { quicktype } from "quicktype-core";
@@ -565,5 +565,231 @@ describe("convertCRDtoTS with invalid CRD", () => {
     expect(options.logFn).toHaveBeenCalledWith(
       "Skipping movies.example.com, it does not appear to have a valid schema",
     );
+  });
+});
+
+describe("fixEnumProperties", () => {
+  test("should handle null and undefined values", () => {
+    expect(fixEnumProperties(null)).toBe(null);
+    expect(fixEnumProperties(undefined)).toBe(undefined);
+  });
+
+  test("should handle primitive values", () => {
+    expect(fixEnumProperties("string")).toBe("string");
+    expect(fixEnumProperties(123)).toBe(123);
+    expect(fixEnumProperties(true)).toBe(true);
+  });
+
+  test("should handle arrays", () => {
+    const input = ["value1", { _enum: ["a", "b"] }, "value2"];
+    const expected = ["value1", { enum: ["a", "b"] }, "value2"];
+    expect(fixEnumProperties(input)).toEqual(expected);
+  });
+
+  test("should convert _enum to enum at root level", () => {
+    const input = {
+      type: "string",
+      _enum: ["dark", "light"],
+      description: "Theme property",
+    };
+
+    const expected = {
+      type: "string",
+      enum: ["dark", "light"],
+      description: "Theme property",
+    };
+
+    expect(fixEnumProperties(input)).toEqual(expected);
+  });
+
+  test("should recursively convert _enum to enum in nested objects", () => {
+    const input = {
+      properties: {
+        theme: {
+          type: "string",
+          _enum: ["dark", "light"],
+          description: "Theme property",
+        },
+        language: {
+          type: "string",
+          _enum: ["en", "es"],
+          description: "Language property",
+        },
+        nested: {
+          deeper: {
+            _enum: ["value1", "value2"],
+          },
+        },
+      },
+      type: "object",
+    };
+
+    const expected = {
+      properties: {
+        theme: {
+          type: "string",
+          enum: ["dark", "light"],
+          description: "Theme property",
+        },
+        language: {
+          type: "string",
+          enum: ["en", "es"],
+          description: "Language property",
+        },
+        nested: {
+          deeper: {
+            enum: ["value1", "value2"],
+          },
+        },
+      },
+      type: "object",
+    };
+
+    expect(fixEnumProperties(input)).toEqual(expected);
+  });
+
+  test("should handle mixed _enum and regular enum properties", () => {
+    const input = {
+      properties: {
+        theme: {
+          type: "string",
+          _enum: ["dark", "light"], // Should be converted
+        },
+        status: {
+          type: "string",
+          enum: ["active", "inactive"], // Should remain unchanged
+        },
+      },
+    };
+
+    const expected = {
+      properties: {
+        theme: {
+          type: "string",
+          enum: ["dark", "light"], // Converted from _enum
+        },
+        status: {
+          type: "string",
+          enum: ["active", "inactive"], // Unchanged
+        },
+      },
+    };
+
+    expect(fixEnumProperties(input)).toEqual(expected);
+  });
+
+  test("should handle complex OpenAPI schema structure", () => {
+    const input = {
+      type: "object",
+      properties: {
+        apiVersion: {
+          type: "string",
+        },
+        spec: {
+          type: "object",
+          properties: {
+            theme: {
+              type: "string",
+              description: "Theme of the app",
+              _enum: ["dark", "light"],
+            },
+            replicas: {
+              type: "integer",
+            },
+          },
+        },
+        status: {
+          type: "object",
+          properties: {
+            phase: {
+              type: "string",
+              _enum: ["Failed", "Pending", "Ready"],
+            },
+          },
+        },
+      },
+    };
+
+    const expected = {
+      type: "object",
+      properties: {
+        apiVersion: {
+          type: "string",
+        },
+        spec: {
+          type: "object",
+          properties: {
+            theme: {
+              type: "string",
+              description: "Theme of the app",
+              enum: ["dark", "light"], // Converted from _enum
+            },
+            replicas: {
+              type: "integer",
+            },
+          },
+        },
+        status: {
+          type: "object",
+          properties: {
+            phase: {
+              type: "string",
+              enum: ["Failed", "Pending", "Ready"], // Converted from _enum
+            },
+          },
+        },
+      },
+    };
+
+    expect(fixEnumProperties(input)).toEqual(expected);
+  });
+
+  test("should handle objects without _enum properties", () => {
+    const input = {
+      type: "object",
+      properties: {
+        name: {
+          type: "string",
+        },
+        count: {
+          type: "integer",
+        },
+      },
+    };
+
+    // Should return the same object since no _enum properties exist
+    expect(fixEnumProperties(input)).toEqual(input);
+  });
+
+  test("should handle arrays with nested objects containing _enum", () => {
+    const input = {
+      items: [
+        {
+          type: "string",
+          _enum: ["option1", "option2"],
+        },
+        {
+          nested: {
+            _enum: ["nested1", "nested2"],
+          },
+        },
+      ],
+    };
+
+    const expected = {
+      items: [
+        {
+          type: "string",
+          enum: ["option1", "option2"],
+        },
+        {
+          nested: {
+            enum: ["nested1", "nested2"],
+          },
+        },
+      ],
+    };
+
+    expect(fixEnumProperties(input)).toEqual(expected);
   });
 });
