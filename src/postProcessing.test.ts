@@ -12,13 +12,13 @@ import type { QuicktypeLang } from "./generate.js";
 vi.mock("fs");
 const language: QuicktypeLang = "ts";
 // Get the mocked fs module
-const mockFs = vi.mocked(fs);
+const mockFs = vi.mocked(fs, true);
 
 vi.mock("./types", () => ({
-  GenericKind: vi.fn().mockImplementation(() => ({
-    kind: "MockKind",
-    apiVersion: "v1",
-  })),
+  GenericKind: class MockGenericKind {
+    kind = "MockKind";
+    apiVersion = "v1";
+  },
 }));
 
 const mockCRDResults = [

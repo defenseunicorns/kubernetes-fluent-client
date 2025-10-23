@@ -261,7 +261,7 @@ describe("pathBuilder Function", () => {
 });
 
 describe("kubeExec Function", () => {
-  const mockedFetch = vi.mocked(fetch);
+  const mockedFetch = vi.mocked(fetch, true);
 
   const fakeFilters: Filters = { name: "fake", namespace: "default" };
   const fakeMethod = FetchMethods.GET;
