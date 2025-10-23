@@ -21,12 +21,12 @@ describe("Cluster Wait Function", () => {
   // Mock the KubeConfig class
   vi.mock("@kubernetes/client-node", () => {
     return {
-      KubeConfig: vi.fn().mockImplementation(() => ({
-        loadFromDefault: vi.fn(),
-        getCurrentCluster: vi.fn().mockReturnValue({
+      KubeConfig: class MockKubeConfig {
+        loadFromDefault = vi.fn();
+        getCurrentCluster = vi.fn().mockReturnValue({
           server: "https://jest-test:8080",
-        }),
-      })),
+        });
+      },
     };
   });
 
