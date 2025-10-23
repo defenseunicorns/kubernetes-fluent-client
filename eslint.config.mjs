@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import js from "@eslint/js";
 import { FlatCompat } from "@eslint/eslintrc";
 import jsdocPlugin from "eslint-plugin-jsdoc";
-import {strict} from "@defenseunicorns/eslint-config";
+import { strict } from "@defenseunicorns/eslint-config";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
