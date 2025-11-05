@@ -8,6 +8,7 @@ import { loadAllYaml } from "@kubernetes/client-node";
 import { K8s } from "./fluent/index.js";
 import { CustomResourceDefinition } from "./upstream.js";
 import type { QuicktypeLang } from "./generate.js";
+import type { LogFn } from "./types.js";
 // Mock the fs module
 vi.mock("fs", () => ({
   existsSync: vi.fn(),
@@ -104,11 +105,11 @@ const expectedMovie = [
 ];
 
 describe("CRD Generate", () => {
-  let logFn: ReturnType<typeof vi.fn>; // Mock log function
+  let logFn: LogFn; // Mock log function
 
   beforeEach(() => {
     vi.clearAllMocks(); // Reset all mocks before each test
-    logFn = vi.fn(); // Mock the log function with correct typing
+    logFn = vi.fn() as LogFn; // Mock the log function with correct typing
   });
 
   test("convertCRDtoTS should generate the expected TypeScript file", async () => {
@@ -162,7 +163,7 @@ describe("readOrFetchCrd", () => {
     mockOpts = {
       language,
       source: "mock-source",
-      logFn: vi.fn(),
+      logFn: vi.fn() as LogFn,
     };
 
     // Create a dedicated spy for resolveFilePath that always returns a known value
@@ -193,7 +194,7 @@ describe("readOrFetchCrd", () => {
     mockOpts = {
       language,
       source: "mock-source",
-      logFn: vi.fn(),
+      logFn: vi.fn() as LogFn,
     };
 
     // Call function to test
@@ -217,7 +218,7 @@ describe("readOrFetchCrd with URL", () => {
     vi.clearAllMocks();
     mockOpts = {
       source: "https://example.com/mock-crd",
-      logFn: vi.fn(),
+      logFn: vi.fn() as LogFn,
       language,
     };
 
@@ -273,7 +274,7 @@ describe("readOrFetchCrd from Kubernetes cluster", () => {
     mockOpts = {
       language,
       source: "my-crd",
-      logFn: vi.fn(),
+      logFn: vi.fn() as LogFn,
     };
 
     // Mock resolveFilePath and tryParseUrl properly
@@ -408,7 +409,7 @@ describe("readOrFetchCrd error handling", () => {
     mockOpts = {
       language,
       source: "mock-source",
-      logFn: vi.fn(),
+      logFn: vi.fn() as LogFn,
     };
 
     // Ensure URL check doesn't pass
@@ -512,7 +513,7 @@ describe("convertCRDtoTS with invalid CRD", () => {
     const options = {
       source: "mock-source",
       language,
-      logFn: vi.fn(), // Ensure the mock log function is set
+      logFn: vi.fn() as LogFn, // Ensure the mock log function is set
       directory: "test-dir",
       plain: false,
       npmPackage: "kubernetes-fluent-client",
@@ -549,7 +550,7 @@ describe("convertCRDtoTS with invalid CRD", () => {
     const options = {
       source: "mock-source",
       language,
-      logFn: vi.fn(), // Mock log function
+      logFn: vi.fn() as LogFn, // Mock log function
       directory: "test-dir",
       plain: false,
       npmPackage: "kubernetes-fluent-client",
