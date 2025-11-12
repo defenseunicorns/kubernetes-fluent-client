@@ -49,10 +49,6 @@ export default [
       parser: tsParser,
       ecmaVersion: 2022,
       sourceType: "script",
-
-      parserOptions: {
-        project: ["tsconfig.json", "./e2e/tsconfig.json"],
-      },
     },
 
     rules: {
