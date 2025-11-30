@@ -164,7 +164,11 @@ export function applyCRDPostProcessing(
     const foundInterfaces = collectInterfaceNames(lines);
 
     // Process the lines, focusing on classes extending `GenericKind`
-    const processedLines = processLines(lines, genericKindProperties, foundInterfaces);
+    let processedLines = processLines(lines, genericKindProperties, foundInterfaces);
+
+    if (opts.language === "ts") {
+      processedLines = extendMetadataWithV1ObjectMeta(processedLines, crd, version);
+    }
 
     // Normalize the final output
     const normalizedLines = normalizeIndentationAndSpacing(processedLines, opts);
@@ -347,4 +351,93 @@ export function processClassContext(
 export function logError(error: Error, filePath: string, logFn: (msg: string) => void) {
   logFn(`❌ Error processing file: ${filePath} - ${error.message}`);
   logFn(`Stack trace: ${error.stack}`);
+}
+
+/**
+ * Extends the generated Metadata interface with V1ObjectMeta when the CRD
+ * schema for this version defines a metadata property.
+ *
+ * This ensures that generated types keep the full Kubernetes ObjectMeta
+ * contract while still including CRD-specific constraints like name enums.
+ *
+ * @param lines
+ * @param crd
+ * @param version
+ */
+export function extendMetadataWithV1ObjectMeta(
+  lines: string[],
+  crd: CustomResourceDefinition,
+  version: string,
+): string[] {
+  // Find the matching version in the CRD
+  const versionSchema = crd.spec?.versions?.find(v => v.name === version);
+  const openAPIV3Schema = versionSchema?.schema?.openAPIV3Schema as
+    | { properties?: Record<string, unknown> }
+    | undefined;
+
+  // Only proceed if this version actually defines a metadata schema
+  const metadataSchema = openAPIV3Schema?.properties?.metadata;
+  if (!metadataSchema) {
+    return lines;
+  }
+
+  // Check if there's a Metadata interface at all
+  const metadataInterfaceRegex = /export interface Metadata\s*{/;
+  const hasMetadataInterface = lines.some(line => metadataInterfaceRegex.test(line));
+  if (!hasMetadataInterface) {
+    return lines;
+  }
+
+  // Avoid double-extending if we've already patched this file
+  const alreadyExtends = lines.some(line =>
+    /export interface Metadata\s+extends\s+V1ObjectMeta\s*{/.test(line),
+  );
+  let updatedLines = lines;
+
+  if (!alreadyExtends) {
+    updatedLines = updatedLines.map(line =>
+      line.replace(metadataInterfaceRegex, "export interface Metadata extends V1ObjectMeta {"),
+    );
+  }
+
+  // Ensure we import V1ObjectMeta from @kubernetes/client-node
+  const hasV1ObjectMetaImport = updatedLines.some(
+    line =>
+      line.includes("V1ObjectMeta") &&
+      line.includes("@kubernetes/client-node") &&
+      line.includes("import"),
+  );
+
+  if (!hasV1ObjectMetaImport) {
+    const importStatement = 'import type { V1ObjectMeta } from "@kubernetes/client-node";';
+
+    // Insert after existing imports, if any; otherwise right after any auto-gen notice
+    let insertIndex = 0;
+
+    // Prefer to insert after the last import line at the top of the file
+    const firstImportIdx = updatedLines.findIndex(line => line.startsWith("import "));
+    if (firstImportIdx !== -1) {
+      let lastImportIdx = firstImportIdx;
+      for (let i = firstImportIdx + 1; i < updatedLines.length; i++) {
+        if (updatedLines[i].startsWith("import ")) {
+          lastImportIdx = i;
+        } else {
+          break;
+        }
+      }
+      insertIndex = lastImportIdx + 1;
+    } else {
+      // Otherwise, place after auto-gen notice if present
+      const autoGenIdx = updatedLines.findIndex(
+        line => line.includes("auto-generated") || line.includes("auto generated"),
+      );
+      if (autoGenIdx !== -1) {
+        insertIndex = autoGenIdx + 1;
+      }
+    }
+
+    updatedLines.splice(insertIndex, 0, importStatement);
+  }
+
+  return updatedLines;
 }
