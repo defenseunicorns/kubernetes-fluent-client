@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: read # for checkout
+  id-token: write # Required for OIDC
 
 jobs:
   test:
