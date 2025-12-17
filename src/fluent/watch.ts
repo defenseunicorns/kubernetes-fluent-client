@@ -60,6 +60,9 @@ export type WatchCfg = {
 const NONE = 50;
 const OVERRIDE = 100;
 
+const logger = (message: string) => {
+  console.log(`[Watcher] ${message}`);
+};
 /** A wrapper around the Kubernetes watch API. */
 export class Watcher<T extends GenericClass> {
   // User-provided properties
@@ -239,6 +242,7 @@ export class Watcher<T extends GenericClass> {
   #list = async (continueToken?: string, removedItems?: Map<string, InstanceType<T>>) => {
     try {
       const { opts, serverUrl } = await this.#buildURL(false, undefined, continueToken);
+      logger(`Server URL for list: ${serverUrl.toString()}`);
 
       // Make the request to list the resources
       const response = await wrappedFetch<KubernetesListObject<InstanceType<T>>>(serverUrl, opts);
@@ -250,7 +254,7 @@ export class Watcher<T extends GenericClass> {
           WatchEvent.LIST_ERROR,
           new Error(`list failed: ${response.status} ${response.statusText}`),
         );
-
+        // call list again here if needed and exponentially backoff
         return;
       }
 
@@ -394,6 +398,8 @@ export class Watcher<T extends GenericClass> {
         ...opts,
       });
 
+      logger(`connected - response: ${JSON.stringify(response)}`);
+
       const url = serverUrl instanceof URL ? serverUrl : new URL(serverUrl);
 
       // If the request is successful, start listening for events
@@ -414,6 +420,7 @@ export class Watcher<T extends GenericClass> {
         this.#events.emit(WatchEvent.INC_RESYNC_FAILURE_COUNT, this.#resyncFailureCount);
 
         this.#stream = Readable.from(body);
+        logger(`stream created`);
         const decoder = new TextDecoder();
         let buffer = "";
 
@@ -423,19 +430,26 @@ export class Watcher<T extends GenericClass> {
             buffer += decoder.decode(chunk, { stream: true });
             const lines = buffer.split("\n");
             buffer = lines.pop()!;
+            logger(`received chunk: ${buffer}`);
 
             for (const line of lines) {
               await this.#processLine(line, this.#process);
+              logger(`processed line: ${line}`);
             }
           } catch (err) {
             void this.#errHandler(err);
+            logger(`error in stream.on("data")}`);
           }
         });
 
         this.#stream.on("close", this.#cleanupAndReconnect);
+        logger(`no stream close`);
         this.#stream.on("end", this.#cleanupAndReconnect);
+        logger(`no stream end`);
         this.#stream.on("error", this.#errHandler);
+        logger(`no stream error`);
         this.#stream.on("finish", this.#cleanupAndReconnect);
+        logger(`no stream finish`);
       } else {
         throw new Error(`watch connect failed: ${response.status} ${response.statusText}`);
       }
