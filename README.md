@@ -131,4 +131,4 @@ kubernetes-fluent-client crd crd.yaml types --noPost
 
 ### Community 🦄
 
-To chat with other users & see some examples of the fluent client in active use, go to [Kubernetes Slack](https://communityinviter.com/apps/kubernetes/community) and join `#pepr` channel.
+To chat with other users and see some examples of the fluent client in active use, go to [Kubernetes Slack](https://communityinviter.com/apps/kubernetes/community) and join `#pepr` channel.
