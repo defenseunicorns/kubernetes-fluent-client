@@ -145,7 +145,7 @@ export class Watcher<T extends GenericClass> {
     );
 
     // Rebuild the watch every resync delay interval
-    this.#resyncTimer = setInterval(this.#checkResync, watchCfg.resyncDelaySec * 1000 + jitter);
+    // this.#resyncTimer = setInterval(this.#checkResync, watchCfg.resyncDelaySec * 1000 + jitter);
 
     // Bind class properties
     this.#model = model;
