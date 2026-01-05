@@ -63,9 +63,11 @@ export function getHTTPSAgent(opts: RequestInit): Dispatcher | undefined {
         };
 
   return new Agent({
-    keepAliveMaxTimeout: 600000,
-    keepAliveTimeout: 600000,
-    bodyTimeout: 0,
+    // docs - https://github.com/nodejs/undici/blob/80756cab3f1abad9d50cb387aafcea972e04ac65/docs/docs/api/Client.md?plain=1#L20
+    keepAliveMaxTimeout: 30000,
+    keepAliveTimeout: 30000,
+    bodyTimeout: 30000,
+    headersTimeout: 30000,
     connect: agentOptions,
   });
 }
