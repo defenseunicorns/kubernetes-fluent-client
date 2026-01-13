@@ -14,6 +14,10 @@ import {
   Filters,
   FetchMethods,
 } from "./shared-types.js";
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+let startSleep = 5000;
+const maxSleep = 120000;
 export enum WatchEvent {
   /** Watch is connected successfully */
   CONNECT = "connect",
@@ -142,7 +146,10 @@ export class Watcher<T extends GenericClass> {
     );
 
     // Rebuild the watch every resync delay interval
-    this.#resyncTimer = setInterval(this.#checkResync, watchCfg.resyncDelaySec * 1000 + jitter);
+    this.#resyncTimer = setInterval(
+      async () => await this.#checkResync(),
+      watchCfg.resyncDelaySec * 1000 + jitter,
+    );
 
     // Bind class properties
     this.#model = model;
@@ -246,6 +253,10 @@ export class Watcher<T extends GenericClass> {
 
       // If the request fails, emit an error event and return
       if (!response.ok) {
+        // Backoff here
+        await sleep(startSleep);
+        startSleep = Math.min(startSleep * 2, maxSleep);
+        await this.#list(continueToken, removedItems);
         this.#events.emit(
           WatchEvent.LIST_ERROR,
           new Error(`list failed: ${response.status} ${response.statusText}`),
@@ -394,6 +405,15 @@ export class Watcher<T extends GenericClass> {
         ...opts,
       });
 
+      console.log(
+        `WATCH_FETCH: `,
+        JSON.stringify([...response.headers]) +
+          "\nWATCH_URL: " +
+          serverUrl.toString() +
+          "\nWATCH_STATUS: " +
+          response.status,
+      );
+
       const url = serverUrl instanceof URL ? serverUrl : new URL(serverUrl);
 
       // If the request is successful, start listening for events
@@ -410,6 +430,7 @@ export class Watcher<T extends GenericClass> {
         }
 
         // Reset the retry count
+        startSleep = 5000;
         this.#resyncFailureCount = 0;
         this.#events.emit(WatchEvent.INC_RESYNC_FAILURE_COUNT, this.#resyncFailureCount);
 
@@ -432,20 +453,23 @@ export class Watcher<T extends GenericClass> {
           }
         });
 
-        this.#stream.on("close", this.#cleanupAndReconnect);
-        this.#stream.on("end", this.#cleanupAndReconnect);
+        this.#stream.on("close", async () => await this.#cleanupAndReconnect());
+        this.#stream.on("end", async () => await this.#cleanupAndReconnect());
         this.#stream.on("error", this.#errHandler);
-        this.#stream.on("finish", this.#cleanupAndReconnect);
+        this.#stream.on("finish", async () => await this.#cleanupAndReconnect());
       } else {
         throw new Error(`watch connect failed: ${response.status} ${response.statusText}`);
       }
     } catch (e) {
+      // await sleep(startSleep);
+      // startSleep = Math.min(startSleep * 2, maxSleep);
+      console.log(`WATCH_ERROR: `, e);
       void this.#errHandler(e);
     }
   };
 
   /** Clear the resync timer and schedule a new one. */
-  #checkResync = () => {
+  #checkResync = async () => {
     // Ignore if the last seen time is not set
     if (this.#lastSeenTime === NONE) {
       return;
@@ -473,7 +497,7 @@ export class Watcher<T extends GenericClass> {
         } else {
           this.#pendingReconnect = true;
           this.#events.emit(WatchEvent.RECONNECT, this.#resyncFailureCount);
-          this.#cleanupAndReconnect();
+          await this.#cleanupAndReconnect();
         }
       } else {
         // Otherwise, call the finally function if it exists
@@ -518,8 +542,10 @@ export class Watcher<T extends GenericClass> {
   };
 
   /** Cleanup the stream and connect */
-  #cleanupAndReconnect = () => {
+  #cleanupAndReconnect = async () => {
     this.#streamCleanup();
+    await sleep(startSleep);
+    startSleep = Math.min(startSleep * 2, maxSleep);
     void this.#watch();
   };
 

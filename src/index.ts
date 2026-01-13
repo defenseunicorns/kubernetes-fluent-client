@@ -16,6 +16,7 @@ export { fetch } from "./fetch.js";
 export { StatusCodes as fetchStatus } from "http-status-codes";
 
 // Export the Watch Config and Event types
+// export { WatchCfg, WatchEvent, type DisposableWatcher } from "./fluent/watch.js";
 export { WatchCfg, WatchEvent } from "./fluent/watch.js";
 
 // Export the fluent API entrypoint
