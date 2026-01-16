@@ -246,20 +246,31 @@ export class Watcher<T extends GenericClass> {
   #list = async (continueToken?: string, removedItems?: Map<string, InstanceType<T>>) => {
     try {
       const { opts, serverUrl } = await this.#buildURL(false, undefined, continueToken);
-
+      
       // Make the request to list the resources
-      const response = await wrappedFetch<KubernetesListObject<InstanceType<T>>>(serverUrl, opts);
-      const list = response.data;
+      const response = await fetch(serverUrl, opts);
+      const list = (await response.json()) as KubernetesListObject<InstanceType<T>>;
 
       // If the request fails, emit an error event and return
       if (!response.ok) {
+        console.log(
+        `LIST_FETCH: `,
+        JSON.stringify([...response.headers]) +
+          "\nLIST_URL: " +
+          serverUrl.toString() +
+          "\nLIST_STATUS: " +
+          response.status,
+      );
+
         // Backoff here
-        await sleep(startSleep);
-        startSleep = Math.min(startSleep * 2, maxSleep);
+        const retryAfterHeader = response.headers.get("retry-after");
+        console.log(`LIST_RETRY_AFTER: `, retryAfterHeader);
+        await sleep(retryAfterHeader ? parseInt(retryAfterHeader) * 1000 : startSleep);
+        // startSleep = Math.min(startSleep * 2, maxSleep);
         await this.#list(continueToken, removedItems);
         this.#events.emit(
           WatchEvent.LIST_ERROR,
-          new Error(`list failed: ${response.status} ${response.statusText}`),
+          new Error(`list failed: ${response.status} ${response.statusText} ${JSON.stringify([...response.headers])}`),
         );
 
         return;
@@ -318,6 +329,7 @@ export class Watcher<T extends GenericClass> {
         }
       }
     } catch (err) {
+      console.log(`LIST_ERROR: `, err);
       this.#events.emit(WatchEvent.LIST_ERROR, err);
     }
   };
@@ -544,8 +556,8 @@ export class Watcher<T extends GenericClass> {
   /** Cleanup the stream and connect */
   #cleanupAndReconnect = async () => {
     this.#streamCleanup();
-    await sleep(startSleep);
-    startSleep = Math.min(startSleep * 2, maxSleep);
+    // await sleep(startSleep);
+    // startSleep = Math.min(startSleep * 2, maxSleep);
     void this.#watch();
   };
 
