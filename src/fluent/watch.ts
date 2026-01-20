@@ -3,7 +3,6 @@
 
 import { EventEmitter } from "events";
 import { fetch } from "undici";
-import { fetch as wrappedFetch } from "../fetch.js";
 import { GenericClass, KubernetesListObject } from "../types.js";
 import { k8sCfg, pathBuilder, getHeaders } from "./utils.js";
 import { Readable } from "stream";
@@ -17,7 +16,7 @@ import {
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 let startSleep = 5000;
-const maxSleep = 120000;
+
 export enum WatchEvent {
   /** Watch is connected successfully */
   CONNECT = "connect",
@@ -246,31 +245,22 @@ export class Watcher<T extends GenericClass> {
   #list = async (continueToken?: string, removedItems?: Map<string, InstanceType<T>>) => {
     try {
       const { opts, serverUrl } = await this.#buildURL(false, undefined, continueToken);
-      
+
       // Make the request to list the resources
       const response = await fetch(serverUrl, opts);
       const list = (await response.json()) as KubernetesListObject<InstanceType<T>>;
 
       // If the request fails, emit an error event and return
       if (!response.ok) {
-        console.log(
-        `LIST_FETCH: `,
-        JSON.stringify([...response.headers]) +
-          "\nLIST_URL: " +
-          serverUrl.toString() +
-          "\nLIST_STATUS: " +
-          response.status,
-      );
-
         // Backoff here
         const retryAfterHeader = response.headers.get("retry-after");
-        console.log(`LIST_RETRY_AFTER: `, retryAfterHeader);
         await sleep(retryAfterHeader ? parseInt(retryAfterHeader) * 1000 : startSleep);
-        // startSleep = Math.min(startSleep * 2, maxSleep);
         await this.#list(continueToken, removedItems);
         this.#events.emit(
           WatchEvent.LIST_ERROR,
-          new Error(`list failed: ${response.status} ${response.statusText} ${JSON.stringify([...response.headers])}`),
+          new Error(
+            `list failed: ${response.status} ${response.statusText} ${JSON.stringify([...response.headers])}`,
+          ),
         );
 
         return;
@@ -554,10 +544,8 @@ export class Watcher<T extends GenericClass> {
   };
 
   /** Cleanup the stream and connect */
-  #cleanupAndReconnect = async () => {
+  #cleanupAndReconnect = () => {
     this.#streamCleanup();
-    // await sleep(startSleep);
-    // startSleep = Math.min(startSleep * 2, maxSleep);
     void this.#watch();
   };
 

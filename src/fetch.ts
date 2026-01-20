@@ -32,14 +32,6 @@ export async function fetch<T>(
   try {
     const resp = await undiciFetch(url, init);
     const contentType = resp.headers.get("content-type") || "";
-    console.log(
-      `FETCH_HEADERS: `,
-      JSON.stringify([...resp.headers]) +
-        "\nFETCH_URL: " +
-        url.toString() +
-        "\nFETCH_STATUS: " +
-        resp.status,
-    );
 
     // Parse the response as JSON if the content type is JSON
     if (contentType.includes("application/json")) {
