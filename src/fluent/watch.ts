@@ -245,8 +245,8 @@ export class Watcher<T extends GenericClass> {
     removedItems?: Map<string, InstanceType<T>>,
     retryCount = 0,
   ): Promise<void> => {
-    const maxRetries = 3;
-    const maxPages = 1000; // Safeguard against infinite pagination
+    const maxRetries = 5;
+    const maxPages = 10;
 
     try {
       const { opts, serverUrl } = await this.#buildURL(false, undefined, continueToken);
