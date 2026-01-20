@@ -442,10 +442,10 @@ export class Watcher<T extends GenericClass> {
           }
         });
 
-        this.#stream.on("close", async () => await this.#cleanupAndReconnect());
-        this.#stream.on("end", async () => await this.#cleanupAndReconnect());
+        this.#stream.on("close", this.#cleanupAndReconnect);
+        this.#stream.on("end", this.#cleanupAndReconnect);
         this.#stream.on("error", this.#errHandler);
-        this.#stream.on("finish", async () => await this.#cleanupAndReconnect());
+        this.#stream.on("finish", this.#cleanupAndReconnect);
       } else {
         throw new Error(`watch connect failed: ${response.status} ${response.statusText}`);
       }
