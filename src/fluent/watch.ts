@@ -15,7 +15,7 @@ import {
 } from "./shared-types.js";
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-let startSleep = 5000;
+const startSleep = 5000;
 
 export enum WatchEvent {
   /** Watch is connected successfully */
@@ -238,8 +238,16 @@ export class Watcher<T extends GenericClass> {
    *
    * @param continueToken - the continue token for the list
    * @param removedItems - the list of items that have been removed
+   * @param retryCount - current retry attempt count
    */
-  #list = async (continueToken?: string, removedItems?: Map<string, InstanceType<T>>) => {
+  #list = async (
+    continueToken?: string,
+    removedItems?: Map<string, InstanceType<T>>,
+    retryCount = 0,
+  ): Promise<void> => {
+    const maxRetries = 3;
+    const maxPages = 1000; // Safeguard against infinite pagination
+
     try {
       const { opts, serverUrl } = await this.#buildURL(false, undefined, continueToken);
 
@@ -249,16 +257,23 @@ export class Watcher<T extends GenericClass> {
 
       // If the request fails, emit an error event and return
       if (!response.ok) {
-        // Backoff here
-        const retryAfterHeader = response.headers.get("retry-after");
-        await sleep(retryAfterHeader ? parseInt(retryAfterHeader) * 1000 : startSleep);
-        await this.#list(continueToken, removedItems);
         this.#events.emit(
           WatchEvent.LIST_ERROR,
           new Error(
             `list failed: ${response.status} ${response.statusText} ${JSON.stringify([...response.headers])}`,
           ),
         );
+
+        // Retry with exponential backoff if under retry limit to prevent infinite recursion if the server is returning errors
+        if (retryCount < maxRetries) {
+          const retryAfterHeader = response.headers.get("retry-after");
+          const backoffTime = retryAfterHeader
+            ? parseInt(retryAfterHeader) * 1000
+            : Math.min(startSleep * Math.pow(2, retryCount), 30000);
+
+          await sleep(backoffTime);
+          return this.#list(continueToken, removedItems, retryCount + 1);
+        }
 
         return;
       }
@@ -306,8 +321,17 @@ export class Watcher<T extends GenericClass> {
 
       // If there is a continue token, call the list function again with the same removed items
       if (continueToken) {
-        // If there is a continue token, call the list function again with the same removed items
-        await this.#list(continueToken, removedItems);
+        // Safeguard against infinite pagination
+        if (retryCount >= maxPages) {
+          this.#events.emit(
+            WatchEvent.LIST_ERROR,
+            new Error(`Maximum pagination limit (${maxPages}) reached, stopping list operation`),
+          );
+          return;
+        }
+
+        // Continue pagination (not a retry, so reset retryCount to 0)
+        await this.#list(continueToken, removedItems, 0);
       } else {
         // Otherwise, process the removed items
         for (const item of removedItems.values()) {
@@ -419,7 +443,6 @@ export class Watcher<T extends GenericClass> {
         }
 
         // Reset the retry count
-        startSleep = 5000;
         this.#resyncFailureCount = 0;
         this.#events.emit(WatchEvent.INC_RESYNC_FAILURE_COUNT, this.#resyncFailureCount);
 
