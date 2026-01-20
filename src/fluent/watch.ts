@@ -145,10 +145,7 @@ export class Watcher<T extends GenericClass> {
     );
 
     // Rebuild the watch every resync delay interval
-    this.#resyncTimer = setInterval(
-      async () => await this.#checkResync(),
-      watchCfg.resyncDelaySec * 1000 + jitter,
-    );
+    this.#resyncTimer = setInterval(this.#checkResync, watchCfg.resyncDelaySec * 1000 + jitter);
 
     // Bind class properties
     this.#model = model;
@@ -319,7 +316,6 @@ export class Watcher<T extends GenericClass> {
         }
       }
     } catch (err) {
-      console.log(`LIST_ERROR: `, err);
       this.#events.emit(WatchEvent.LIST_ERROR, err);
     }
   };
@@ -407,15 +403,6 @@ export class Watcher<T extends GenericClass> {
         ...opts,
       });
 
-      console.log(
-        `WATCH_FETCH: `,
-        JSON.stringify([...response.headers]) +
-          "\nWATCH_URL: " +
-          serverUrl.toString() +
-          "\nWATCH_STATUS: " +
-          response.status,
-      );
-
       const url = serverUrl instanceof URL ? serverUrl : new URL(serverUrl);
 
       // If the request is successful, start listening for events
@@ -463,15 +450,12 @@ export class Watcher<T extends GenericClass> {
         throw new Error(`watch connect failed: ${response.status} ${response.statusText}`);
       }
     } catch (e) {
-      // await sleep(startSleep);
-      // startSleep = Math.min(startSleep * 2, maxSleep);
-      console.log(`WATCH_ERROR: `, e);
       void this.#errHandler(e);
     }
   };
 
   /** Clear the resync timer and schedule a new one. */
-  #checkResync = async () => {
+  #checkResync = () => {
     // Ignore if the last seen time is not set
     if (this.#lastSeenTime === NONE) {
       return;
@@ -499,7 +483,7 @@ export class Watcher<T extends GenericClass> {
         } else {
           this.#pendingReconnect = true;
           this.#events.emit(WatchEvent.RECONNECT, this.#resyncFailureCount);
-          await this.#cleanupAndReconnect();
+          this.#cleanupAndReconnect();
         }
       } else {
         // Otherwise, call the finally function if it exists
