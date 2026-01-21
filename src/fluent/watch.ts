@@ -415,10 +415,14 @@ export class Watcher<T extends GenericClass> {
    * Watch for changes to the resource.
    */
   #watch = async () => {
+    // Start with a list operation, but don't let it block the watch stream
     try {
-      // Start with a list operation
       await this.#list();
+    } catch (listError) {
+      this.#events.emit(WatchEvent.LIST_ERROR, listError);
+    }
 
+    try {
       // Build the URL and request options
       const { opts, serverUrl } = await this.#buildURL(true, this.#resourceVersion);
 
