@@ -274,7 +274,11 @@ export class Watcher<T extends GenericClass> {
             : Math.min(startSleep * Math.pow(2, retryCount), 30000);
 
           await sleep(backoffTime);
-          return this.#list(continueToken, removedItems, retryCount + 1);
+          try {
+            return this.#list(continueToken, removedItems, retryCount + 1);
+          } catch {
+            // do nothing
+          }
         }
 
         return;
@@ -418,7 +422,7 @@ export class Watcher<T extends GenericClass> {
    *
    * @param retryCount - current retry attempt count
    */
-  #watch = async (retryCount = 0) => {
+  #watch = async (retryCount = 0): Promise<void> => {
     const maxRetries = 5;
     // Start with a list operation, but don't let it block the watch stream
     try {
@@ -495,7 +499,11 @@ export class Watcher<T extends GenericClass> {
               : Math.min(startSleep * Math.pow(2, retryCount), 30000);
             // consider calling close this.close();
             await sleep(backoffTime);
-            this.#watch(retryCount + 1);
+            try {
+              return this.#watch(retryCount + 1);
+            } catch {
+              // do nothing
+            }
           }
         }
       }
