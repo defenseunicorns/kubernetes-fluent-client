@@ -428,57 +428,57 @@ export class Watcher<T extends GenericClass> {
     }
 
     // Build the URL and request options
-    const { opts, serverUrl } = await this.#buildURL(true, this.#resourceVersion);
+    try {
+      const { opts, serverUrl } = await this.#buildURL(true, this.#resourceVersion);
 
-    const response = await fetch(serverUrl, {
-      headers: await getHeaders(),
-      ...opts,
-    });
-
-    const url = serverUrl instanceof URL ? serverUrl : new URL(serverUrl);
-
-    // If the request is successful, start listening for events
-    if (response.ok) {
-      // Reset the pending reconnect flag
-      this.#pendingReconnect = false;
-
-      this.#events.emit(WatchEvent.CONNECT, url.pathname);
-
-      const { body } = response;
-
-      if (!body) {
-        throw new Error("No response body found");
-      }
-
-      // Reset the retry count
-      this.#resyncFailureCount = 0;
-      this.#events.emit(WatchEvent.INC_RESYNC_FAILURE_COUNT, this.#resyncFailureCount);
-
-      this.#stream = Readable.from(body);
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      // Listen for events and call the callback function
-      this.#stream.on("data", async chunk => {
-        try {
-          buffer += decoder.decode(chunk, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop()!;
-
-          for (const line of lines) {
-            await this.#processLine(line, this.#process);
-          }
-        } catch (err) {
-          void this.#errHandler(err); // this may need to  change - it is normal to get an error here
-        }
+      const response = await fetch(serverUrl, {
+        headers: await getHeaders(),
+        ...opts,
       });
 
-      this.#stream.on("close", this.#cleanupAndReconnect);
-      this.#stream.on("end", this.#cleanupAndReconnect);
-      this.#stream.on("error", this.#errHandler);
-      this.#stream.on("finish", this.#cleanupAndReconnect);
-    } else {
-      if (!response.ok) {
+      const url = serverUrl instanceof URL ? serverUrl : new URL(serverUrl);
+
+      // If the request is successful, start listening for events
+      if (response.ok) {
+        // Reset the pending reconnect flag
+        this.#pendingReconnect = false;
+
+        this.#events.emit(WatchEvent.CONNECT, url.pathname);
+
+        const { body } = response;
+
+        if (!body) {
+          throw new Error("No response body found");
+        }
+
+        // Reset the retry count
+        this.#resyncFailureCount = 0;
+        this.#events.emit(WatchEvent.INC_RESYNC_FAILURE_COUNT, this.#resyncFailureCount);
+
+        this.#stream = Readable.from(body);
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        // Listen for events and call the callback function
+        this.#stream.on("data", async chunk => {
+          try {
+            buffer += decoder.decode(chunk, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop()!;
+
+            for (const line of lines) {
+              await this.#processLine(line, this.#process);
+            }
+          } catch (err) {
+            void this.#errHandler(err); // this may need to  change - it is normal to get an error here
+          }
+        });
+
+        this.#stream.on("close", this.#cleanupAndReconnect);
+        this.#stream.on("end", this.#cleanupAndReconnect);
+        this.#stream.on("error", this.#errHandler);
+        this.#stream.on("finish", this.#cleanupAndReconnect);
+      } else {
         this.#events.emit(
           WatchEvent.WATCH_ERROR,
           new Error(
@@ -486,17 +486,21 @@ export class Watcher<T extends GenericClass> {
           ),
         );
 
-        // Retry with exponential backoff if under retry limit to prevent infinite recursion if the server is returning errors
-        if (retryCount < maxRetries) {
-          const retryAfterHeader = response.headers.get("retry-after");
-          const backoffTime = retryAfterHeader
-            ? parseInt(retryAfterHeader) * 1000
-            : Math.min(startSleep * Math.pow(2, retryCount), 30000);
-
-          await sleep(backoffTime);
-          this.#watch(retryCount + 1);
+        if (!response.ok && response.status === 429) {
+          // Retry with exponential backoff if under retry limit to prevent infinite recursion if the server is returning errors
+          if (retryCount < maxRetries) {
+            const retryAfterHeader = response.headers.get("retry-after");
+            const backoffTime = retryAfterHeader
+              ? parseInt(retryAfterHeader) * 1000
+              : Math.min(startSleep * Math.pow(2, retryCount), 30000);
+            // consider calling close this.close();
+            await sleep(backoffTime);
+            this.#watch(retryCount + 1);
+          }
         }
       }
+    } catch (e) {
+      this.#errHandler(e);
     }
   };
 
