@@ -508,7 +508,7 @@ export class Watcher<T extends GenericClass> {
         }
       }
     } catch (e) {
-      this.#errHandler(e);
+      void this.#errHandler(e);
     }
   };
 
