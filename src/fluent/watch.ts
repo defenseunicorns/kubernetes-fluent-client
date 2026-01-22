@@ -46,6 +46,8 @@ export enum WatchEvent {
   INC_RESYNC_FAILURE_COUNT = "inc_resync_failure_count",
   /** Initialize a relist window */
   INIT_CACHE_MISS = "init_cache_miss",
+  /** Watch operation error */
+  WATCH_ERROR = "watch_error",
 }
 
 /** Configuration for the watch function. */
@@ -413,8 +415,11 @@ export class Watcher<T extends GenericClass> {
 
   /**
    * Watch for changes to the resource.
+   *
+   * @param retryCount - current retry attempt count
    */
-  #watch = async () => {
+  #watch = async (retryCount = 0) => {
+    const maxRetries = 5;
     // Start with a list operation, but don't let it block the watch stream
     try {
       await this.#list();
@@ -422,62 +427,76 @@ export class Watcher<T extends GenericClass> {
       this.#events.emit(WatchEvent.LIST_ERROR, listError);
     }
 
-    try {
-      // Build the URL and request options
-      const { opts, serverUrl } = await this.#buildURL(true, this.#resourceVersion);
+    // Build the URL and request options
+    const { opts, serverUrl } = await this.#buildURL(true, this.#resourceVersion);
 
-      const response = await fetch(serverUrl, {
-        headers: await getHeaders(),
-        ...opts,
+    const response = await fetch(serverUrl, {
+      headers: await getHeaders(),
+      ...opts,
+    });
+
+    const url = serverUrl instanceof URL ? serverUrl : new URL(serverUrl);
+
+    // If the request is successful, start listening for events
+    if (response.ok) {
+      // Reset the pending reconnect flag
+      this.#pendingReconnect = false;
+
+      this.#events.emit(WatchEvent.CONNECT, url.pathname);
+
+      const { body } = response;
+
+      if (!body) {
+        throw new Error("No response body found");
+      }
+
+      // Reset the retry count
+      this.#resyncFailureCount = 0;
+      this.#events.emit(WatchEvent.INC_RESYNC_FAILURE_COUNT, this.#resyncFailureCount);
+
+      this.#stream = Readable.from(body);
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      // Listen for events and call the callback function
+      this.#stream.on("data", async chunk => {
+        try {
+          buffer += decoder.decode(chunk, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop()!;
+
+          for (const line of lines) {
+            await this.#processLine(line, this.#process);
+          }
+        } catch (err) {
+          void this.#errHandler(err); // this may need to  change - it is normal to get an error here
+        }
       });
 
-      const url = serverUrl instanceof URL ? serverUrl : new URL(serverUrl);
+      this.#stream.on("close", this.#cleanupAndReconnect);
+      this.#stream.on("end", this.#cleanupAndReconnect);
+      this.#stream.on("error", this.#errHandler);
+      this.#stream.on("finish", this.#cleanupAndReconnect);
+    } else {
+      if (!response.ok) {
+        this.#events.emit(
+          WatchEvent.WATCH_ERROR,
+          new Error(
+            `watch failed: ${response.status} ${response.statusText} ${JSON.stringify([...response.headers])}`,
+          ),
+        );
 
-      // If the request is successful, start listening for events
-      if (response.ok) {
-        // Reset the pending reconnect flag
-        this.#pendingReconnect = false;
+        // Retry with exponential backoff if under retry limit to prevent infinite recursion if the server is returning errors
+        if (retryCount < maxRetries) {
+          const retryAfterHeader = response.headers.get("retry-after");
+          const backoffTime = retryAfterHeader
+            ? parseInt(retryAfterHeader) * 1000
+            : Math.min(startSleep * Math.pow(2, retryCount), 30000);
 
-        this.#events.emit(WatchEvent.CONNECT, url.pathname);
-
-        const { body } = response;
-
-        if (!body) {
-          throw new Error("No response body found");
+          await sleep(backoffTime);
+          this.#watch(retryCount + 1);
         }
-
-        // Reset the retry count
-        this.#resyncFailureCount = 0;
-        this.#events.emit(WatchEvent.INC_RESYNC_FAILURE_COUNT, this.#resyncFailureCount);
-
-        this.#stream = Readable.from(body);
-        const decoder = new TextDecoder();
-        let buffer = "";
-
-        // Listen for events and call the callback function
-        this.#stream.on("data", async chunk => {
-          try {
-            buffer += decoder.decode(chunk, { stream: true });
-            const lines = buffer.split("\n");
-            buffer = lines.pop()!;
-
-            for (const line of lines) {
-              await this.#processLine(line, this.#process);
-            }
-          } catch (err) {
-            void this.#errHandler(err);
-          }
-        });
-
-        this.#stream.on("close", this.#cleanupAndReconnect);
-        this.#stream.on("end", this.#cleanupAndReconnect);
-        this.#stream.on("error", this.#errHandler);
-        this.#stream.on("finish", this.#cleanupAndReconnect);
-      } else {
-        throw new Error(`watch connect failed: ${response.status} ${response.statusText}`);
       }
-    } catch (e) {
-      void this.#errHandler(e);
     }
   };
 
