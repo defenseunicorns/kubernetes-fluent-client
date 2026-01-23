@@ -4,7 +4,7 @@
 import { EventEmitter } from "events";
 import { fetch } from "undici";
 import { GenericClass, KubernetesListObject } from "../types.js";
-import { k8sCfg, pathBuilder, getHeaders } from "./utils.js";
+import { k8sCfg, pathBuilder, getHeaders, sleep, startSleep } from "./utils.js";
 import { Readable } from "stream";
 import {
   K8sConfigPromise,
@@ -13,9 +13,6 @@ import {
   Filters,
   FetchMethods,
 } from "./shared-types.js";
-
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-const startSleep = 5000;
 
 export enum WatchEvent {
   /** Watch is connected successfully */

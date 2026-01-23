@@ -15,6 +15,8 @@ import { V1Eviction as Eviction } from "@kubernetes/client-node";
 const SSA_CONTENT_TYPE = "application/apply-patch+yaml";
 const K8S_SA_TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token";
 
+export const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+export const startSleep = 5000;
 /**
  * Get the headers for a request
  *
@@ -274,6 +276,7 @@ export type SubResourceConfig = {
  * @param filters - (optional) filter overrides, can also be chained
  * @param methodPayload - method and payload for the request
  * @param applyCfg - (optional) configuration for the apply method
+ * @param retryCount - (optional) current retry attempt count
  *
  * @returns the parsed JSON response
  */
@@ -282,6 +285,7 @@ export async function k8sExec<T extends GenericClass, K>(
   filters: Filters,
   methodPayload: MethodPayload<K>,
   applyCfg: ApplyCfg = { force: false },
+  retryCount = 0,
 ) {
   const reconstruct = async (method: FetchMethods): K8sConfigPromise => {
     const configMethod = method === FetchMethods.LOG ? FetchMethods.GET : method;
@@ -330,6 +334,17 @@ export async function k8sExec<T extends GenericClass, K>(
 
   if (resp.ok) {
     return resp.data;
+  }
+
+  // Handle 429 Too Many Requests with retry-after header
+  if (resp.status === 429 && retryCount < 3) {
+    const retryAfterHeader = resp.headers.get("retry-after");
+
+    if (retryAfterHeader) {
+      const backoffTime = parseInt(retryAfterHeader) * 1000;
+      await sleep(backoffTime);
+      return k8sExec(model, filters, methodPayload, applyCfg, retryCount + 1);
+    }
   }
 
   if (resp.status === 404 && methodPayload.method === FetchMethods.PATCH_STATUS) {
