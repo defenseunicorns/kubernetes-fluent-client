@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { V1APIGroup } from "@kubernetes/client-node";
 import { Operation } from "fast-json-patch";
