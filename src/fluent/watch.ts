@@ -262,10 +262,9 @@ export class Watcher<T extends GenericClass> {
             `list failed: ${response.status} ${response.statusText} ${JSON.stringify([...response.headers])}`,
           ),
         );
-
+        const retryAfterHeader = response.headers.get("retry-after");
         // Retry with exponential backoff if under retry limit to prevent infinite recursion if the server is returning errors
-        if (retryCount < maxRetries) {
-          const retryAfterHeader = response.headers.get("retry-after");
+        if (retryCount < maxRetries && retryAfterHeader) {
           const backoffTime = retryAfterHeader
             ? parseInt(retryAfterHeader) * 1000
             : Math.min(startSleep * Math.pow(2, retryCount), 30000);
@@ -489,11 +488,9 @@ export class Watcher<T extends GenericClass> {
 
         if (!response.ok && response.status === 429) {
           // Retry with exponential backoff if under retry limit to prevent infinite recursion if the server is returning errors
-          if (retryCount < maxRetries) {
-            const retryAfterHeader = response.headers.get("retry-after");
-            const backoffTime = retryAfterHeader
-              ? parseInt(retryAfterHeader) * 1000
-              : Math.min(startSleep * Math.pow(2, retryCount), 30000);
+          const retryAfterHeader = response.headers.get("retry-after");
+          if (retryCount < maxRetries && retryAfterHeader) {
+            const backoffTime = parseInt(retryAfterHeader) * 1000;
             // consider calling close this.close();
             await sleep(backoffTime);
             try {
