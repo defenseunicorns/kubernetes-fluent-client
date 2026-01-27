@@ -285,7 +285,6 @@ export async function k8sExec<T extends GenericClass, K>(
   filters: Filters,
   methodPayload: MethodPayload<K>,
   applyCfg: ApplyCfg = { force: false },
-  retryCount = 0,
 ) {
   const reconstruct = async (method: FetchMethods): K8sConfigPromise => {
     const configMethod = method === FetchMethods.LOG ? FetchMethods.GET : method;
@@ -336,16 +335,16 @@ export async function k8sExec<T extends GenericClass, K>(
     return resp.data;
   }
 
-  // Handle 429 Too Many Requests with retry-after header
-  if (resp.status === 429 && retryCount < 3) {
-    const retryAfterHeader = resp.headers.get("retry-after");
+  // // Handle 429 Too Many Requests with retry-after header
+  // if (resp.status === 429 && retryCount < 3) {
+  //   const retryAfterHeader = resp.headers.get("retry-after");
 
-    if (retryAfterHeader) {
-      const backoffTime = parseInt(retryAfterHeader) * 1000;
-      await sleep(backoffTime);
-      return k8sExec(model, filters, methodPayload, applyCfg, retryCount + 1);
-    }
-  }
+  //   if (retryAfterHeader) {
+  //     const backoffTime = parseInt(retryAfterHeader) * 1000;
+  //     await sleep(backoffTime);
+  //     return k8sExec(model, filters, methodPayload, applyCfg, retryCount + 1);
+  //   }
+  // }
 
   if (resp.status === 404 && methodPayload.method === FetchMethods.PATCH_STATUS) {
     resp.statusText =
