@@ -276,7 +276,6 @@ export type SubResourceConfig = {
  * @param filters - (optional) filter overrides, can also be chained
  * @param methodPayload - method and payload for the request
  * @param applyCfg - (optional) configuration for the apply method
- * @param retryCount - (optional) current retry attempt count
  *
  * @returns the parsed JSON response
  */
