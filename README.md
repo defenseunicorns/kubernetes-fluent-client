@@ -129,6 +129,84 @@ By default, the generated TypeScript interfaces will be post-processed to make t
 kubernetes-fluent-client crd crd.yaml types --noPost
 ```
 
+### Clusterless CRD Export
+
+The Kubernetes Fluent Client supports clusterless CRD export, allowing you to export TypeScript-defined CRDs directly to Kubernetes YAML manifests without requiring a live cluster. This is particularly useful for static manifest generation.
+
+#### Exporting CRDs from TypeScript
+
+To export TypeScript-defined CRDs to YAML manifests:
+
+```bash
+kubernetes-fluent-client crd /path/to/crd.ts /path/to/output --export
+```
+
+This command will:
+
+1. Load TypeScript CRD definitions from the specified file
+2. Validate the CRD structure
+3. Serialize each CRD to YAML format
+4. Save the YAML manifests to the output directory
+
+#### Export-Only Mode
+
+To export CRDs without generating TypeScript types:
+
+```bash
+kubernetes-fluent-client crd /path/to/crd.ts /path/to/output --export --exportOnly
+```
+
+#### Export and Generate
+
+To export CRDs and then generate TypeScript types from the exported YAML:
+
+```bash
+kubernetes-fluent-client crd /path/to/crd.ts /path/to/output --export
+```
+
+This workflow enables:
+
+- CI/CD integration without cluster dependencies
+- Static manifest generation for GitOps workflows
+- Type-safe CRD development and deployment
+
+#### TypeScript CRD Definition Example
+
+```typescript
+import { V1CustomResourceDefinition } from "@kubernetes/client-node";
+
+export const myCRD: V1CustomResourceDefinition = {
+  apiVersion: "apiextensions.k8s.io/v1",
+  kind: "CustomResourceDefinition",
+  metadata: { name: "mycrds.example.com" },
+  spec: {
+    group: "example.com",
+    names: { kind: "MyCR", plural: "mycrs" },
+    scope: "Namespaced",
+    versions: [
+      {
+        name: "v1",
+        served: true,
+        storage: true,
+        schema: {
+          openAPIV3Schema: {
+            type: "object",
+            properties: {
+              spec: {
+                type: "object",
+                properties: {
+                  replicas: { type: "integer" },
+                },
+              },
+            },
+          },
+        },
+      },
+    ],
+  },
+};
+```
+
 ### Community 🦄
 
 To chat with other users and see some examples of the fluent client in active use, go to [Kubernetes Slack](https://communityinviter.com/apps/kubernetes/community) and join `#pepr` channel.

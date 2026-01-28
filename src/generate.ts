@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
 
-import { loadAllYaml } from "@kubernetes/client-node";
+import { loadAllYaml, dumpYaml } from "@kubernetes/client-node";
 import * as fs from "fs";
 import * as path from "path";
+import { pathToFileURL } from "url";
 import {
   FetchingJSONSchemaStore,
   InputData,
@@ -16,6 +17,8 @@ import { fetch } from "./fetch.js";
 import { K8s } from "./fluent/index.js";
 import { CustomResourceDefinition } from "./upstream.js";
 import { LogFn } from "./types.js";
+
+import type { V1CustomResourceDefinition } from "@kubernetes/client-node";
 
 /**
  * Recursively fixes _enum properties to enum for quicktype compatibility.
@@ -47,7 +50,11 @@ export function fixEnumProperties(obj: unknown): unknown {
 
   return result;
 }
+
 export type QuicktypeLang = Parameters<typeof quicktype>[0]["lang"];
+
+type ExportableCustomResourceDefinition = CustomResourceDefinition | V1CustomResourceDefinition;
+
 export interface GenerateOptions {
   source: string; // URL, file path, or K8s CRD name
   directory?: string; // Output directory path
@@ -57,6 +64,8 @@ export interface GenerateOptions {
   npmPackage?: string; // Override NPM package
   logFn: LogFn; // Log function callback
   noPost?: boolean; // Enable/disable post-processing
+  export?: boolean; // Export CRD to YAML
+  exportOnly?: boolean; // Export only, no type generation
 }
 
 /**
@@ -243,6 +252,176 @@ export function tryParseUrl(source: string): URL | null {
 }
 
 /**
+ * Validates CRD structure using Kubernetes types.
+ *
+ * @param crd - The CustomResourceDefinition to validate
+ * @returns True if valid, throws error if invalid
+ */
+export function validateCRDStructure(crd: ExportableCustomResourceDefinition): boolean {
+  if (!crd.apiVersion || crd.apiVersion !== "apiextensions.k8s.io/v1") {
+    throw new Error(
+      `Invalid CRD: apiVersion must be "apiextensions.k8s.io/v1", got "${crd.apiVersion}"`,
+    );
+  }
+
+  if (crd.kind !== "CustomResourceDefinition") {
+    throw new Error(`Invalid CRD: kind must be "CustomResourceDefinition", got "${crd.kind}"`);
+  }
+
+  if (!crd.metadata?.name) {
+    throw new Error("Invalid CRD: metadata.name is required");
+  }
+
+  if (!crd.spec) {
+    throw new Error("Invalid CRD: spec is required");
+  }
+
+  if (!crd.spec.group) {
+    throw new Error("Invalid CRD: spec.group is required");
+  }
+
+  if (!crd.spec.names?.kind || !crd.spec.names?.plural) {
+    throw new Error("Invalid CRD: spec.names.kind and spec.names.plural are required");
+  }
+
+  if (!crd.spec.scope || (crd.spec.scope !== "Namespaced" && crd.spec.scope !== "Cluster")) {
+    throw new Error(
+      `Invalid CRD: spec.scope must be "Namespaced" or "Cluster", got "${crd.spec.scope}"`,
+    );
+  }
+
+  if (!crd.spec.versions || crd.spec.versions.length === 0) {
+    throw new Error("Invalid CRD: spec.versions must contain at least one version");
+  }
+
+  return true;
+}
+
+/**
+ * Serializes CRD to YAML format.
+ *
+ * @param crd - The CustomResourceDefinition to serialize
+ * @returns The YAML string representation
+ */
+export function serializeCRDToYAML(crd: ExportableCustomResourceDefinition): string {
+  return dumpYaml(crd);
+}
+
+/**
+ * Loads a TypeScript module from the specified file path.
+ *
+ * @param filePath - The absolute path to the TypeScript file
+ * @param logFn - The logging function
+ * @returns A promise that resolves to the imported module
+ * @throws Error if the file cannot be imported
+ */
+async function loadCRDModule(filePath: string, logFn: LogFn): Promise<unknown> {
+  logFn(`Loading TypeScript CRD definitions from ${filePath}`);
+
+  const isTypeScriptFile = /\.(ts|mts|cts|tsx)$/i.test(filePath);
+  if (isTypeScriptFile) {
+    await import("tsx/esm");
+  }
+
+  try {
+    return await import(pathToFileURL(filePath).href);
+  } catch (error) {
+    const base = `Failed to import TypeScript file: ${error instanceof Error ? error.message : String(error)}`;
+    throw new Error(base);
+  }
+}
+
+/**
+ * Extracts valid CRD definitions from a module.
+ *
+ * @param module - The imported module to extract CRDs from
+ * @param logFn - The logging function
+ * @returns An array of valid CustomResourceDefinition objects
+ * @throws Error if no valid CRDs are found
+ */
+function extractCRDsFromModule(
+  module: unknown,
+  logFn: LogFn,
+): ExportableCustomResourceDefinition[] {
+  const crds: ExportableCustomResourceDefinition[] = [];
+
+  for (const [key, value] of Object.entries(module as Record<string, unknown>)) {
+    // Skip private properties
+    if (key.startsWith("_")) continue;
+
+    // Check if the value looks like a CRD
+    if (value && typeof value === "object" && "apiVersion" in value && "kind" in value) {
+      const crd = value as ExportableCustomResourceDefinition;
+      try {
+        validateCRDStructure(crd);
+        crds.push(crd);
+      } catch (error) {
+        logFn(`Skipping ${key}: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+  }
+
+  if (crds.length === 0) {
+    throw new Error("No valid CRD definitions found in the TypeScript file");
+  }
+
+  return crds;
+}
+
+/**
+ * Writes a CRD to a YAML file.
+ *
+ * @param crd - The CustomResourceDefinition to write
+ * @param outputDir - The output directory path
+ * @returns The path to the written file
+ */
+function writeCRDToFile(crd: ExportableCustomResourceDefinition, outputDir: string): string {
+  const yaml = serializeCRDToYAML(crd);
+  const fileName = `${crd.metadata!.name}.yaml`;
+  const outputPath = path.join(outputDir, fileName);
+  fs.writeFileSync(outputPath, yaml);
+  return outputPath;
+}
+
+/**
+ * Exports TypeScript-defined CRDs to YAML manifests.
+ *
+ * @param opts - The options for CRD export
+ * @returns A promise that resolves to an object containing exported file paths and CRD objects
+ */
+export async function exportCRDFromTS(opts: GenerateOptions): Promise<{
+  files: string[];
+  crds: ExportableCustomResourceDefinition[];
+}> {
+  const filePath = resolveFilePath(opts.source);
+  const outputDir = opts.directory || process.cwd();
+  const exportedFiles: string[] = [];
+
+  // Check if file exists
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`TypeScript file not found: ${opts.source}`);
+  }
+
+  // Load the module
+  const module = await loadCRDModule(filePath, opts.logFn);
+
+  // Extract valid CRDs
+  const crds = extractCRDsFromModule(module, opts.logFn);
+
+  // Create output directory
+  fs.mkdirSync(outputDir, { recursive: true });
+
+  // Write each CRD to a file
+  for (const crd of crds) {
+    const outputPath = writeCRDToFile(crd, outputDir);
+    exportedFiles.push(outputPath);
+    opts.logFn(`Exported ${crd.metadata!.name} to ${outputPath}`);
+  }
+
+  return { files: exportedFiles, crds };
+}
+
+/**
  * Main generate function to convert CRDs to TypeScript types.
  *
  * @param opts - The options for generating the TypeScript types.
@@ -256,7 +435,21 @@ export async function generate(opts: GenerateOptions): Promise<
     version: string;
   }[]
 > {
-  const crds = (await readOrFetchCrd(opts)).filter(crd => !!crd);
+  let crds: CustomResourceDefinition[] = [];
+
+  if (opts.export) {
+    const { files, crds: exportedCRDs } = await exportCRDFromTS(opts);
+    if (opts.exportOnly) {
+      opts.logFn(`\n✅ Exported ${files.length} CRD manifest(s)`);
+      return [];
+    }
+    opts.logFn(`\n📝 Generating types from exported CRDs...`);
+    crds = exportedCRDs;
+  } else {
+    // Read or fetch CRDs from source
+    crds = (await readOrFetchCrd(opts)).filter(crd => !!crd);
+  }
+
   const allResults: {
     results: Record<string, string[]>;
     name: string;
@@ -269,7 +462,6 @@ export async function generate(opts: GenerateOptions): Promise<
   for (const crd of crds) {
     if (crd.kind !== "CustomResourceDefinition" || !crd.spec?.versions?.length) {
       opts.logFn(`Skipping ${crd?.metadata?.name}, it does not appear to be a CRD`);
-      // Ignore empty and non-CRD objects
       continue;
     }
 
@@ -277,10 +469,8 @@ export async function generate(opts: GenerateOptions): Promise<
   }
 
   if (opts.directory) {
-    // Notify the user that the files have been generated
     opts.logFn(`\n✅ Generated ${allResults.length} files in the ${opts.directory} directory`);
   } else {
-    // Log a message about the number of generated files even when no directory is provided
     opts.logFn(`\n✅ Generated ${allResults.length} files`);
   }
 

@@ -2,7 +2,15 @@
 // SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
 
 import { beforeEach, describe, expect, vi, test } from "vitest";
-import { convertCRDtoTS, GenerateOptions, readOrFetchCrd, fixEnumProperties } from "./generate.js";
+import {
+  convertCRDtoTS,
+  GenerateOptions,
+  readOrFetchCrd,
+  fixEnumProperties,
+  validateCRDStructure,
+  serializeCRDToYAML,
+  exportCRDFromTS,
+} from "./generate.js";
 import * as fs from "fs";
 import path from "path";
 import { quicktype } from "quicktype-core";
@@ -41,6 +49,14 @@ vi.mock("quicktype-core", async () => {
 vi.mock("@kubernetes/client-node", () => {
   return {
     loadAllYaml: vi.fn(),
+    dumpYaml: vi.fn(obj => {
+      const lines: string[] = [];
+      const yamlObj = obj as Record<string, unknown>;
+      for (const [key, value] of Object.entries(yamlObj)) {
+        lines.push(`${key}: ${JSON.stringify(value)}`);
+      }
+      return lines.join("\n");
+    }),
   };
 });
 vi.mock("./fluent", () => ({
@@ -795,5 +811,210 @@ describe("fixEnumProperties", () => {
     };
 
     expect(fixEnumProperties(input)).toEqual(expected);
+  });
+});
+
+describe("validateCRDStructure", () => {
+  test("should validate a correct CRD", () => {
+    const validCrd = {
+      apiVersion: "apiextensions.k8s.io/v1",
+      kind: "CustomResourceDefinition",
+      metadata: { name: "test.example.com" },
+      spec: {
+        group: "example.com",
+        names: { kind: "Test", plural: "tests" },
+        scope: "Namespaced",
+        versions: [{ name: "v1" }],
+      },
+    };
+
+    expect(validateCRDStructure(validCrd as CustomResourceDefinition)).toBe(true);
+  });
+
+  test("should throw error for invalid apiVersion", () => {
+    const invalidCrd = {
+      apiVersion: "v1",
+      kind: "CustomResourceDefinition",
+      metadata: { name: "test.example.com" },
+      spec: {
+        group: "example.com",
+        names: { kind: "Test", plural: "tests" },
+        scope: "Namespaced",
+        versions: [{ name: "v1" }],
+      },
+    };
+
+    expect(() => validateCRDStructure(invalidCrd as CustomResourceDefinition)).toThrow(
+      'Invalid CRD: apiVersion must be "apiextensions.k8s.io/v1"',
+    );
+  });
+
+  test("should throw error for invalid kind", () => {
+    const invalidCrd = {
+      apiVersion: "apiextensions.k8s.io/v1",
+      kind: "SomethingElse",
+      metadata: { name: "test.example.com" },
+      spec: {
+        group: "example.com",
+        names: { kind: "Test", plural: "tests" },
+        scope: "Namespaced",
+        versions: [{ name: "v1" }],
+      },
+    };
+
+    expect(() => validateCRDStructure(invalidCrd as CustomResourceDefinition)).toThrow(
+      'Invalid CRD: kind must be "CustomResourceDefinition"',
+    );
+  });
+
+  test("should throw error for missing metadata.name", () => {
+    const invalidCrd = {
+      apiVersion: "apiextensions.k8s.io/v1",
+      kind: "CustomResourceDefinition",
+      metadata: {},
+      spec: {
+        group: "example.com",
+        names: { kind: "Test", plural: "tests" },
+        scope: "Namespaced",
+        versions: [{ name: "v1" }],
+      },
+    };
+
+    expect(() => validateCRDStructure(invalidCrd as CustomResourceDefinition)).toThrow(
+      "Invalid CRD: metadata.name is required",
+    );
+  });
+
+  test("should throw error for missing spec", () => {
+    const invalidCrd = {
+      apiVersion: "apiextensions.k8s.io/v1",
+      kind: "CustomResourceDefinition",
+      metadata: { name: "test.example.com" },
+    };
+
+    expect(() => validateCRDStructure(invalidCrd as CustomResourceDefinition)).toThrow(
+      "Invalid CRD: spec is required",
+    );
+  });
+
+  test("should throw error for missing spec.group", () => {
+    const invalidCrd = {
+      apiVersion: "apiextensions.k8s.io/v1",
+      kind: "CustomResourceDefinition",
+      metadata: { name: "test.example.com" },
+      spec: {
+        names: { kind: "Test", plural: "tests" },
+        scope: "Namespaced",
+        versions: [{ name: "v1" }],
+      },
+    };
+
+    expect(() => validateCRDStructure(invalidCrd as CustomResourceDefinition)).toThrow(
+      "Invalid CRD: spec.group is required",
+    );
+  });
+
+  test("should throw error for missing spec.names", () => {
+    const invalidCrd = {
+      apiVersion: "apiextensions.k8s.io/v1",
+      kind: "CustomResourceDefinition",
+      metadata: { name: "test.example.com" },
+      spec: {
+        group: "example.com",
+        scope: "Namespaced",
+        versions: [{ name: "v1" }],
+      },
+    };
+
+    expect(() => validateCRDStructure(invalidCrd as CustomResourceDefinition)).toThrow(
+      "Invalid CRD: spec.names.kind and spec.names.plural are required",
+    );
+  });
+
+  test("should throw error for invalid scope", () => {
+    const invalidCrd = {
+      apiVersion: "apiextensions.k8s.io/v1",
+      kind: "CustomResourceDefinition",
+      metadata: { name: "test.example.com" },
+      spec: {
+        group: "example.com",
+        names: { kind: "Test", plural: "tests" },
+        scope: "Invalid",
+        versions: [{ name: "v1" }],
+      },
+    };
+
+    expect(() => validateCRDStructure(invalidCrd as CustomResourceDefinition)).toThrow(
+      'Invalid CRD: spec.scope must be "Namespaced" or "Cluster"',
+    );
+  });
+
+  test("should throw error for empty versions", () => {
+    const invalidCrd = {
+      apiVersion: "apiextensions.k8s.io/v1",
+      kind: "CustomResourceDefinition",
+      metadata: { name: "test.example.com" },
+      spec: {
+        group: "example.com",
+        names: { kind: "Test", plural: "tests" },
+        scope: "Namespaced",
+        versions: [],
+      },
+    };
+
+    expect(() => validateCRDStructure(invalidCrd as CustomResourceDefinition)).toThrow(
+      "Invalid CRD: spec.versions must contain at least one version",
+    );
+  });
+});
+
+describe("serializeCRDToYAML", () => {
+  test("should serialize CRD to YAML format", () => {
+    const crd = {
+      apiVersion: "apiextensions.k8s.io/v1",
+      kind: "CustomResourceDefinition",
+      metadata: { name: "test.example.com" },
+      spec: {
+        group: "example.com",
+        names: { kind: "Test", plural: "tests" },
+        scope: "Namespaced",
+        versions: [{ name: "v1" }],
+      },
+    };
+
+    const yaml = serializeCRDToYAML(crd as CustomResourceDefinition);
+
+    expect(yaml).toContain("apiVersion");
+    expect(yaml).toContain("apiextensions.k8s.io/v1");
+    expect(yaml).toContain("kind");
+    expect(yaml).toContain("CustomResourceDefinition");
+    expect(yaml).toContain("metadata");
+    expect(yaml).toContain("test.example.com");
+  });
+});
+
+describe("exportCRDFromTS", () => {
+  let mockOpts: GenerateOptions;
+  let logFn: LogFn;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    logFn = vi.fn() as LogFn;
+    mockOpts = {
+      source: "/path/to/crd.ts",
+      directory: "/output",
+      language: "ts",
+      logFn,
+      plain: false,
+      npmPackage: "kubernetes-fluent-client",
+    };
+  });
+
+  test("should throw error if TypeScript file not found", async () => {
+    vi.mocked(fs.existsSync).mockReturnValue(false);
+
+    await expect(exportCRDFromTS(mockOpts)).rejects.toThrow(
+      "TypeScript file not found: /path/to/crd.ts",
+    );
   });
 });

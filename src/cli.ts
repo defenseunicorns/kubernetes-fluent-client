@@ -51,6 +51,15 @@ void yargs(hideBin(process.argv))
           default: false,
           description: "disable post-processing after generating the types",
         })
+        .option("export", {
+          alias: "e",
+          type: "boolean",
+          description: "export TypeScript CRD definitions to YAML manifests",
+        })
+        .option("exportOnly", {
+          type: "boolean",
+          description: "export only without generating types",
+        })
         .demandOption(["source", "directory"]);
     },
     async argv => {
@@ -60,6 +69,8 @@ void yargs(hideBin(process.argv))
 
       // Pass the `post` flag to opts
       opts.noPost = argv.noPost as boolean;
+      opts.export = argv.export as boolean;
+      opts.exportOnly = argv.exportOnly as boolean;
 
       // Use NodeFileSystem as the file system for post-processing
 
@@ -71,8 +82,8 @@ void yargs(hideBin(process.argv))
         // Capture the results returned by generate
         const allResults = await generate(opts);
 
-        // If noPost is false, run post-processing
-        if (!opts.noPost) {
+        // If noPost is false and not export-only mode, run post-processing
+        if (!opts.noPost && !opts.exportOnly) {
           await postProcessing(allResults, opts); // Pass the file system to postProcessing
         }
       } catch (e) {
