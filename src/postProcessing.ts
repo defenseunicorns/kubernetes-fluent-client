@@ -33,7 +33,7 @@ export async function postProcessing(allResults: CRDResult[], opts: GenerateOpti
     return;
   }
 
-  const files = fs.readdirSync(opts.directory);
+  const files = fs.readdirSync(opts.directory).filter(file => file.endsWith(".ts"));
   opts.logFn("\n🔧 Post-processing started...");
 
   const fileResultMap = mapFilesToCRD(allResults);
