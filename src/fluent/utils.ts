@@ -334,16 +334,21 @@ export async function k8sExec<T extends GenericClass, K>(
     return resp.data;
   }
 
-  // // Handle 429 Too Many Requests with retry-after header
+  // Handle 429 Too Many Requests with retry-after header
   // if (resp.status === 429 && retryCount < 3) {
-  //   const retryAfterHeader = resp.headers.get("retry-after");
+  if (resp.status === 429) {
+    const execError = new Error(
+      "K8SEXEC_TOO_MANY_REQUESTS: Received 429 Too Many Requests from the server",
+    );
+    console.trace(execError.stack);
+    // const retryAfterHeader = resp.headers.get("retry-after");
 
-  //   if (retryAfterHeader) {
-  //     const backoffTime = parseInt(retryAfterHeader) * 1000;
-  //     await sleep(backoffTime);
-  //     return k8sExec(model, filters, methodPayload, applyCfg, retryCount + 1);
-  //   }
-  // }
+    // if (retryAfterHeader) {
+    //   const backoffTime = parseInt(retryAfterHeader) * 1000;
+    //   await sleep(backoffTime);
+    //   return k8sExec(model, filters, methodPayload, applyCfg, retryCount + 1);
+    // }
+  }
 
   if (resp.status === 404 && methodPayload.method === FetchMethods.PATCH_STATUS) {
     resp.statusText =
