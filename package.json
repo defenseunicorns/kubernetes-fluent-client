@@ -38,7 +38,7 @@
     "prebuild": "rm -rf dist",
     "build": "tsc",
     "semantic-release": "semantic-release",
-    "test": "vitest src run --coverage",
+    "test": "vitest src run --coverage --no-watch",
     "test:e2e": "vitest run e2e/",
     "test:e2e:prep-crds": "kubectl apply -f test/ && npx tsx src/cli.ts crd ./test/datastore.crd.yaml e2e && npx tsx src/cli.ts crd https://raw.githubusercontent.com/defenseunicorns/kubernetes-fluent-client/refs/heads/main/test/webapp.crd.yaml e2e && npx tsx src/cli.ts crd https://raw.githubusercontent.com/defenseunicorns/kubernetes-fluent-client/refs/heads/main/test/webapp.crd.yaml -l json-schema e2e/schemas/webapp",
     "test:e2e:prep-cluster": "k3d cluster create kfc-dev --k3s-arg '--debug@server:0' --wait && kubectl rollout status deployment -n kube-system",

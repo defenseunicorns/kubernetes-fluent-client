@@ -133,6 +133,8 @@ kubernetes-fluent-client crd crd.yaml types --noPost
 
 The Kubernetes Fluent Client supports clusterless CRD export, allowing you to export TypeScript-defined CRDs directly to Kubernetes YAML manifests without requiring a live cluster. This is particularly useful for static manifest generation.
 
+Note: `--export` works by importing the provided `.ts/.js` module. Importing a module executes its code, so do not run `--export` against untrusted files.
+
 #### Exporting CRDs from TypeScript
 
 To export TypeScript-defined CRDs to YAML manifests:

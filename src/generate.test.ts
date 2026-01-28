@@ -8,6 +8,7 @@ import {
   readOrFetchCrd,
   fixEnumProperties,
   validateCRDStructure,
+  validateCRDForTypeGeneration,
   serializeCRDToYAML,
   exportCRDFromTS,
 } from "./generate.js";
@@ -965,6 +966,38 @@ describe("validateCRDStructure", () => {
     expect(() => validateCRDStructure(invalidCrd as CustomResourceDefinition)).toThrow(
       "Invalid CRD: spec.versions must contain at least one version",
     );
+  });
+});
+
+describe("validateCRDForTypeGeneration", () => {
+  test("should throw error when any version is missing openAPIV3Schema", () => {
+    const invalidForTypeGen = {
+      apiVersion: "apiextensions.k8s.io/v1",
+      kind: "CustomResourceDefinition",
+      metadata: { name: "test.example.com" },
+      spec: {
+        group: "example.com",
+        names: { kind: "Test", plural: "tests" },
+        scope: "Namespaced",
+        versions: [
+          {
+            name: "v1",
+            served: true,
+            storage: true,
+            schema: {
+              openAPIV3Schema: {
+                type: "object",
+              },
+            },
+          },
+          { name: "v2", served: true, storage: false },
+        ],
+      },
+    };
+
+    expect(() =>
+      validateCRDForTypeGeneration(invalidForTypeGen as CustomResourceDefinition),
+    ).toThrow("Invalid CRD for type generation");
   });
 });
 

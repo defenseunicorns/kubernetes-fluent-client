@@ -74,7 +74,12 @@ void yargs(hideBin(process.argv))
 
       // Use NodeFileSystem as the file system for post-processing
 
-      if (!opts.noPost) {
+      if (opts.exportOnly && !opts.export) {
+        console.log("\n❌ --exportOnly requires --export");
+        return;
+      }
+
+      if (!opts.noPost && !opts.exportOnly) {
         console.log("\n✅ Post-processing has been enabled.\n");
       }
 

@@ -104,13 +104,9 @@ describe("postProcessing", () => {
   it("should log start and completion messages", async () => {
     const mockContent = "mock content";
     //eslint-disable-next-line @typescript-eslint/no-explicit-any
-    mockFs.readdirSync.mockReturnValue(["TestKind-v1.ts"] as any);
+    mockFs.readdirSync.mockReturnValue(["testkind-v1.ts", "widgets.example.com.yaml"] as any);
     mockFs.readFileSync.mockReturnValue(Buffer.from(mockContent));
     mockFs.writeFileSync.mockImplementation(() => {});
-
-    vi.spyOn(postProcessingModule, "mapFilesToCRD").mockReturnValue({
-      "TestKind-v1.ts": mockCRDResults[0],
-    });
 
     await postProcessingModule.postProcessing(mockCRDResults, mockOpts);
 
@@ -119,6 +115,11 @@ describe("postProcessing", () => {
 
     // Verify the completion message was logged
     expect(mockOpts.logFn).toHaveBeenCalledWith("🔧 Post-processing completed.\n");
+
+    // Ensure non-TypeScript files in the directory do not cause warnings
+    expect(mockOpts.logFn).not.toHaveBeenCalledWith(
+      expect.stringContaining("No matching CRD result found for file"),
+    );
   });
 
   it("should handle readdirSync error gracefully", async () => {

@@ -252,7 +252,16 @@ export function tryParseUrl(source: string): URL | null {
 }
 
 /**
- * Validates CRD structure using Kubernetes types.
+ *
+ * @param crd
+ */
+function allVersionsHaveTypeGenSchema(crd: ExportableCustomResourceDefinition): boolean {
+  if (!crd.spec?.versions?.length) return false;
+  return crd.spec.versions.every(v => !!v?.schema?.openAPIV3Schema);
+}
+
+/**
+ * Validates CRD structure required for exporting.
  *
  * @param crd - The CustomResourceDefinition to validate
  * @returns True if valid, throws error if invalid
@@ -298,6 +307,63 @@ export function validateCRDStructure(crd: ExportableCustomResourceDefinition): b
 }
 
 /**
+ *
+ * @param crd
+ */
+export function validateCRDForTypeGeneration(crd: ExportableCustomResourceDefinition): boolean {
+  validateCRDStructure(crd);
+
+  if (!allVersionsHaveTypeGenSchema(crd)) {
+    throw new Error(
+      "Invalid CRD for type generation: every spec.versions[].schema.openAPIV3Schema is required",
+    );
+  }
+
+  return true;
+}
+
+/**
+ *
+ * @param crd
+ */
+function normalizeExportedCRDForTypeGeneration(
+  crd: ExportableCustomResourceDefinition,
+): CustomResourceDefinition {
+  const versions = (crd.spec.versions || []).map(v => {
+    return {
+      name: v.name,
+      served: v.served,
+      storage: v.storage,
+      schema: v.schema
+        ? {
+            openAPIV3Schema: v.schema.openAPIV3Schema,
+          }
+        : undefined,
+    };
+  });
+
+  return {
+    apiVersion: crd.apiVersion,
+    kind: crd.kind,
+    metadata: {
+      ...crd.metadata,
+      name: crd.metadata?.name,
+    },
+    spec: {
+      ...crd.spec,
+      group: crd.spec.group,
+      names: {
+        ...crd.spec.names,
+        kind: crd.spec.names.kind,
+        plural: crd.spec.names.plural,
+      },
+      scope: crd.spec.scope,
+      versions,
+    },
+  } as CustomResourceDefinition;
+}
+
+/**
  * Serializes CRD to YAML format.
  *
  * @param crd - The CustomResourceDefinition to serialize
@@ -327,7 +393,7 @@ async function loadCRDModule(filePath: string, logFn: LogFn): Promise<unknown> {
     return await import(pathToFileURL(filePath).href);
   } catch (error) {
     const base = `Failed to import TypeScript file: ${error instanceof Error ? error.message : String(error)}`;
-    throw new Error(base);
+    throw new Error(base, { cause: error instanceof Error ? error : undefined });
   }
 }
 
@@ -352,6 +418,9 @@ function extractCRDsFromModule(
     // Check if the value looks like a CRD
     if (value && typeof value === "object" && "apiVersion" in value && "kind" in value) {
       const crd = value as ExportableCustomResourceDefinition;
+      if (crd.kind !== "CustomResourceDefinition") {
+        continue;
+      }
       try {
         validateCRDStructure(crd);
         crds.push(crd);
@@ -444,7 +513,25 @@ export async function generate(opts: GenerateOptions): Promise<
       return [];
     }
     opts.logFn(`\n📝 Generating types from exported CRDs...`);
-    crds = exportedCRDs;
+    const invalidForGen: string[] = [];
+    const validForGen: CustomResourceDefinition[] = [];
+
+    for (const exported of exportedCRDs) {
+      try {
+        validateCRDForTypeGeneration(exported);
+        validForGen.push(normalizeExportedCRDForTypeGeneration(exported));
+      } catch {
+        invalidForGen.push(exported?.metadata?.name || "<unknown>");
+      }
+    }
+
+    if (invalidForGen.length > 0) {
+      throw new Error(
+        `Exported CRD(s) missing required schema for type generation: ${invalidForGen.join(", ")}`,
+      );
+    }
+
+    crds = validForGen;
   } else {
     // Read or fetch CRDs from source
     crds = (await readOrFetchCrd(opts)).filter(crd => !!crd);
