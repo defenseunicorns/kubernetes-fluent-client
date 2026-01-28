@@ -10,6 +10,7 @@ export type FetchResponse<T> = {
   status: number;
   statusText: string;
   headers: Headers;
+  e?: unknown;
 };
 
 /**
@@ -59,6 +60,7 @@ export async function fetch<T>(
       status,
       statusText,
       headers: new Headers(),
+      e,
     };
   }
 }
