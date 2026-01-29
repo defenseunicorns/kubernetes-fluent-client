@@ -182,6 +182,63 @@ describe("Export Integration Tests", () => {
     expect(logFn).toHaveBeenCalledWith(expect.stringContaining("Exported 1 CRD"));
   });
 
+  test("should export and generate types from a TypeScript CRD module", async () => {
+    const crdFile = path.join(testDir, "export-and-generate.ts");
+    const testCRD = `export const testCRD = {
+  apiVersion: "apiextensions.k8s.io/v1",
+  kind: "CustomResourceDefinition",
+  metadata: { name: "exportgen.example.com" },
+  spec: {
+    group: "example.com",
+    names: { kind: "ExportGen", plural: "exportgens" },
+    scope: "Namespaced",
+    versions: [
+      {
+        name: "v1",
+        served: true,
+        storage: true,
+        schema: {
+          openAPIV3Schema: {
+            type: "object",
+            properties: {
+              spec: {
+                type: "object",
+                properties: {
+                  replicas: { type: "integer" },
+                },
+              },
+            },
+          },
+        },
+      },
+    ],
+  },
+};
+`;
+    fs.writeFileSync(crdFile, testCRD);
+
+    const logFn = vi.fn();
+    const opts: GenerateOptions = {
+      source: crdFile,
+      directory: testDir,
+      language: "ts",
+      logFn,
+      plain: false,
+      npmPackage: "kubernetes-fluent-client",
+      export: true,
+      exportOnly: false,
+    };
+
+    const results = await generate(opts);
+
+    expect(results).toHaveLength(1);
+    expect(results[0].crd.metadata?.name).toBe("exportgen.example.com");
+    expect(results[0].version).toBe("v1");
+
+    expect(fs.existsSync(path.join(testDir, "exportgen.example.com.yaml"))).toBe(true);
+    expect(fs.existsSync(path.join(testDir, "exportgen-v1.ts"))).toBe(true);
+  });
+
   test("should handle multiple CRDs in single file", async () => {
     const crdFile = path.join(testDir, "multi-crd.mjs");
     const multiCRD = `export const crd1 = {

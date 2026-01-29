@@ -76,6 +76,7 @@ void yargs(hideBin(process.argv))
 
       if (opts.exportOnly && !opts.export) {
         console.log("\n❌ --exportOnly requires --export");
+        process.exitCode = 1;
         return;
       }
 
@@ -92,7 +93,8 @@ void yargs(hideBin(process.argv))
           await postProcessing(allResults, opts); // Pass the file system to postProcessing
         }
       } catch (e) {
-        console.log(`\n❌ ${e.message}`);
+        console.log(`\n❌ ${e instanceof Error ? e.message : String(e)}`);
+        process.exitCode = 1;
       }
     },
   )

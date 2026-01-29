@@ -252,8 +252,12 @@ export function tryParseUrl(source: string): URL | null {
 }
 
 /**
+ * Returns true if (and only if) every version in the CRD includes an OpenAPI v3 schema.
  *
- * @param crd
+ * This is a stricter requirement than “is this a valid CRD”, and is used specifically
+ * for TypeScript type-generation where quicktype needs a schema for each version.
+ *
+ * @param crd The CRD object to validate for schema presence
  */
 function allVersionsHaveTypeGenSchema(crd: ExportableCustomResourceDefinition): boolean {
   if (!crd.spec?.versions?.length) return false;
@@ -307,8 +311,10 @@ export function validateCRDStructure(crd: ExportableCustomResourceDefinition): b
 }
 
 /**
+ * Validates that a CRD is eligible for TypeScript type generation.
  *
- * @param crd
+ * @param crd The CRD to validate
+ * @returns True if valid, throws error if invalid
  */
 export function validateCRDForTypeGeneration(crd: ExportableCustomResourceDefinition): boolean {
   validateCRDStructure(crd);
@@ -323,8 +329,13 @@ export function validateCRDForTypeGeneration(crd: ExportableCustomResourceDefini
 }
 
 /**
+ * Normalizes an exported CRD into the concrete `CustomResourceDefinition` shape used by
+ * the type-generation pipeline.
  *
- * @param crd
+ * This avoids relying on broad casts by explicitly constructing the minimal shape we
+ * need (and ensures we only carry through fields we actually depend on).
+ *
+ * @param crd The exported CRD object (possibly loosely typed) to normalize
  */
 function normalizeExportedCRDForTypeGeneration(
   crd: ExportableCustomResourceDefinition,
@@ -549,6 +560,7 @@ export async function generate(opts: GenerateOptions): Promise<
   for (const crd of crds) {
     if (crd.kind !== "CustomResourceDefinition" || !crd.spec?.versions?.length) {
       opts.logFn(`Skipping ${crd?.metadata?.name}, it does not appear to be a CRD`);
+      // Ignore empty and non-CRD objects
       continue;
     }
 
@@ -556,8 +568,10 @@ export async function generate(opts: GenerateOptions): Promise<
   }
 
   if (opts.directory) {
+    // Notify the user that the files have been generated
     opts.logFn(`\n✅ Generated ${allResults.length} files in the ${opts.directory} directory`);
   } else {
+    // Log a message about the number of generated files even when no directory is provided
     opts.logFn(`\n✅ Generated ${allResults.length} files`);
   }
 
