@@ -252,19 +252,6 @@ export function tryParseUrl(source: string): URL | null {
 }
 
 /**
- * Returns true if (and only if) every version in the CRD includes an OpenAPI v3 schema.
- *
- * This is a stricter requirement than “is this a valid CRD”, and is used specifically
- * for TypeScript type-generation where quicktype needs a schema for each version.
- *
- * @param crd The CRD object to validate for schema presence
- */
-function allVersionsHaveTypeGenSchema(crd: ExportableCustomResourceDefinition): boolean {
-  if (!crd.spec?.versions?.length) return false;
-  return crd.spec.versions.every(v => !!v?.schema?.openAPIV3Schema);
-}
-
-/**
  * Validates CRD structure required for exporting.
  *
  * @param crd - The CustomResourceDefinition to validate
@@ -308,70 +295,6 @@ export function validateCRDStructure(crd: ExportableCustomResourceDefinition): b
   }
 
   return true;
-}
-
-/**
- * Validates that a CRD is eligible for TypeScript type generation.
- *
- * @param crd The CRD to validate
- * @returns True if valid, throws error if invalid
- */
-export function validateCRDForTypeGeneration(crd: ExportableCustomResourceDefinition): boolean {
-  validateCRDStructure(crd);
-
-  if (!allVersionsHaveTypeGenSchema(crd)) {
-    throw new Error(
-      "Invalid CRD for type generation: every spec.versions[].schema.openAPIV3Schema is required",
-    );
-  }
-
-  return true;
-}
-
-/**
- * Normalizes an exported CRD into the concrete `CustomResourceDefinition` shape used by
- * the type-generation pipeline.
- *
- * This avoids relying on broad casts by explicitly constructing the minimal shape we
- * need (and ensures we only carry through fields we actually depend on).
- *
- * @param crd The exported CRD object (possibly loosely typed) to normalize
- */
-function normalizeExportedCRDForTypeGeneration(
-  crd: ExportableCustomResourceDefinition,
-): CustomResourceDefinition {
-  const versions = (crd.spec.versions || []).map(v => {
-    return {
-      name: v.name,
-      served: v.served,
-      storage: v.storage,
-      schema: v.schema
-        ? {
-            openAPIV3Schema: v.schema.openAPIV3Schema,
-          }
-        : undefined,
-    };
-  });
-
-  return {
-    apiVersion: crd.apiVersion,
-    kind: crd.kind,
-    metadata: {
-      ...crd.metadata,
-      name: crd.metadata?.name,
-    },
-    spec: {
-      ...crd.spec,
-      group: crd.spec.group,
-      names: {
-        ...crd.spec.names,
-        kind: crd.spec.names.kind,
-        plural: crd.spec.names.plural,
-      },
-      scope: crd.spec.scope,
-      versions,
-    },
-  } as CustomResourceDefinition;
 }
 
 /**
@@ -524,25 +447,9 @@ export async function generate(opts: GenerateOptions): Promise<
       return [];
     }
     opts.logFn(`\n📝 Generating types from exported CRDs...`);
-    const invalidForGen: string[] = [];
-    const validForGen: CustomResourceDefinition[] = [];
-
-    for (const exported of exportedCRDs) {
-      try {
-        validateCRDForTypeGeneration(exported);
-        validForGen.push(normalizeExportedCRDForTypeGeneration(exported));
-      } catch {
-        invalidForGen.push(exported?.metadata?.name || "<unknown>");
-      }
-    }
-
-    if (invalidForGen.length > 0) {
-      throw new Error(
-        `Exported CRD(s) missing required schema for type generation: ${invalidForGen.join(", ")}`,
-      );
-    }
-
-    crds = validForGen;
+    // Legacy behavior: type generation runs per-version and only requires a schema
+    // for the versions being generated. Versions without schema are skipped.
+    crds = exportedCRDs as unknown as CustomResourceDefinition[];
   } else {
     // Read or fetch CRDs from source
     crds = (await readOrFetchCrd(opts)).filter(crd => !!crd);

@@ -89,12 +89,11 @@ describe("Clusterless CRD export (no cluster)", () => {
     expect(stdout).toContain("✅ Generated 1 files");
   });
 
-  // Safety/behavior test: exporting should still succeed even if the CRD is not eligible for type generation.
-  // In that scenario we expect YAML to be written, but the CLI should fail overall and produce no TS output.
-  it("exports YAML but fails type generation when exported CRD is missing required schema", async () => {
-    await expect(
-      runCliCommand(["crd", invalidSchemaFixtureCrd, outputDir, "--export"]),
-    ).rejects.toBeDefined();
+  // Legacy-like behavior: generation runs per-version and only requires a schema for the versions
+  // being generated. If no versions have schema, the CLI should still succeed (export works), but
+  // no TS output should be produced.
+  it("exports YAML and skips type generation when exported CRD is missing required schema", async () => {
+    await runCliCommand(["crd", invalidSchemaFixtureCrd, outputDir, "--export"]);
 
     const yamlPath = path.join(outputDir, "invalidschema.example.com.yaml");
     expect(fs.existsSync(yamlPath)).toBe(true);
