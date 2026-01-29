@@ -22,6 +22,7 @@ describe("Export Integration Tests", () => {
     }
   });
 
+  // Exports a CRD defined in an ES module to a single YAML file
   test("should export CRD from TypeScript file to YAML", async () => {
     const crdFile = path.join(testDir, "test-crd.mjs");
     const testCRD = `export const testCRD = {
@@ -88,6 +89,7 @@ describe("Export Integration Tests", () => {
     expect(content).toContain("name: testcrds.example.com");
   });
 
+  // Exports a CRD from a .ts module using the tsx loader path
   test("should export CRD from a .ts module (tsx loader path)", async () => {
     const crdFile = path.join(testDir, "test-crd.ts");
     const testCRD = `export const testCRD = {
@@ -147,6 +149,7 @@ describe("Export Integration Tests", () => {
     expect(content).toContain("name: tscrd.example.com");
   });
 
+  // In export-only mode, generate() should only export manifests and return no type results
   test("should handle export-only mode correctly", async () => {
     const crdFile = path.join(testDir, "export-only-test.mjs");
     const testCRD = `export const testCRD = {
@@ -182,6 +185,7 @@ describe("Export Integration Tests", () => {
     expect(logFn).toHaveBeenCalledWith(expect.stringContaining("Exported 1 CRD"));
   });
 
+  // End-to-end: export CRD YAML and generate TypeScript types from the same module
   test("should export and generate types from a TypeScript CRD module", async () => {
     const crdFile = path.join(testDir, "export-and-generate.ts");
     const testCRD = `export const testCRD = {
@@ -239,6 +243,7 @@ describe("Export Integration Tests", () => {
     expect(fs.existsSync(path.join(testDir, "exportgen-v1.ts"))).toBe(true);
   });
 
+  // Handles multiple CRD exports from a single module
   test("should handle multiple CRDs in single file", async () => {
     const crdFile = path.join(testDir, "multi-crd.mjs");
     const multiCRD = `export const crd1 = {
@@ -291,6 +296,7 @@ export const crd2 = {
     expect(fs.existsSync(result.files[1])).toBe(true);
   });
 
+  // Skips structurally invalid CRDs while still exporting valid ones
   test("should skip invalid CRDs and continue with valid ones", async () => {
     const crdFile = path.join(testDir, "mixed-crd.mjs");
     const mixedCRD = `export const validCRD = {
@@ -343,6 +349,7 @@ export const invalidCRD = {
     expect(logFn).toHaveBeenCalledWith(expect.stringContaining("Skipping invalidCRD"));
   });
 
+  // Ignores non-CRD exports and only processes CRD objects
   test("should ignore non-CRD exports", async () => {
     const filePath = path.join(testDir, "mixed-exports.mjs");
     const content = `export const deployment = {

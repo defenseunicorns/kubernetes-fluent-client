@@ -8,7 +8,6 @@ import {
   readOrFetchCrd,
   fixEnumProperties,
   validateCRDStructure,
-  serializeCRDToYAML,
   exportCRDFromTS,
 } from "./generate.js";
 import * as fs from "fs";
@@ -815,6 +814,7 @@ describe("fixEnumProperties", () => {
 });
 
 describe("validateCRDStructure", () => {
+  // Accepts a well-formed v1 CRD
   test("should validate a correct CRD", () => {
     const validCrd = {
       apiVersion: "apiextensions.k8s.io/v1",
@@ -831,6 +831,7 @@ describe("validateCRDStructure", () => {
     expect(validateCRDStructure(validCrd as CustomResourceDefinition)).toBe(true);
   });
 
+  // Rejects CRDs with an unexpected apiVersion
   test("should throw error for invalid apiVersion", () => {
     const invalidCrd = {
       apiVersion: "v1",
@@ -849,6 +850,7 @@ describe("validateCRDStructure", () => {
     );
   });
 
+  // Rejects objects that are not CustomResourceDefinitions
   test("should throw error for invalid kind", () => {
     const invalidCrd = {
       apiVersion: "apiextensions.k8s.io/v1",
@@ -867,6 +869,7 @@ describe("validateCRDStructure", () => {
     );
   });
 
+  // Requires metadata.name to be set
   test("should throw error for missing metadata.name", () => {
     const invalidCrd = {
       apiVersion: "apiextensions.k8s.io/v1",
@@ -885,6 +888,7 @@ describe("validateCRDStructure", () => {
     );
   });
 
+  // Requires a spec section
   test("should throw error for missing spec", () => {
     const invalidCrd = {
       apiVersion: "apiextensions.k8s.io/v1",
@@ -897,6 +901,7 @@ describe("validateCRDStructure", () => {
     );
   });
 
+  // Requires spec.group to be present
   test("should throw error for missing spec.group", () => {
     const invalidCrd = {
       apiVersion: "apiextensions.k8s.io/v1",
@@ -914,6 +919,7 @@ describe("validateCRDStructure", () => {
     );
   });
 
+  // Requires spec.names.kind and spec.names.plural
   test("should throw error for missing spec.names", () => {
     const invalidCrd = {
       apiVersion: "apiextensions.k8s.io/v1",
@@ -931,6 +937,7 @@ describe("validateCRDStructure", () => {
     );
   });
 
+  // Restricts spec.scope to Namespaced or Cluster
   test("should throw error for invalid scope", () => {
     const invalidCrd = {
       apiVersion: "apiextensions.k8s.io/v1",
@@ -949,6 +956,7 @@ describe("validateCRDStructure", () => {
     );
   });
 
+  // Requires at least one version entry
   test("should throw error for empty versions", () => {
     const invalidCrd = {
       apiVersion: "apiextensions.k8s.io/v1",
@@ -965,31 +973,6 @@ describe("validateCRDStructure", () => {
     expect(() => validateCRDStructure(invalidCrd as CustomResourceDefinition)).toThrow(
       "Invalid CRD: spec.versions must contain at least one version",
     );
-  });
-});
-
-describe("serializeCRDToYAML", () => {
-  test("should serialize CRD to YAML format", () => {
-    const crd = {
-      apiVersion: "apiextensions.k8s.io/v1",
-      kind: "CustomResourceDefinition",
-      metadata: { name: "test.example.com" },
-      spec: {
-        group: "example.com",
-        names: { kind: "Test", plural: "tests" },
-        scope: "Namespaced",
-        versions: [{ name: "v1" }],
-      },
-    };
-
-    const yaml = serializeCRDToYAML(crd as CustomResourceDefinition);
-
-    expect(yaml).toContain("apiVersion");
-    expect(yaml).toContain("apiextensions.k8s.io/v1");
-    expect(yaml).toContain("kind");
-    expect(yaml).toContain("CustomResourceDefinition");
-    expect(yaml).toContain("metadata");
-    expect(yaml).toContain("test.example.com");
   });
 });
 

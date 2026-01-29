@@ -41,8 +41,7 @@ describe("Clusterless CRD export (no cluster)", () => {
     }
   });
 
-  // Primary “clusterless export” use-case: produce Kubernetes YAML without generating types.
-  // This must not require a Kubernetes cluster.
+  // Produces Kubernetes YAML from a TypeScript CRD without generating types
   it("exports YAML only with --export --exportOnly", async () => {
     const { stdout } = await runCliCommand([
       "crd",
@@ -57,11 +56,10 @@ describe("Clusterless CRD export (no cluster)", () => {
 
     expect(readText(yamlPath)).toBe(readText(expectedYaml));
 
-    expect(stdout).toContain("✅ Exported 1 CRD manifest(s)");
+    expect(stdout).toContain("Exported 1 CRD manifest(s)");
   });
 
-  // UX/contract test: --exportOnly is not meaningful unless --export is also set.
-  // This should fail with a non-zero exit code and should not create any output files.
+  // Enforces that --exportOnly must be paired with --export and produces no files on error
   it("fails fast when --exportOnly is provided without --export", async () => {
     await expect(
       runCliCommand(["crd", fixtureCrd, outputDir, "--exportOnly"]),
@@ -71,8 +69,7 @@ describe("Clusterless CRD export (no cluster)", () => {
     expect(files).toEqual([]);
   });
 
-  // Main “export + generate” workflow: export CRD YAML first, then generate types from the exported YAML.
-  // This enables clusterless CI usage while preserving the same type-generation behavior.
+  // Exports CRD YAML and then generates matching TypeScript types
   it("exports YAML and generates TS with --export", async () => {
     const { stdout } = await runCliCommand(["crd", fixtureCrd, outputDir, "--export"]);
 
@@ -85,13 +82,11 @@ describe("Clusterless CRD export (no cluster)", () => {
     expect(readText(yamlPath)).toBe(readText(expectedYaml));
     expect(readText(tsPath)).toBe(readText(expectedTs));
 
-    expect(stdout).toContain("📝 Generating types from exported CRDs");
-    expect(stdout).toContain("✅ Generated 1 files");
+    expect(stdout).toContain("Generating types from exported CRDs");
+    expect(stdout).toContain("Generated 1 files");
   });
 
-  // Legacy-like behavior: generation runs per-version and only requires a schema for the versions
-  // being generated. If no versions have schema, the CLI should still succeed (export works), but
-  // no TS output should be produced.
+  // Exports YAML for a CRD with no schema and confirms no TypeScript types are generated
   it("exports YAML and skips type generation when exported CRD is missing required schema", async () => {
     await runCliCommand(["crd", invalidSchemaFixtureCrd, outputDir, "--export"]);
 

@@ -298,16 +298,6 @@ export function validateCRDStructure(crd: ExportableCustomResourceDefinition): b
 }
 
 /**
- * Serializes CRD to YAML format.
- *
- * @param crd - The CustomResourceDefinition to serialize
- * @returns The YAML string representation
- */
-export function serializeCRDToYAML(crd: ExportableCustomResourceDefinition): string {
-  return dumpYaml(crd);
-}
-
-/**
  * Loads a TypeScript module from the specified file path.
  *
  * @param filePath - The absolute path to the TypeScript file
@@ -379,7 +369,7 @@ function extractCRDsFromModule(
  * @returns The path to the written file
  */
 function writeCRDToFile(crd: ExportableCustomResourceDefinition, outputDir: string): string {
-  const yaml = serializeCRDToYAML(crd);
+  const yaml = dumpYaml(crd);
   const fileName = `${crd.metadata!.name}.yaml`;
   const outputPath = path.join(outputDir, fileName);
   fs.writeFileSync(outputPath, yaml);
@@ -443,11 +433,11 @@ export async function generate(opts: GenerateOptions): Promise<
   if (opts.export) {
     const { files, crds: exportedCRDs } = await exportCRDFromTS(opts);
     if (opts.exportOnly) {
-      opts.logFn(`\n✅ Exported ${files.length} CRD manifest(s)`);
+      opts.logFn(`\nExported ${files.length} CRD manifest(s)`);
       return [];
     }
-    opts.logFn(`\n📝 Generating types from exported CRDs...`);
-    // Legacy behavior: type generation runs per-version and only requires a schema
+    opts.logFn(`\nGenerating types from exported CRDs...`);
+    // Type generation runs per-version and only requires a schema
     // for the versions being generated. Versions without schema are skipped.
     crds = exportedCRDs as unknown as CustomResourceDefinition[];
   } else {
