@@ -15,6 +15,8 @@ import { V1Eviction as Eviction } from "@kubernetes/client-node";
 const SSA_CONTENT_TYPE = "application/apply-patch+yaml";
 const K8S_SA_TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token";
 
+export const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+export const startSleep = 5000;
 /**
  * Get the headers for a request
  *
@@ -330,6 +332,22 @@ export async function k8sExec<T extends GenericClass, K>(
 
   if (resp.ok) {
     return resp.data;
+  }
+
+  // Handle 429 Too Many Requests with retry-after header
+  // if (resp.status === 429 && retryCount < 3) {
+  if (resp.status === 429) {
+    const execError = new Error(
+      "K8SEXEC_TOO_MANY_REQUESTS: Received 429 Too Many Requests from the server",
+    );
+    console.trace(execError.stack);
+    // const retryAfterHeader = resp.headers.get("retry-after");
+
+    // if (retryAfterHeader) {
+    //   const backoffTime = parseInt(retryAfterHeader) * 1000;
+    //   await sleep(backoffTime);
+    //   return k8sExec(model, filters, methodPayload, applyCfg, retryCount + 1);
+    // }
   }
 
   if (resp.status === 404 && methodPayload.method === FetchMethods.PATCH_STATUS) {

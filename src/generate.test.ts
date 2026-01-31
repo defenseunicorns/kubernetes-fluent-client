@@ -244,6 +244,7 @@ describe("readOrFetchCrd with URL", () => {
       data: "mock fetched data",
       status: 0,
       statusText: "",
+      headers: new Headers(),
     });
 
     // Mock loadAllYaml to return parsed CRD
