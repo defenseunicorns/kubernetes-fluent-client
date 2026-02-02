@@ -5,6 +5,9 @@ import { dump } from "js-yaml";
 import * as fs from "fs";
 import * as path from "path";
 import { pathToFileURL } from "url";
+import { createRequire } from "module";
+import { execSync } from "child_process";
+import * as os from "os";
 
 import type { V1CustomResourceDefinition } from "@kubernetes/client-node";
 import type { LogFn } from "./types.js";
@@ -115,28 +118,283 @@ export function validateCRDStructure(crd: V1CustomResourceDefinition): void {
 }
 
 /**
- * Dynamically import the user-provided CRD module, registering the tsx loader
- * when the file has a TypeScript extension so this works from the built CLI.
+ * Shared subprocess environment manager to avoid recreating temp dirs
+ * and reinstalling dependencies for each CRD file.
+ */
+class SubprocessEnvironmentManager {
+  private static instance: SubprocessEnvironmentManager | null = null;
+  private tempDir: string | null = null;
+  private initialized: boolean = false;
+  private initPromise: Promise<void> | null = null;
+
+  private constructor() {}
+
+  static getInstance(): SubprocessEnvironmentManager {
+    if (!SubprocessEnvironmentManager.instance) {
+      SubprocessEnvironmentManager.instance = new SubprocessEnvironmentManager();
+    }
+    return SubprocessEnvironmentManager.instance;
+  }
+
+  /**
+   * Initialize the shared temp environment once
+   *
+   * @param logFn
+   */
+  async initialize(logFn: LogFn): Promise<string> {
+    // If already initialized, return the existing temp dir
+    if (this.initialized && this.tempDir) {
+      return this.tempDir;
+    }
+
+    // If initialization is in progress, wait for it
+    if (this.initPromise) {
+      await this.initPromise;
+      return this.tempDir!;
+    }
+
+    // Start initialization
+    this.initPromise = this._doInitialize(logFn);
+    await this.initPromise;
+    this.initPromise = null;
+
+    return this.tempDir!;
+  }
+
+  private async _doInitialize(logFn: LogFn): Promise<void> {
+    logFn(`   📦 Creating shared isolated environment...`);
+
+    // Create temp dir in OS temp directory (faster than project directory)
+    this.tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "kfc-crd-"));
+
+    // Create package.json
+    const tempPackageJson = {
+      name: "kfc-crd-extractor",
+      type: "module",
+      dependencies: {
+        "@kubernetes/client-node": "*",
+        tsx: "latest",
+      },
+    };
+
+    await fs.promises.writeFile(
+      path.join(this.tempDir, "package.json"),
+      JSON.stringify(tempPackageJson, null, 2),
+    );
+
+    // Install dependencies once
+    logFn(`   📥 Installing dependencies (one-time setup)...`);
+    execSync("npm install --silent --prefer-offline", {
+      cwd: this.tempDir,
+      stdio: "ignore",
+      timeout: 60000,
+    });
+
+    this.initialized = true;
+    logFn(`   ✅ Shared environment ready`);
+  }
+
+  getTempDir(): string {
+    if (!this.tempDir) {
+      throw new Error("SubprocessEnvironmentManager not initialized");
+    }
+    return this.tempDir;
+  }
+
+  /**
+   * Cleanup the shared temp environment
+   */
+  async cleanup(): Promise<void> {
+    if (this.tempDir) {
+      try {
+        await fs.promises.rm(this.tempDir, { recursive: true, force: true });
+      } catch {
+        // Ignore cleanup errors
+      }
+      this.tempDir = null;
+      this.initialized = false;
+    }
+  }
+
+  /**
+   * Reset the singleton instance (for testing)
+   */
+  static reset(): void {
+    if (SubprocessEnvironmentManager.instance) {
+      SubprocessEnvironmentManager.instance.cleanup();
+      SubprocessEnvironmentManager.instance = null;
+    }
+  }
+}
+
+/**
+ * Register cleanup handler to remove temp directory on process exit
+ */
+let cleanupRegistered = false;
+/**
  *
- * @param filePath - Path to the CRD module file
- * @param logFn - Function for logging messages
- * @returns The imported module object
- * @throws {Error} if the module cannot be imported
+ */
+function registerCleanup(): void {
+  if (cleanupRegistered) return;
+  cleanupRegistered = true;
+
+  const cleanup = () => {
+    SubprocessEnvironmentManager.getInstance().cleanup();
+  };
+
+  process.on("exit", cleanup);
+  process.on("SIGINT", () => {
+    cleanup();
+    process.exit(130);
+  });
+  process.on("SIGTERM", () => {
+    cleanup();
+    process.exit(143);
+  });
+}
+
+/**
+ * Dynamically import the user-provided CRD module with optimizations.
+ *
+ * @param filePath
+ * @param logFn
  */
 async function loadCRDModule(filePath: string, logFn: LogFn): Promise<unknown> {
   logFn(`Loading CRD definitions from ${filePath}`);
 
   const isTypeScriptFile = /\.(ts|mts|cts|tsx)$/i.test(filePath);
-  if (isTypeScriptFile) {
-    // Dynamically register tsx so we can import TypeScript files in the built CLI.
-    await import("tsx/esm");
-  }
 
   try {
-    return await import(pathToFileURL(filePath).href);
+    // Try dynamic import first - this is fast and works most of the time
+    const importPromise = import(pathToFileURL(filePath).href);
+
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("Module import timeout")), 2000);
+    });
+
+    return await Promise.race([importPromise, timeoutPromise]);
   } catch (error) {
-    const base = `Failed to import CRD module: ${error instanceof Error ? error.message : String(error)}`;
-    throw new Error(base, { cause: error instanceof Error ? error : new Error(String(error)) });
+    logFn(``);
+    logFn(`⚠️  Dynamic import failed, using subprocess isolation...`);
+
+    // Only use subprocess for TypeScript files
+    if (isTypeScriptFile) {
+      return await loadModuleViaSubprocess(filePath, logFn);
+    }
+
+    // For JS files, try require as fallback
+    try {
+      const require = createRequire(import.meta.url);
+      const resolvedPath = path.resolve(filePath);
+      delete require.cache[require.resolve(resolvedPath)];
+      return require(resolvedPath);
+    } catch {
+      const base = `Failed to import CRD module: ${error instanceof Error ? error.message : String(error)}`;
+      throw new Error(base, { cause: error instanceof Error ? error : new Error(String(error)) });
+    }
+  }
+}
+
+/**
+ * Load TypeScript module via subprocess using shared environment
+ *
+ * @param filePath
+ * @param logFn
+ */
+async function loadModuleViaSubprocess(filePath: string, logFn: LogFn): Promise<unknown> {
+  registerCleanup();
+
+  // Use shared environment (initialized once, reused for all CRDs)
+  const envManager = SubprocessEnvironmentManager.getInstance();
+  const tempDir = await envManager.initialize(logFn);
+
+  // Create a unique subdirectory for this specific CRD to avoid conflicts
+  const crdHash = Buffer.from(filePath).toString("base64").replace(/[/+=]/g, "");
+  const crdWorkDir = path.join(tempDir, "crds", crdHash);
+  await fs.promises.mkdir(crdWorkDir, { recursive: true });
+
+  try {
+    logFn(`   🔧 Setting up module extraction...`);
+
+    // create a symlink
+    const crdDir = path.dirname(path.dirname(filePath));
+    const tempCrdDir = path.join(crdWorkDir, "crd");
+
+    try {
+      // Try symlink first (instant vs copying)
+      await fs.promises.symlink(crdDir, tempCrdDir, "dir");
+    } catch {
+      // Fallback to copy if symlink fails (Windows or permission issues)
+      await fs.promises.cp(crdDir, tempCrdDir, { recursive: true });
+    }
+
+    const relativeFilePath = path.relative(crdDir, filePath);
+    const tempFilePath = path.join(tempCrdDir, relativeFilePath);
+
+    // Use dynamic import which tsx can handle properly
+    const extractScript = `
+import { pathToFileURL } from 'url';
+
+async function extract() {
+  try {
+    const fileUrl = pathToFileURL('${tempFilePath.replace(/\\/g, "\\\\")}').href;
+    const module = await import(fileUrl);
+
+    const exports = {};
+
+    for (const [key, value] of Object.entries(module)) {
+      if (key === 'default') {
+        exports.default = value;
+      } else if (!key.startsWith('_')) {
+        exports[key] = value;
+      }
+    }
+
+    console.log('EXPORT_START:' + JSON.stringify(exports) + ':EXPORT_END');
+  } catch (error) {
+    console.error('EXTRACT_ERROR:' + error.message);
+    process.exit(1);
+  }
+}
+
+extract();
+`;
+
+    const scriptPath = path.join(crdWorkDir, "extract.mjs");
+    await fs.promises.writeFile(scriptPath, extractScript);
+
+    logFn(`   ⚡ Running isolated extraction...`);
+
+    // Use tsx directly from the shared environment
+    const tsxBin = path.join(tempDir, "node_modules", ".bin", "tsx");
+    const useTsx = fs.existsSync(tsxBin);
+
+    const command = useTsx ? `${tsxBin} ${scriptPath}` : `npx tsx ${scriptPath}`;
+
+    const result = execSync(command, {
+      encoding: "utf8",
+      cwd: tempCrdDir,
+      timeout: 10000, // Reduced from 30s
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+
+    const match = result.match(/EXPORT_START:(.+):EXPORT_END/);
+    if (!match) {
+      throw new Error("Failed to extract module exports");
+    }
+
+    logFn(`   ✅ Module extraction successful`);
+
+    return JSON.parse(match[1]);
+  } finally {
+    // Clean up the CRD-specific work dir, but keep the shared environment
+    setImmediate(async () => {
+      try {
+        await fs.promises.rm(crdWorkDir, { recursive: true, force: true });
+      } catch {
+        // Ignore cleanup errors
+      }
+    });
   }
 }
 
@@ -293,4 +551,11 @@ export async function exportCRDFromModule(opts: ExportOptions): Promise<{
   }
 
   return { files: exportedFiles, crds };
+}
+
+/**
+ * Export function to manually cleanup shared environment if needed
+ */
+export async function cleanupSharedEnvironment(): Promise<void> {
+  await SubprocessEnvironmentManager.getInstance().cleanup();
 }
