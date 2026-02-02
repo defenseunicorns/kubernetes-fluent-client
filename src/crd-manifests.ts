@@ -5,10 +5,29 @@ import { dump } from "js-yaml";
 import * as fs from "fs";
 import * as path from "path";
 import { pathToFileURL } from "url";
+import { fileURLToPath } from "url";
 
 import type { V1CustomResourceDefinition } from "@kubernetes/client-node";
 import type { LogFn } from "./types.js";
 import { resolveFilePath } from "./generate.js";
+import { execSync } from "child_process";
+import { tmpdir } from "os";
+import { mkdtemp, rm } from "fs/promises";
+
+// Get __dirname equivalent in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+/**
+ *
+ * @param filePath
+ */
+export function validateFile(filePath: string): void {
+  // Early validation to provide clear error messages before expensive operations
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`CRD file not found: ${filePath}`);
+  }
+}
 
 /**
  * Options for exporting CRDs from a TS/JS module to YAML manifests.
@@ -123,20 +142,126 @@ export function validateCRDStructure(crd: V1CustomResourceDefinition): void {
  * @returns The imported module object
  * @throws {Error} if the module cannot be imported
  */
-async function loadCRDModule(filePath: string, logFn: LogFn): Promise<unknown> {
+export async function loadCRDModule(filePath: string, logFn: LogFn): Promise<unknown> {
+  validateFile(filePath);
   logFn(`Loading CRD definitions from ${filePath}`);
 
   const isTypeScriptFile = /\.(ts|mts|cts|tsx)$/i.test(filePath);
-  if (isTypeScriptFile) {
-    // Dynamically register tsx so we can import TypeScript files in the built CLI.
-    await import("tsx/esm");
-  }
 
   try {
+    // Try direct import first
     return await import(pathToFileURL(filePath).href);
   } catch (error) {
-    const base = `Failed to import CRD module: ${error instanceof Error ? error.message : String(error)}`;
-    throw new Error(base, { cause: error instanceof Error ? error : new Error(String(error)) });
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
+    // Only attempt compilation for TypeScript files with import errors
+    if (!isTypeScriptFile) {
+      throw new Error(`Failed to import CRD module ${filePath}: ${errorMessage}`, {
+        cause: error instanceof Error ? error : new Error(String(error)),
+      });
+    }
+
+    if (!(errorMessage.includes("circular") || errorMessage.includes("Cannot find module"))) {
+      throw new Error(`Failed to import CRD module ${filePath}: ${errorMessage}`, {
+        cause: error instanceof Error ? error : new Error(String(error)),
+      });
+    }
+
+    // Check if file has dependencies before expensive compilation
+    const hasDependencies = /from\s+["']\.\./.test(fs.readFileSync(filePath, "utf8"));
+
+    if (!hasDependencies) {
+      logFn(`No dependencies found, trying direct import...`);
+      return await import(pathToFileURL(filePath).href);
+    }
+
+    logFn(`Compiling TypeScript with dependencies...`);
+    return await loadViaCompilation(filePath, logFn);
+  }
+}
+
+/**
+ *
+ * @param filePath
+ * @param logFn
+ */
+async function loadViaCompilation(filePath: string, logFn: LogFn): Promise<unknown> {
+  const tempDir = await mkdtemp(path.join(tmpdir(), "kfc-compile-"));
+
+  try {
+    const sourcesDir = path.dirname(path.dirname(filePath));
+    logFn(`Compiling CRD directory: ${sourcesDir}`);
+
+    // copy sources to isolate compilation and prevent conflicts
+    const kfcPath = path.dirname(__dirname);
+    const k8sTypesPath = path.join(kfcPath, "node_modules", "@kubernetes");
+
+    execSync(`cp -r "${sourcesDir}" "${tempDir}/sources" && mkdir -p "${tempDir}/node_modules"`, {
+      stdio: "inherit",
+    });
+
+    // Copy Kubernetes types for TypeScript compilation
+    if (fs.existsSync(k8sTypesPath)) {
+      execSync(`cp -r "${k8sTypesPath}" "${tempDir}/node_modules/"`, { stdio: "inherit" });
+    }
+
+    // Minimal TypeScript config for ES module compilation
+    const tsconfig = {
+      compilerOptions: {
+        target: "ES2022",
+        module: "ES2022",
+        moduleResolution: "node",
+        outDir: `${tempDir}/out`,
+        rootDir: `${tempDir}/sources`,
+        skipLibCheck: true,
+      },
+    };
+
+    await fs.promises.writeFile(`${tempDir}/tsconfig.json`, JSON.stringify(tsconfig));
+
+    // Compile TypeScript to JavaScript
+    execSync(
+      `${path.join(kfcPath, "node_modules", ".bin", "tsc")} --project ${tempDir}/tsconfig.json`,
+      { stdio: "inherit" },
+    );
+
+    // Fix import paths to add .js extensions for ES module compatibility
+    await fixImportPaths(`${tempDir}/out`, logFn);
+
+    // Import the compiled JavaScript file
+    const compiledFile = path.join(
+      tempDir,
+      "out",
+      path.relative(sourcesDir, filePath).replace(".ts", ".js"),
+    );
+    return await import(pathToFileURL(compiledFile).href);
+  } finally {
+    // Always cleanup temp directory
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
+/**
+ *
+ * @param outDir
+ * @param logFn
+ */
+export async function fixImportPaths(outDir: string, logFn: LogFn): Promise<void> {
+  const files = execSync(`find "${outDir}" -name "*.js"`, { encoding: "utf8" })
+    .trim()
+    .split("\n")
+    .filter(Boolean);
+
+  for (const file of files) {
+    let content = fs.readFileSync(file, "utf8");
+
+    // ES modules require .js extensions for relative imports
+    content = content.replace(/from\s+["'](\.\.\/[^"']+|\.\/[^"']+)["']/g, (match, importPath) =>
+      path.extname(importPath) ? match : `from "${importPath}.js"`,
+    );
+
+    fs.writeFileSync(file, content);
+    logFn(`Fixed imports in: ${file}`);
   }
 }
 

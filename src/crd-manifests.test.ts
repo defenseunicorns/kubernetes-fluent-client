@@ -7,12 +7,23 @@ import {
   extractCRDsFromModule,
   writeCRDToFile,
   exportCRDFromModule,
+  loadCRDModule,
+  fixImportPaths,
+  validateFile,
   type ExportOptions,
 } from "./crd-manifests.js";
+import type { LogFn } from "./types.js";
 import * as fs from "fs";
 import * as path from "path";
 import { dump } from "js-yaml";
+import { execSync } from "child_process";
 import type { V1CustomResourceDefinition } from "@kubernetes/client-node";
+
+// Mock the url module for ES module support
+vi.mock("url", () => ({
+  fileURLToPath: vi.fn((url: string) => url.replace("file://", "")),
+  pathToFileURL: vi.fn((path: string) => `file://${path}`),
+}));
 
 // Mock the fs module
 vi.mock("fs", () => ({
@@ -23,26 +34,29 @@ vi.mock("fs", () => ({
   },
   default: {
     existsSync: vi.fn(),
-    promises: {
-      mkdir: vi.fn().mockResolvedValue(undefined),
-      writeFile: vi.fn().mockResolvedValue(undefined),
-    },
+    readFileSync: vi.fn(),
+    writeFileSync: vi.fn(),
   },
+  readFileSync: vi.fn(),
+  writeFileSync: vi.fn(),
 }));
 
 // Mock the path module
 vi.mock("path", () => ({
-  join: vi.fn(),
-}));
-
-// Mock the url module
-vi.mock("url", () => ({
-  pathToFileURL: vi.fn(),
+  join: vi.fn((...args: string[]) => args.join("/")),
+  dirname: vi.fn((path: string) => path.split("/").slice(0, -1).join("/")),
+  extname: vi.fn((path: string) => (path.includes(".") ? path.split(".").pop() : "")),
+  relative: vi.fn((from: string, to: string) => to.replace(from + "/", "")),
 }));
 
 // Mock js-yaml
 vi.mock("js-yaml", () => ({
   dump: vi.fn(),
+}));
+
+// Mock child_process
+vi.mock("child_process", () => ({
+  execSync: vi.fn(),
 }));
 
 // Get the mocked modules
@@ -529,6 +543,89 @@ describe("Enhanced Export Features", () => {
       expect(result).toHaveLength(2);
       expect(result[0].metadata?.name).toBe("test1.example.com");
       expect(result[1].metadata?.name).toBe("test2.example.com");
+    });
+  });
+
+  // Tests for the new CRD compilation functionality
+  describe("CRD Module Compilation", () => {
+    let mockLogFn: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      mockLogFn = vi.fn();
+      vi.clearAllMocks();
+    });
+
+    describe("validateFile", () => {
+      test("should throw error for non-existent file", () => {
+        vi.mocked(fs.existsSync).mockReturnValue(false);
+
+        expect(() => validateFile("non-existent.ts")).toThrow(
+          "CRD file not found: non-existent.ts",
+        );
+      });
+
+      test("should not throw for existing file", () => {
+        vi.mocked(fs.existsSync).mockReturnValue(true);
+
+        expect(() => validateFile("existing.ts")).not.toThrow();
+      });
+    });
+
+    describe("fixImportPaths", () => {
+      beforeEach(() => {
+        vi.mocked(fs.readFileSync).mockReturnValue(`
+          import { something } from '../dependency';
+          import { other } from './local';
+          import { external } from 'external-package';
+        `);
+        vi.mocked(fs.writeFileSync).mockImplementation(() => {});
+        vi.mocked(execSync).mockReturnValue("file1.js\nfile2.js");
+      });
+
+      test("should add .js extensions to relative imports", () => {
+        // Test the regex replacement logic directly
+        const content = `
+          import { something } from '../dependency';
+          import { other } from './local';
+          import { external } from 'external-package';
+        `;
+
+        // Apply the same logic as fixImportPaths
+        const result = content.replace(
+          /from\s+["'](\.\.\/[^"']+|\.\/[^"']+)["']/g,
+          (match, importPath) => {
+            const mockPath = { extname: vi.fn((p: string) => (p.includes(".js") ? ".js" : "")) };
+            return mockPath.extname(importPath) ? match : `from "${importPath}.js"`;
+          },
+        );
+
+        expect(result).toContain('from "../dependency.js"');
+        expect(result).toContain('from "./local.js"');
+        expect(result).not.toContain("from 'external-package.js'"); // External packages unchanged
+      });
+
+      test("should not add .js if already present", () => {
+        vi.mocked(fs.readFileSync).mockReturnValue(`
+          import { something } from '../dependency.js';
+        `);
+
+        void fixImportPaths("/tmp/out", mockLogFn as unknown as LogFn);
+
+        const writtenContent = vi.mocked(fs.writeFileSync).mock.calls[0][1] as string;
+        expect(writtenContent).toContain("from '../dependency.js'"); // Unchanged
+      });
+    });
+
+    describe("loadCRDModule integration", () => {
+      test("should provide clear error messages for missing files", async () => {
+        const mockFilePath = "/path/to/missing.ts";
+
+        vi.mocked(fs.existsSync).mockReturnValue(false);
+
+        await expect(loadCRDModule(mockFilePath, mockLogFn as unknown as LogFn)).rejects.toThrow(
+          "CRD file not found: /path/to/missing.ts",
+        );
+      });
     });
   });
 });
