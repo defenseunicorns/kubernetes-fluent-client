@@ -5,6 +5,7 @@ import { dump } from "js-yaml";
 import * as fs from "fs";
 import * as path from "path";
 import { pathToFileURL } from "url";
+import { spawnSync } from "child_process";
 
 import type { V1CustomResourceDefinition } from "@kubernetes/client-node";
 import type { LogFn } from "./types.js";
@@ -115,8 +116,72 @@ export function validateCRDStructure(crd: V1CustomResourceDefinition): void {
 }
 
 /**
- * Dynamically import the user-provided CRD module, registering the tsx loader
- * when the file has a TypeScript extension so this works from the built CLI.
+ * Load a TypeScript module by spawning a subprocess with the tsx loader.
+ *
+ * This avoids the CJS/ESM circular dependency that occurs when dynamically
+ * registering the tsx loader mid-execution. By using --import tsx, the loader
+ * is registered at Node.js bootstrap time before any user code runs.
+ *
+ * @param filePath - Absolute path to the TypeScript module
+ * @returns The module exports as a parsed object
+ * @throws {Error} if the subprocess fails or output cannot be parsed
+ */
+function loadTypeScriptModuleViaSubprocess(filePath: string): unknown {
+  // Build an ESM script that imports the module and serializes its exports
+  const script = `
+    import * as mod from ${JSON.stringify(pathToFileURL(filePath).href)};
+
+    // Custom replacer to handle non-JSON-serializable values
+    const replacer = (key, value) => {
+      if (typeof value === "bigint") return { __type: "bigint", value: value.toString() };
+      if (typeof value === "function") return { __type: "function", name: value.name || "anonymous" };
+      if (typeof value === "symbol") return { __type: "symbol", description: value.description };
+      return value;
+    };
+
+    console.log(JSON.stringify(mod, replacer));
+  `;
+
+  const result = spawnSync(
+    process.execPath,
+    ["--import", "tsx", "--input-type=module", "-e", script],
+    {
+      cwd: path.dirname(filePath),
+      encoding: "utf-8",
+      maxBuffer: 50 * 1024 * 1024, // 50MB for large CRDs
+    },
+  );
+
+  if (result.error) {
+    throw new Error(`Failed to spawn subprocess: ${result.error.message}`, { cause: result.error });
+  }
+
+  if (result.status !== 0) {
+    const stderr = result.stderr?.trim() || "Unknown error";
+    throw new Error(`Subprocess failed with exit code ${result.status}: ${stderr}`);
+  }
+
+  const stdout = result.stdout?.trim();
+  if (!stdout) {
+    throw new Error("Subprocess produced no output");
+  }
+
+  try {
+    return JSON.parse(stdout);
+  } catch (parseError) {
+    throw new Error(
+      `Failed to parse subprocess output: ${parseError instanceof Error ? parseError.message : String(parseError)}`,
+      { cause: parseError instanceof Error ? parseError : new Error(String(parseError)) },
+    );
+  }
+}
+
+/**
+ * Dynamically import the user-provided CRD module.
+ *
+ * TypeScript files are loaded via a subprocess with the tsx loader to avoid
+ * the CJS/ESM circular dependency that occurs when dynamically registering
+ * loaders mid-execution.
  *
  * @param filePath - Path to the CRD module file
  * @param logFn - Function for logging messages
@@ -127,12 +192,13 @@ async function loadCRDModule(filePath: string, logFn: LogFn): Promise<unknown> {
   logFn(`Loading CRD definitions from ${filePath}`);
 
   const isTypeScriptFile = /\.(ts|mts|cts|tsx)$/i.test(filePath);
-  if (isTypeScriptFile) {
-    // Dynamically register tsx so we can import TypeScript files in the built CLI.
-    await import("tsx/esm");
-  }
 
   try {
+    if (isTypeScriptFile) {
+      // Use subprocess to avoid CJS/ESM cycle when loading TypeScript
+      return loadTypeScriptModuleViaSubprocess(filePath);
+    }
+    // JavaScript files can be imported directly
     return await import(pathToFileURL(filePath).href);
   } catch (error) {
     const base = `Failed to import CRD module: ${error instanceof Error ? error.message : String(error)}`;
