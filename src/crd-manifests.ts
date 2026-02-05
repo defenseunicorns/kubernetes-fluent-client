@@ -5,11 +5,13 @@ import { dump } from "js-yaml";
 import * as fs from "fs";
 import * as path from "path";
 import { pathToFileURL } from "url";
-import { tsImport } from "tsx/esm/api";
+import { register } from "tsx/esm/api";
 
 import type { V1CustomResourceDefinition } from "@kubernetes/client-node";
 import type { LogFn } from "./types.js";
 import { resolveFilePath } from "./generate.js";
+
+let tsxRegistered = false;
 
 /**
  * Options for exporting CRDs from a TS/JS module to YAML manifests.
@@ -118,9 +120,11 @@ export function validateCRDStructure(crd: V1CustomResourceDefinition): void {
 /**
  * Dynamically import the user-provided CRD module.
  *
- * TypeScript files are loaded via tsx's programmatic API (`tsImport`), which
- * uses `module.register()` to load hooks in a dedicated loader worker thread,
- * avoiding the CJS/ESM cycle that occurs with direct dynamic imports of tsx.
+ * TypeScript files require tsx's loader, registered globally via `register()`
+ * from `tsx/esm/api`. Unlike `tsImport()` (which uses a namespaced loader),
+ * the global registration ensures the full resolve hook runs for child imports,
+ * including `.js` → `.ts` extension remapping. The loader still runs in a
+ * dedicated worker thread via `module.register()`, avoiding CJS/ESM cycles.
  *
  * @param filePath - Path to the CRD module file
  * @param logFn - Function for logging messages
@@ -129,12 +133,12 @@ export function validateCRDStructure(crd: V1CustomResourceDefinition): void {
  */
 async function loadCRDModule(filePath: string, logFn: LogFn): Promise<unknown> {
   logFn(`Loading CRD definitions from ${filePath}`);
-
   const isTypeScriptFile = /\.(ts|mts|cts|tsx)$/i.test(filePath);
 
   try {
-    if (isTypeScriptFile) {
-      return await tsImport(pathToFileURL(filePath).href, import.meta.url);
+    if (isTypeScriptFile && !tsxRegistered) {
+      register();
+      tsxRegistered = true;
     }
     return await import(pathToFileURL(filePath).href);
   } catch (error) {
