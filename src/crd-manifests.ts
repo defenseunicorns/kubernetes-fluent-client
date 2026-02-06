@@ -5,6 +5,7 @@ import { dump } from "js-yaml";
 import * as fs from "fs";
 import * as path from "path";
 import { pathToFileURL } from "url";
+import { tsImport } from "tsx/esm/api";
 
 import type { V1CustomResourceDefinition } from "@kubernetes/client-node";
 import type { LogFn } from "./types.js";
@@ -115,8 +116,17 @@ export function validateCRDStructure(crd: V1CustomResourceDefinition): void {
 }
 
 /**
- * Dynamically import the user-provided CRD module, registering the tsx loader
- * when the file has a TypeScript extension so this works from the built CLI.
+ * Dynamically import the user-provided CRD module.
+ *
+ * TypeScript files are loaded via tsx's `tsImport()` API, which registers a
+ * namespaced ESM loader via `module.register()` in a dedicated worker thread.
+ * This avoids the CJS/ESM cycle that `register()` causes (by not installing
+ * CJS hooks), while still supporting `.js`→`.ts` extension remapping and
+ * extensionless imports in child modules.
+ *
+ * `tsImport()` returns a CJS-interop wrapped module where the real namespace
+ * is nested under `.default` with an `__esModule` marker. We unwrap this so
+ * callers see a standard ESM-style namespace (e.g. `{ default: ..., named: ... }`).
  *
  * @param filePath - Path to the CRD module file
  * @param logFn - Function for logging messages
@@ -125,14 +135,20 @@ export function validateCRDStructure(crd: V1CustomResourceDefinition): void {
  */
 async function loadCRDModule(filePath: string, logFn: LogFn): Promise<unknown> {
   logFn(`Loading CRD definitions from ${filePath}`);
-
   const isTypeScriptFile = /\.(ts|mts|cts|tsx)$/i.test(filePath);
-  if (isTypeScriptFile) {
-    // Dynamically register tsx so we can import TypeScript files in the built CLI.
-    await import("tsx/esm");
-  }
 
   try {
+    if (isTypeScriptFile) {
+      const raw = await tsImport(pathToFileURL(filePath).href, import.meta.url);
+      // tsImport wraps modules in CJS-interop: { default: { __esModule: true, default: ..., ...named } }
+      // Unwrap so downstream sees a normal ESM namespace shape.
+      const wrapped = raw as Record<string, unknown>;
+      const inner = wrapped.default as Record<string, unknown> | undefined;
+      if (inner && inner.__esModule === true) {
+        return inner;
+      }
+      return raw;
+    }
     return await import(pathToFileURL(filePath).href);
   } catch (error) {
     const base = `Failed to import CRD module: ${error instanceof Error ? error.message : String(error)}`;

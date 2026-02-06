@@ -103,6 +103,10 @@ void yargs(hideBin(process.argv))
         logFn: console.log,
       } satisfies ExportOptions;
 
+      console.warn(
+        "\n⚠️  Warning: crd-manifests is an alpha feature and may change or be removed in a future release.\n",
+      );
+
       try {
         const { files } = await exportCRDFromModule(opts);
         console.log(`\n✅ Exported ${files.length} CRD manifest(s) to ${opts.directory}`);
