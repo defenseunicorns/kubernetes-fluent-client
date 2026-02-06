@@ -5,13 +5,11 @@ import { dump } from "js-yaml";
 import * as fs from "fs";
 import * as path from "path";
 import { pathToFileURL } from "url";
-import { register } from "tsx/esm/api";
+import { tsImport } from "tsx/esm/api";
 
 import type { V1CustomResourceDefinition } from "@kubernetes/client-node";
 import type { LogFn } from "./types.js";
 import { resolveFilePath } from "./generate.js";
-
-let tsxRegistered = false;
 
 /**
  * Options for exporting CRDs from a TS/JS module to YAML manifests.
@@ -120,11 +118,15 @@ export function validateCRDStructure(crd: V1CustomResourceDefinition): void {
 /**
  * Dynamically import the user-provided CRD module.
  *
- * TypeScript files require tsx's loader, registered globally via `register()`
- * from `tsx/esm/api`. Unlike `tsImport()` (which uses a namespaced loader),
- * the global registration ensures the full resolve hook runs for child imports,
- * including `.js` → `.ts` extension remapping. The loader still runs in a
- * dedicated worker thread via `module.register()`, avoiding CJS/ESM cycles.
+ * TypeScript files are loaded via tsx's `tsImport()` API, which registers a
+ * namespaced ESM loader via `module.register()` in a dedicated worker thread.
+ * This avoids the CJS/ESM cycle that `register()` causes (by not installing
+ * CJS hooks), while still supporting `.js`→`.ts` extension remapping and
+ * extensionless imports in child modules.
+ *
+ * `tsImport()` returns a CJS-interop wrapped module where the real namespace
+ * is nested under `.default` with an `__esModule` marker. We unwrap this so
+ * callers see a standard ESM-style namespace (e.g. `{ default: ..., named: ... }`).
  *
  * @param filePath - Path to the CRD module file
  * @param logFn - Function for logging messages
@@ -136,9 +138,16 @@ async function loadCRDModule(filePath: string, logFn: LogFn): Promise<unknown> {
   const isTypeScriptFile = /\.(ts|mts|cts|tsx)$/i.test(filePath);
 
   try {
-    if (isTypeScriptFile && !tsxRegistered) {
-      register();
-      tsxRegistered = true;
+    if (isTypeScriptFile) {
+      const raw = await tsImport(pathToFileURL(filePath).href, import.meta.url);
+      // tsImport wraps modules in CJS-interop: { default: { __esModule: true, default: ..., ...named } }
+      // Unwrap so downstream sees a normal ESM namespace shape.
+      const wrapped = raw as Record<string, unknown>;
+      const inner = wrapped.default as Record<string, unknown> | undefined;
+      if (inner && inner.__esModule === true) {
+        return inner;
+      }
+      return raw;
     }
     return await import(pathToFileURL(filePath).href);
   } catch (error) {
