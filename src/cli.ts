@@ -7,7 +7,6 @@ import { hideBin } from "yargs/helpers";
 import yargs from "yargs/yargs";
 import { GenerateOptions, generate } from "./generate.js";
 import { postProcessing } from "./postProcessing.js";
-import { exportCRDFromModule, type ExportOptions } from "./crd-manifests.js";
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const { version } = require("../package.json");
@@ -77,47 +76,7 @@ void yargs(hideBin(process.argv))
           await postProcessing(allResults, opts); // Pass the file system to postProcessing
         }
       } catch (e) {
-        console.log(`\n❌ ${e instanceof Error ? e.message : String(e)}`);
-      }
-    },
-  )
-  .command(
-    "crd-manifests [source] [directory]",
-    "export CRD manifests from a TypeScript/JavaScript module",
-    yargs => {
-      return yargs
-        .positional("source", {
-          describe: "the TypeScript/JavaScript module path containing CRD exports",
-          type: "string",
-        })
-        .positional("directory", {
-          describe: "the directory to output the generated CRD manifests to",
-          type: "string",
-        })
-        .demandOption(["source", "directory"]);
-    },
-    async argv => {
-      const opts = {
-        source: argv.source as string,
-        directory: argv.directory as string,
-        logFn: console.log,
-      } satisfies ExportOptions;
-
-      try {
-        const { files } = await exportCRDFromModule(opts);
-        console.log(`\n✅ Exported ${files.length} CRD manifest(s) to ${opts.directory}`);
-      } catch (e) {
-        console.error(
-          `\n❌ ${
-            e instanceof Error
-              ? e.message
-              : typeof e === "string"
-                ? e
-                : "Unknown error while exporting CRDs"
-          }`,
-        );
-
-        process.exitCode = 1;
+        console.log(`\n❌ ${e.message}`);
       }
     },
   )
