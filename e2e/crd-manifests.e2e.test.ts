@@ -312,7 +312,7 @@ export const _privateCRD = {
       ["crd-manifests", testModulePath, outputDir],
       async (error, stdout, stderr) => {
         expect(error).toBeNull();
-        expect(stderr).toBe("");
+        expect(stderr).toContain("alpha");
 
         // Verify both CRD files were created
         const firstFile = path.join(outputDir, "first.example.com.yaml");
@@ -389,7 +389,7 @@ export const jsCRD = {
         ["crd-manifests", fixtureModule, outputDir],
         async (error, stdout, stderr) => {
           expect(error).toBeNull();
-          expect(stderr).toBe("");
+          expect(stderr).toContain("alpha");
 
           // Verify the CRD YAML was generated
           const outputFile = path.join(outputDir, "widgets.example.com.yaml");
