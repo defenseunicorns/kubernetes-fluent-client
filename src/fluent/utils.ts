@@ -20,7 +20,7 @@ export const startSleep = 5000;
 /**
  * Get the headers for a request
  *
- * @param token - the token from @kubernetes/client-node
+ * @param token - the token from `@kubernetes/client-node`
  * @returns the headers for undici
  */
 export async function getHeaders(token?: string | null): Promise<Record<string, string>> {
@@ -332,22 +332,6 @@ export async function k8sExec<T extends GenericClass, K>(
 
   if (resp.ok) {
     return resp.data;
-  }
-
-  // Handle 429 Too Many Requests with retry-after header
-  // if (resp.status === 429 && retryCount < 3) {
-  if (resp.status === 429) {
-    const execError = new Error(
-      "K8SEXEC_TOO_MANY_REQUESTS: Received 429 Too Many Requests from the server",
-    );
-    console.trace(execError.stack);
-    // const retryAfterHeader = resp.headers.get("retry-after");
-
-    // if (retryAfterHeader) {
-    //   const backoffTime = parseInt(retryAfterHeader) * 1000;
-    //   await sleep(backoffTime);
-    //   return k8sExec(model, filters, methodPayload, applyCfg, retryCount + 1);
-    // }
   }
 
   if (resp.status === 404 && methodPayload.method === FetchMethods.PATCH_STATUS) {

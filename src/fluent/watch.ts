@@ -238,6 +238,8 @@ export class Watcher<T extends GenericClass> {
    * @param continueToken - the continue token for the list
    * @param removedItems - the list of items that have been removed
    * @param retryCount - current retry attempt count
+   *
+   * @returns Promise<void>
    */
   #list = async (
     continueToken?: string,
@@ -272,8 +274,11 @@ export class Watcher<T extends GenericClass> {
           await sleep(backoffTime);
           try {
             return this.#list(continueToken, removedItems, retryCount + 1);
-          } catch {
-            // do nothing
+          } catch (e) {
+            this.#events.emit(
+              WatchEvent.LIST_ERROR,
+              `retry list failed attempt ${retryCount}: ${e}`,
+            );
           }
         }
 
@@ -495,8 +500,11 @@ export class Watcher<T extends GenericClass> {
             await sleep(backoffTime);
             try {
               return this.#watch(retryCount + 1);
-            } catch {
-              // do nothing
+            } catch (e) {
+              this.#events.emit(
+                WatchEvent.WATCH_ERROR,
+                `retry watch failed attempt ${retryCount}: ${e}`,
+              );
             }
           }
         }
