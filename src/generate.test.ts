@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
+
 import { beforeEach, describe, expect, vi, test } from "vitest";
 import { convertCRDtoTS, GenerateOptions, readOrFetchCrd, fixEnumProperties } from "./generate.js";
 import * as fs from "fs";
