@@ -7,7 +7,7 @@
   "types": "dist/index.d.ts",
   "type": "module",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=20.6.0"
   },
   "repository": {
     "type": "git",
