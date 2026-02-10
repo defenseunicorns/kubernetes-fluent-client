@@ -9,6 +9,8 @@ export type FetchResponse<T> = {
   ok: boolean;
   status: number;
   statusText: string;
+  headers: Headers;
+  e?: unknown;
 };
 
 /**
@@ -46,6 +48,7 @@ export async function fetch<T>(
       ok: resp.ok,
       status: resp.status,
       statusText: resp.statusText,
+      headers: resp.headers,
     };
   } catch (e) {
     const status = parseInt(e?.code) || StatusCodes.BAD_REQUEST;
@@ -56,6 +59,8 @@ export async function fetch<T>(
       ok: false,
       status,
       statusText,
+      headers: new Headers(),
+      e,
     };
   }
 }

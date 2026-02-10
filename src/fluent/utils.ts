@@ -15,10 +15,12 @@ import { V1Eviction as Eviction } from "@kubernetes/client-node";
 const SSA_CONTENT_TYPE = "application/apply-patch+yaml";
 const K8S_SA_TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token";
 
+export const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+export const startSleep = 5000;
 /**
  * Get the headers for a request
  *
- * @param token - the token from @kubernetes/client-node
+ * @param token - the token from `@kubernetes/client-node`
  * @returns the headers for undici
  */
 export async function getHeaders(token?: string | null): Promise<Record<string, string>> {
