@@ -306,6 +306,7 @@ describe("kubeExec Function", () => {
       data: fakePayload,
       status: 200,
       statusText: "OK",
+      headers: new Headers(),
     });
 
     const result = await k8sExec(Pod, fakeFilters, { method: fakeMethod, payload: fakePayload });
@@ -334,6 +335,7 @@ describe("kubeExec Function", () => {
       data: fakePayload,
       status: 200,
       statusText: "OK",
+      headers: new Headers(),
     });
 
     const result = await k8sExec(Pod, fakeFilters, {
@@ -365,6 +367,7 @@ describe("kubeExec Function", () => {
       data: fakePayload,
       status: 200,
       statusText: "OK",
+      headers: new Headers(),
     });
 
     const patchPayload = [{ op: "replace", path: "/status/phase", value: "Ready" }];
@@ -398,6 +401,7 @@ describe("kubeExec Function", () => {
       data: fakePayload,
       status: 200,
       statusText: "OK",
+      headers: new Headers(),
     });
 
     const result = await k8sExec(Pod, fakeFilters, {
@@ -432,6 +436,7 @@ describe("kubeExec Function", () => {
       data: fakePayload,
       status: 200,
       statusText: "OK",
+      headers: new Headers(),
     });
 
     const result = await k8sExec(
@@ -473,6 +478,7 @@ describe("kubeExec Function", () => {
       data: null,
       status: fakeStatus,
       statusText: fakeStatusText,
+      headers: new Headers(),
     });
 
     await expect(
