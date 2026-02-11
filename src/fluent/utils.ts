@@ -18,7 +18,7 @@ const K8S_SA_TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token";
 /**
  * Get the headers for a request
  *
- * @param token - the token from @kubernetes/client-node
+ * @param token - the token from `@kubernetes/client-node`
  * @returns the headers for undici
  */
 export async function getHeaders(token?: string | null): Promise<Record<string, string>> {
@@ -347,7 +347,7 @@ export async function k8sExec<T extends GenericClass, K>(
  * @param urlPath - The base URL path to append the subresource to.
  * @param subResourceConfig - The subresource configuration object.
  * @returns The modified URL path with the subresource appended, or the urlPath if no subresource is configured.
- * @throws Error if the kind is not supported for proxy configuration.
+ * @throws {Error} if the kind is not supported for proxy configuration.
  */
 export function handleSubResourceConfig(
   kind: string,

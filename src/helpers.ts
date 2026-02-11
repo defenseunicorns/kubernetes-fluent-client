@@ -33,7 +33,7 @@ function sleep(seconds: number): Promise<void> {
  *
  * @param name The name of the environment variable to get.
  * @returns The value of the environment variable.
- * @throws An error if the environment variable is not set.
+ * @throws {Error} An error if the environment variable is not set.
  */
 export function fromEnv(name: string): string {
   let envValue: string | undefined;

@@ -360,9 +360,10 @@ export function logError(error: Error, filePath: string, logFn: (msg: string) =>
  * This ensures that generated types keep the full Kubernetes ObjectMeta
  * contract while still including CRD-specific constraints like name enums.
  *
- * @param lines
- * @param crd
- * @param version
+ * @param lines - the generated source lines to transform
+ * @param crd - the CustomResourceDefinition containing version schemas
+ * @param version - the CRD version name to look up
+ * @returns the transformed source lines with extended Metadata interface
  */
 export function extendMetadataWithV1ObjectMeta(
   lines: string[],
