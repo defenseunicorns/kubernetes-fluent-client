@@ -316,21 +316,20 @@ export async function k8sExec<T extends GenericClass, K>(
 
   const maxRetries = 10;
 
+  const { opts, serverUrl } = await reconstruct(methodPayload.method);
+  const url: URL = serverUrl instanceof URL ? serverUrl : new URL(serverUrl);
+
+  prepareRequestOptions(
+    methodPayload,
+    opts as { method?: string; headers?: Record<string, string> },
+    url,
+    applyCfg,
+  );
+
+  if (methodPayload.payload) {
+    opts.body = JSON.stringify(methodPayload.payload);
+  }
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    const { opts, serverUrl } = await reconstruct(methodPayload.method);
-    const url: URL = serverUrl instanceof URL ? serverUrl : new URL(serverUrl);
-
-    prepareRequestOptions(
-      methodPayload,
-      opts as { method?: string; headers?: Record<string, string> },
-      url,
-      applyCfg,
-    );
-
-    if (methodPayload.payload) {
-      opts.body = JSON.stringify(methodPayload.payload);
-    }
-
     const resp = await fetch<K>(url, opts);
 
     if (resp.ok) {
@@ -355,6 +354,7 @@ export async function k8sExec<T extends GenericClass, K>(
 
     throw resp;
   }
+  throw new Error(`Max retries (${maxRetries}) exceeded for ${methodPayload.method} request`);
 }
 
 /**

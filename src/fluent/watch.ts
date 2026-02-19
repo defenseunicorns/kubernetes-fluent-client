@@ -261,10 +261,11 @@ export class Watcher<T extends GenericClass> {
 
       // If the request fails, emit an error event and return
       if (!response.ok) {
+        const body = await response.text();
         this.#events.emit(
           WatchEvent.LIST_ERROR,
           new Error(
-            `list failed: ${response.status} ${response.statusText} ${JSON.stringify([...response.headers])}`,
+            `list failed: ${response.status} ${response.statusText} ${JSON.stringify([...response.headers])} ${body}`,
           ),
         );
         const retryAfterHeader = response.headers.get("retry-after");
