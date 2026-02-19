@@ -314,32 +314,47 @@ export async function k8sExec<T extends GenericClass, K>(
     };
   };
 
-  const { opts, serverUrl } = await reconstruct(methodPayload.method);
-  const url: URL = serverUrl instanceof URL ? serverUrl : new URL(serverUrl);
+  const maxRetries = 10;
 
-  prepareRequestOptions(
-    methodPayload,
-    opts as { method?: string; headers?: Record<string, string> },
-    url,
-    applyCfg,
-  );
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const { opts, serverUrl } = await reconstruct(methodPayload.method);
+    const url: URL = serverUrl instanceof URL ? serverUrl : new URL(serverUrl);
 
-  if (methodPayload.payload) {
-    opts.body = JSON.stringify(methodPayload.payload);
+    prepareRequestOptions(
+      methodPayload,
+      opts as { method?: string; headers?: Record<string, string> },
+      url,
+      applyCfg,
+    );
+
+    if (methodPayload.payload) {
+      opts.body = JSON.stringify(methodPayload.payload);
+    }
+
+    const resp = await fetch<K>(url, opts);
+
+    if (resp.ok) {
+      return resp.data;
+    }
+
+    if (resp.status === 429) {
+      const retryAfter = resp.headers.get("retry-after");
+      if (retryAfter && attempt < maxRetries) {
+        const delaySec = parseInt(retryAfter, 10);
+        if (!isNaN(delaySec) && delaySec > 0) {
+          await sleep(delaySec * 1000);
+          continue;
+        }
+      }
+    }
+
+    if (resp.status === 404 && methodPayload.method === FetchMethods.PATCH_STATUS) {
+      resp.statusText =
+        "Not Found" + " (NOTE: This error is expected if the resource has no status subresource)";
+    }
+
+    throw resp;
   }
-
-  const resp = await fetch<K>(url, opts);
-
-  if (resp.ok) {
-    return resp.data;
-  }
-
-  if (resp.status === 404 && methodPayload.method === FetchMethods.PATCH_STATUS) {
-    resp.statusText =
-      "Not Found" + " (NOTE: This error is expected if the resource has no status subresource)";
-  }
-
-  throw resp;
 }
 
 /**

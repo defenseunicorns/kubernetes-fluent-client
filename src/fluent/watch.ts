@@ -57,6 +57,8 @@ export type WatchCfg = {
   relistIntervalSec?: number;
   /** Max amount of seconds to go without receiving an event before reconciliation starts. Defaults to 300 (5 minutes). */
   lastSeenLimitSeconds?: number;
+  /** Max amount of retries on receiving a 429 (Too Many Requests) api-server response. Defaults to 10. */
+  maxRetries?: number;
 };
 
 const NONE = 50;
@@ -115,6 +117,9 @@ export class Watcher<T extends GenericClass> {
    * @param watchCfg - (optional) watch configuration
    */
   constructor(model: T, filters: Filters, callback: WatchAction<T>, watchCfg: WatchCfg = {}) {
+    // set the default maxRetries to 10 if not specified
+    watchCfg.maxRetries ??= 10;
+
     // Set the retry delay to 5 seconds if not specified
     watchCfg.resyncDelaySec ??= 5;
 
@@ -246,7 +251,6 @@ export class Watcher<T extends GenericClass> {
     removedItems?: Map<string, InstanceType<T>>,
     retryCount = 0,
   ): Promise<void> => {
-    const maxRetries = 5;
     const maxPages = 10;
 
     try {
@@ -254,7 +258,6 @@ export class Watcher<T extends GenericClass> {
 
       // Make the request to list the resources
       const response = await fetch(serverUrl, opts);
-      const list = (await response.json()) as KubernetesListObject<InstanceType<T>>;
 
       // If the request fails, emit an error event and return
       if (!response.ok) {
@@ -266,7 +269,8 @@ export class Watcher<T extends GenericClass> {
         );
         const retryAfterHeader = response.headers.get("retry-after");
         // Retry with exponential backoff if under retry limit to prevent infinite recursion if the server is returning errors
-        if (retryCount < maxRetries && retryAfterHeader) {
+        // Note - we could change this to this.#watchCfg.maxRetries || 10 but we KNOW for sure this will be defined in the constructor
+        if (retryCount < this.#watchCfg.maxRetries! && retryAfterHeader) {
           const backoffTime = retryAfterHeader
             ? parseInt(retryAfterHeader) * 1000
             : Math.min(startSleep * Math.pow(2, retryCount), 30000);
@@ -285,65 +289,69 @@ export class Watcher<T extends GenericClass> {
         return;
       }
 
-      // Gross hack, thanks upstream library :<
-      if ((list.metadata as { continue?: string }).continue) {
-        continueToken = (list.metadata as { continue?: string }).continue;
-      }
+      if (response.ok) {
+        const list = (await response.json()) as KubernetesListObject<InstanceType<T>>;
 
-      // Emit the list event
-      this.#events.emit(WatchEvent.LIST, list);
-
-      // Update the resource version from the list metadata
-      this.#resourceVersion = list.metadata?.resourceVersion;
-
-      // If removed items are not provided, clone the cache
-      removedItems = removedItems || new Map(this.#cache.entries());
-
-      // Process each item in the list
-      for (const item of list.items || []) {
-        const { uid } = item.metadata;
-
-        // Remove the item from the removed items list
-        const alreadyExists = removedItems.delete(uid);
-
-        // If the item does not exist, it is new and should be added
-        if (!alreadyExists) {
-          this.#events.emit(WatchEvent.CACHE_MISS, this.#latestRelistWindow);
-          // Send added event. Use void here because we don't care about the result (no consequences here if it fails)
-          void this.#process(item, WatchPhase.Added);
-          continue;
+        // Gross hack, thanks upstream library :<
+        if ((list.metadata as { continue?: string }).continue) {
+          continueToken = (list.metadata as { continue?: string }).continue;
         }
 
-        // Check if the resource version has changed for items that already exist
-        const cachedRV = parseInt(this.#cache.get(uid)?.metadata?.resourceVersion);
-        const itemRV = parseInt(item.metadata.resourceVersion);
+        // Emit the list event
+        this.#events.emit(WatchEvent.LIST, list);
 
-        // Check if the resource version is newer than the cached version
-        if (itemRV > cachedRV) {
-          this.#events.emit(WatchEvent.CACHE_MISS, this.#latestRelistWindow);
-          // Send a modified event if the resource version has changed
-          void this.#process(item, WatchPhase.Modified);
+        // Update the resource version from the list metadata
+        this.#resourceVersion = list.metadata?.resourceVersion;
+
+        // If removed items are not provided, clone the cache
+        removedItems = removedItems || new Map(this.#cache.entries());
+
+        // Process each item in the list
+        for (const item of list.items || []) {
+          const { uid } = item.metadata;
+
+          // Remove the item from the removed items list
+          const alreadyExists = removedItems.delete(uid);
+
+          // If the item does not exist, it is new and should be added
+          if (!alreadyExists) {
+            this.#events.emit(WatchEvent.CACHE_MISS, this.#latestRelistWindow);
+            // Send added event. Use void here because we don't care about the result (no consequences here if it fails)
+            void this.#process(item, WatchPhase.Added);
+            continue;
+          }
+
+          // Check if the resource version has changed for items that already exist
+          const cachedRV = parseInt(this.#cache.get(uid)?.metadata?.resourceVersion);
+          const itemRV = parseInt(item.metadata.resourceVersion);
+
+          // Check if the resource version is newer than the cached version
+          if (itemRV > cachedRV) {
+            this.#events.emit(WatchEvent.CACHE_MISS, this.#latestRelistWindow);
+            // Send a modified event if the resource version has changed
+            void this.#process(item, WatchPhase.Modified);
+          }
         }
-      }
 
-      // If there is a continue token, call the list function again with the same removed items
-      if (continueToken) {
-        // Safeguard against infinite pagination
-        if (retryCount >= maxPages) {
-          this.#events.emit(
-            WatchEvent.LIST_ERROR,
-            new Error(`Maximum pagination limit (${maxPages}) reached, stopping list operation`),
-          );
-          return;
-        }
+        // If there is a continue token, call the list function again with the same removed items
+        if (continueToken) {
+          // Safeguard against infinite pagination
+          if (retryCount >= maxPages) {
+            this.#events.emit(
+              WatchEvent.LIST_ERROR,
+              new Error(`Maximum pagination limit (${maxPages}) reached, stopping list operation`),
+            );
+            return;
+          }
 
-        // Continue pagination (not a retry, so reset retryCount to 0)
-        await this.#list(continueToken, removedItems, 0);
-      } else {
-        // Otherwise, process the removed items
-        for (const item of removedItems.values()) {
-          this.#events.emit(WatchEvent.CACHE_MISS, this.#latestRelistWindow);
-          void this.#process(item, WatchPhase.Deleted);
+          // Continue pagination (not a retry, so reset retryCount to 0)
+          await this.#list(continueToken, removedItems, 0);
+        } else {
+          // Otherwise, process the removed items
+          for (const item of removedItems.values()) {
+            this.#events.emit(WatchEvent.CACHE_MISS, this.#latestRelistWindow);
+            void this.#process(item, WatchPhase.Deleted);
+          }
         }
       }
     } catch (err) {
@@ -424,13 +432,8 @@ export class Watcher<T extends GenericClass> {
    * @param retryCount - current retry attempt count
    */
   #watch = async (retryCount = 0): Promise<void> => {
-    const maxRetries = 5;
     // Start with a list operation, but don't let it block the watch stream
-    try {
-      await this.#list();
-    } catch (listError) {
-      this.#events.emit(WatchEvent.LIST_ERROR, listError);
-    }
+    await this.#list();
 
     // Build the URL and request options
     try {
@@ -484,17 +487,18 @@ export class Watcher<T extends GenericClass> {
         this.#stream.on("error", this.#errHandler);
         this.#stream.on("finish", this.#cleanupAndReconnect);
       } else {
+        const body = await response.text();
         this.#events.emit(
           WatchEvent.WATCH_ERROR,
           new Error(
-            `watch failed: ${response.status} ${response.statusText} ${JSON.stringify([...response.headers])}`,
+            `watch failed: ${response.status} ${response.statusText} ${JSON.stringify([...response.headers])} ${body}`,
           ),
         );
 
         if (!response.ok && response.status === 429) {
           // Retry with exponential backoff if under retry limit to prevent infinite recursion if the server is returning errors
           const retryAfterHeader = response.headers.get("retry-after");
-          if (retryCount < maxRetries && retryAfterHeader) {
+          if (retryCount < this.#watchCfg.maxRetries! && retryAfterHeader) {
             const backoffTime = parseInt(retryAfterHeader) * 1000;
             // consider calling close this.close();
             await sleep(backoffTime);
