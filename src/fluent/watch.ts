@@ -4,7 +4,7 @@
 import { EventEmitter } from "events";
 import { fetch } from "undici";
 import { GenericClass, KubernetesListObject } from "../types.js";
-import { k8sCfg, pathBuilder, getHeaders } from "./utils.js";
+import { k8sCfg, pathBuilder, getHeaders, sleep, startSleep } from "./utils.js";
 import { Readable } from "stream";
 import {
   K8sConfigPromise,
@@ -13,9 +13,6 @@ import {
   Filters,
   FetchMethods,
 } from "./shared-types.js";
-
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-const startSleep = 5000;
 
 export enum WatchEvent {
   /** Watch is connected successfully */
@@ -46,6 +43,8 @@ export enum WatchEvent {
   INC_RESYNC_FAILURE_COUNT = "inc_resync_failure_count",
   /** Initialize a relist window */
   INIT_CACHE_MISS = "init_cache_miss",
+  /** Watch operation error */
+  WATCH_ERROR = "watch_error",
 }
 
 /** Configuration for the watch function. */
@@ -264,16 +263,22 @@ export class Watcher<T extends GenericClass> {
             `list failed: ${response.status} ${response.statusText} ${JSON.stringify([...response.headers])}`,
           ),
         );
-
+        const retryAfterHeader = response.headers.get("retry-after");
         // Retry with exponential backoff if under retry limit to prevent infinite recursion if the server is returning errors
-        if (retryCount < maxRetries) {
-          const retryAfterHeader = response.headers.get("retry-after");
+        if (retryCount < maxRetries && retryAfterHeader) {
           const backoffTime = retryAfterHeader
             ? parseInt(retryAfterHeader) * 1000
             : Math.min(startSleep * Math.pow(2, retryCount), 30000);
 
           await sleep(backoffTime);
-          return this.#list(continueToken, removedItems, retryCount + 1);
+          try {
+            return this.#list(continueToken, removedItems, retryCount + 1);
+          } catch (e) {
+            this.#events.emit(
+              WatchEvent.LIST_ERROR,
+              `retry list failed attempt ${retryCount}: ${e}`,
+            );
+          }
         }
 
         return;
@@ -414,8 +419,11 @@ export class Watcher<T extends GenericClass> {
 
   /**
    * Watch for changes to the resource.
+   *
+   * @param retryCount - current retry attempt count
    */
-  #watch = async () => {
+  #watch = async (retryCount = 0): Promise<void> => {
+    const maxRetries = 5;
     // Start with a list operation, but don't let it block the watch stream
     try {
       await this.#list();
@@ -423,8 +431,8 @@ export class Watcher<T extends GenericClass> {
       this.#events.emit(WatchEvent.LIST_ERROR, listError);
     }
 
+    // Build the URL and request options
     try {
-      // Build the URL and request options
       const { opts, serverUrl } = await this.#buildURL(true, this.#resourceVersion);
 
       const response = await fetch(serverUrl, {
@@ -466,7 +474,7 @@ export class Watcher<T extends GenericClass> {
               await this.#processLine(line, this.#process);
             }
           } catch (err) {
-            void this.#errHandler(err);
+            void this.#errHandler(err); // this may need to  change - it is normal to get an error here
           }
         });
 
@@ -475,7 +483,30 @@ export class Watcher<T extends GenericClass> {
         this.#stream.on("error", this.#errHandler);
         this.#stream.on("finish", this.#cleanupAndReconnect);
       } else {
-        throw new Error(`watch connect failed: ${response.status} ${response.statusText}`);
+        this.#events.emit(
+          WatchEvent.WATCH_ERROR,
+          new Error(
+            `watch failed: ${response.status} ${response.statusText} ${JSON.stringify([...response.headers])}`,
+          ),
+        );
+
+        if (!response.ok && response.status === 429) {
+          // Retry with exponential backoff if under retry limit to prevent infinite recursion if the server is returning errors
+          const retryAfterHeader = response.headers.get("retry-after");
+          if (retryCount < maxRetries && retryAfterHeader) {
+            const backoffTime = parseInt(retryAfterHeader) * 1000;
+            // consider calling close this.close();
+            await sleep(backoffTime);
+            try {
+              return this.#watch(retryCount + 1);
+            } catch (e) {
+              this.#events.emit(
+                WatchEvent.WATCH_ERROR,
+                `retry watch failed attempt ${retryCount}: ${e}`,
+              );
+            }
+          }
+        }
       }
     } catch (e) {
       void this.#errHandler(e);

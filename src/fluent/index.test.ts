@@ -299,6 +299,7 @@ describe("Kube", () => {
       data: mockResp,
       status: 200,
       statusText: "OK",
+      headers: new Headers(),
     });
 
     const result = await K8s(V1APIGroup).Raw("/api");

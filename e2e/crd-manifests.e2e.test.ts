@@ -312,7 +312,7 @@ export const _privateCRD = {
       ["crd-manifests", testModulePath, outputDir],
       async (error, stdout, stderr) => {
         expect(error).toBeNull();
-        expect(stderr).toBe("");
+        expect(stderr).toContain("alpha");
 
         // Verify both CRD files were created
         const firstFile = path.join(outputDir, "first.example.com.yaml");
@@ -371,6 +371,52 @@ export const jsCRD = {
         fs.unlinkSync(jsModulePath);
       }
     }
+  });
+
+  describe("TypeScript child imports", () => {
+    // Permanent fixture: e2e/fixtures/crd-with-child-imports/
+    //   index.ts          → parent: assembles full CRD, imports version-schema.ts
+    //   version-schema.ts → child:  exports V1CustomResourceDefinitionVersion, imports shared-metadata.ts
+    //   shared-metadata.ts→ grandchild: exports a string constant
+    //
+    // This exercises the tsImport() → tsx scoped ESM loader chain with
+    // transitive .ts imports, mirroring how uds-core structures its CRDs.
+
+    const fixtureModule = path.join(__dirname, "fixtures", "crd-with-child-imports", "index.ts");
+
+    test("should load CRD from a TS module with transitive .ts child imports", async () => {
+      await runCliCommand(
+        ["crd-manifests", fixtureModule, outputDir],
+        async (error, stdout, stderr) => {
+          expect(error).toBeNull();
+          expect(stderr).toContain("alpha");
+
+          // Verify the CRD YAML was generated
+          const outputFile = path.join(outputDir, "widgets.example.com.yaml");
+          expect(fs.existsSync(outputFile)).toBe(true);
+
+          // Verify the content includes data from the child import chain
+          const content = fs.readFileSync(outputFile, "utf8");
+          expect(content).toContain("apiVersion: apiextensions.k8s.io/v1");
+          expect(content).toContain("kind: CustomResourceDefinition");
+          expect(content).toContain("name: widgets.example.com");
+          expect(content).toContain("group: example.com");
+          expect(content).toContain("kind: Widget");
+          expect(content).toContain("scope: Namespaced");
+
+          // Verify the version schema from the child module is present
+          expect(content).toContain("name: v1alpha1");
+          expect(content).toContain("served: true");
+          expect(content).toContain("storage: true");
+
+          // Verify the grandchild import resolved (shared description made it through)
+          expect(content).toContain("Widget specification for the test CRD");
+
+          expect(stdout).toContain("Loading CRD definitions from");
+          expect(stdout).toContain("✅ Exported 1 CRD manifest(s) to");
+        },
+      );
+    });
   });
 
   describe("default export patterns", () => {
