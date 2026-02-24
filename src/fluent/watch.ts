@@ -238,8 +238,7 @@ export class Watcher<T extends GenericClass> {
    * @param continueToken - the continue token for the list
    * @param removedItems - the list of items that have been removed
    * @param retryCount - current retry attempt count
-   *
-   * @returns Promise<void>
+   * @returns resolves when list processing is complete
    */
   #list = async (
     continueToken?: string,
