@@ -1,15 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { Interceptable, MockAgent, setGlobalDispatcher } from "undici";
-import { PassThrough } from "stream";
-import { K8s } from "./index.js";
-import { WatchEvent, kind } from "../index.js";
-import { WatchPhase } from "./shared-types.js";
-import { Watcher } from "./watch.js";
 import { KubeConfig } from "@kubernetes/client-node";
 import type { RequestOptions } from "https";
-import type { RequestInit, HeadersInit } from "node-fetch";
+import type { HeadersInit, RequestInit } from "node-fetch";
+import { PassThrough } from "stream";
+import { Interceptable, MockAgent, setGlobalDispatcher } from "undici";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { WatchEvent, kind } from "../index.js";
+import { K8s } from "./index.js";
+import { WatchPhase } from "./shared-types.js";
+import { Watcher } from "./watch.js";
 
 let mockClient: Interceptable;
 describe("Watcher", () => {
@@ -310,6 +310,65 @@ describe("Watcher", () => {
       expect(error.message).toEqual(
         "request to https://jest-test:8080/api/v1/pods?watch=true&resourceVersion=45 failed, reason: Something bad happened",
       );
+    });
+  });
+
+  it("should trigger reconnect after non-OK watch response", async () => {
+    const namespace = "reconnect-test";
+
+    mockClient
+      .intercept({
+        path: `/api/v1/namespaces/${namespace}/pods`,
+        method: "GET",
+      })
+      .reply(200, {
+        kind: "PodList",
+        apiVersion: "v1",
+        metadata: {
+          resourceVersion: "90",
+        },
+        items: [createMockPod(`pod-0`, `1`)],
+      });
+
+    mockClient
+      .intercept({
+        path: `/api/v1/namespaces/${namespace}/pods?watch=true&resourceVersion=90`,
+        method: "GET",
+      })
+      .reply(500, {
+        kind: "Status",
+        apiVersion: "v1",
+        metadata: {},
+        status: "Failure",
+        message: "internal error",
+        reason: "InternalError",
+        code: 500,
+      });
+
+    watcher = K8s(kind.Pod).InNamespace(namespace).Watch(evtMock, {
+      resyncDelaySec: 0.01,
+      lastSeenLimitSeconds: 1,
+      resyncFailureMax: 2,
+    });
+
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(
+        () => reject(new Error("did not reconnect after non-OK watch response")),
+        2500,
+      );
+
+      watcher.events.on(WatchEvent.RECONNECT, count => {
+        try {
+          expect(count).toEqual(1);
+          clearTimeout(timeout);
+          resolve();
+        } catch (err) {
+          clearTimeout(timeout);
+          reject(err);
+        }
+      });
+
+      watcher.start().catch(reject);
     });
   });
 });

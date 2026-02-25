@@ -2,17 +2,17 @@
 // SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
 
 import { EventEmitter } from "events";
+import { Readable } from "stream";
 import { fetch } from "undici";
 import { GenericClass, KubernetesListObject } from "../types.js";
-import { k8sCfg, pathBuilder, getHeaders, sleep, startSleep } from "./utils.js";
-import { Readable } from "stream";
 import {
-  K8sConfigPromise,
-  WatchPhase,
-  WatchAction,
-  Filters,
   FetchMethods,
+  Filters,
+  K8sConfigPromise,
+  WatchAction,
+  WatchPhase,
 } from "./shared-types.js";
+import { getHeaders, k8sCfg, pathBuilder, sleep, startSleep } from "./utils.js";
 
 export enum WatchEvent {
   /** Watch is connected successfully */
@@ -498,6 +498,7 @@ export class Watcher<T extends GenericClass> {
             // consider calling close this.close();
             await sleep(backoffTime);
             try {
+              this.#streamCleanup();
               return this.#watch(retryCount + 1);
             } catch (e) {
               this.#events.emit(
@@ -505,10 +506,21 @@ export class Watcher<T extends GenericClass> {
                 `retry watch failed attempt ${retryCount}: ${e}`,
               );
             }
+          } else {
+            // Mark the watch as stale so the resync loop triggers another reconnect attempt.
+            this.#lastSeenTime = OVERRIDE;
+            this.#pendingReconnect = false;
           }
+        } else {
+          // Mark the watch as stale so the resync loop triggers another reconnect attempt.
+          this.#lastSeenTime = OVERRIDE;
+          this.#pendingReconnect = false;
         }
       }
     } catch (e) {
+      // This catches network errors from the fetch call to start the watch
+      this.#lastSeenTime = OVERRIDE;
+      this.#pendingReconnect = false;
       void this.#errHandler(e);
     }
   };
