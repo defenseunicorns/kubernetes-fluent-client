@@ -2,17 +2,17 @@
 // SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
 
 import { EventEmitter } from "events";
+import { Readable } from "stream";
 import { fetch } from "undici";
 import { GenericClass, KubernetesListObject } from "../types.js";
-import { k8sCfg, pathBuilder, getHeaders, sleep, startSleep } from "./utils.js";
-import { Readable } from "stream";
 import {
-  K8sConfigPromise,
-  WatchPhase,
-  WatchAction,
-  Filters,
   FetchMethods,
+  Filters,
+  K8sConfigPromise,
+  WatchAction,
+  WatchPhase,
 } from "./shared-types.js";
+import { getHeaders, k8sCfg, pathBuilder, sleep, startSleep } from "./utils.js";
 
 export enum WatchEvent {
   /** Watch is connected successfully */
@@ -424,6 +424,7 @@ export class Watcher<T extends GenericClass> {
    */
   #watch = async (retryCount = 0): Promise<void> => {
     const maxRetries = 5;
+    let connected = false;
     // Start with a list operation, but don't let it block the watch stream
     try {
       await this.#list();
@@ -444,6 +445,7 @@ export class Watcher<T extends GenericClass> {
 
       // If the request is successful, start listening for events
       if (response.ok) {
+        connected = true;
         // Reset the pending reconnect flag
         this.#pendingReconnect = false;
 
@@ -490,6 +492,10 @@ export class Watcher<T extends GenericClass> {
           ),
         );
 
+        // Mark the watch as stale so the resync loop triggers another reconnect attempt.
+        this.#lastSeenTime = OVERRIDE;
+        this.#pendingReconnect = false;
+
         if (!response.ok && response.status === 429) {
           // Retry with exponential backoff if under retry limit to prevent infinite recursion if the server is returning errors
           const retryAfterHeader = response.headers.get("retry-after");
@@ -509,7 +515,13 @@ export class Watcher<T extends GenericClass> {
         }
       }
     } catch (e) {
+      this.#pendingReconnect = false;
       void this.#errHandler(e);
+    } finally {
+      // If the watch never connected, clear pending reconnect so the resync loop can retry.
+      if (!connected) {
+        this.#pendingReconnect = false;
+      }
     }
   };
 
