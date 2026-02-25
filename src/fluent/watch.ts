@@ -490,10 +490,6 @@ export class Watcher<T extends GenericClass> {
           ),
         );
 
-        // Mark the watch as stale so the resync loop triggers another reconnect attempt.
-        this.#lastSeenTime = OVERRIDE;
-        this.#pendingReconnect = false;
-
         if (!response.ok && response.status === 429) {
           // Retry with exponential backoff if under retry limit to prevent infinite recursion if the server is returning errors
           const retryAfterHeader = response.headers.get("retry-after");
@@ -502,6 +498,7 @@ export class Watcher<T extends GenericClass> {
             // consider calling close this.close();
             await sleep(backoffTime);
             try {
+              this.#streamCleanup();
               return this.#watch(retryCount + 1);
             } catch (e) {
               this.#events.emit(
@@ -510,9 +507,15 @@ export class Watcher<T extends GenericClass> {
               );
             }
           }
+        } else {
+          // Mark the watch as stale so the resync loop triggers another reconnect attempt.
+          this.#lastSeenTime = OVERRIDE;
+          this.#pendingReconnect = false;
         }
       }
     } catch (e) {
+      // This catches network errors from the fetch call to start the watch
+      this.#lastSeenTime = OVERRIDE;
       this.#pendingReconnect = false;
       void this.#errHandler(e);
     }
