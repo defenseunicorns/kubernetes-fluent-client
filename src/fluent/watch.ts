@@ -506,6 +506,10 @@ export class Watcher<T extends GenericClass> {
                 `retry watch failed attempt ${retryCount}: ${e}`,
               );
             }
+          } else {
+            // Mark the watch as stale so the resync loop triggers another reconnect attempt.
+            this.#lastSeenTime = OVERRIDE;
+            this.#pendingReconnect = false;
           }
         } else {
           // Mark the watch as stale so the resync loop triggers another reconnect attempt.
