@@ -424,7 +424,6 @@ export class Watcher<T extends GenericClass> {
    */
   #watch = async (retryCount = 0): Promise<void> => {
     const maxRetries = 5;
-    let connected = false;
     // Start with a list operation, but don't let it block the watch stream
     try {
       await this.#list();
@@ -445,7 +444,6 @@ export class Watcher<T extends GenericClass> {
 
       // If the request is successful, start listening for events
       if (response.ok) {
-        connected = true;
         // Reset the pending reconnect flag
         this.#pendingReconnect = false;
 
@@ -517,11 +515,6 @@ export class Watcher<T extends GenericClass> {
     } catch (e) {
       this.#pendingReconnect = false;
       void this.#errHandler(e);
-    } finally {
-      // If the watch never connected, clear pending reconnect so the resync loop can retry.
-      if (!connected) {
-        this.#pendingReconnect = false;
-      }
     }
   };
 
