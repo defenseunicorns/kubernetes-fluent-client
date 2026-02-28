@@ -394,6 +394,69 @@ describe("Kube", () => {
     expect(updatedFinalizers).toBe(null);
   });
 
+  describe("filter isolation across terminal operations", () => {
+    it("should allow reusing a fluent chain for multiple Get(name) calls", async () => {
+      // A stored fluent chain with a namespace filter but no name filter.
+      const pods = K8s(Pod).InNamespace("default");
+
+      // First call sets filters.name = "pod-a" internally.
+      await pods.Get("pod-a");
+
+      // Second call with a different name should NOT throw
+      // "Name already specified: pod-a".
+      await expect(pods.Get("pod-b")).resolves.toBeDefined();
+
+      // Verify both calls went through with their respective names.
+      expect(mockedKubeExec).toHaveBeenCalledWith(
+        Pod,
+        expect.objectContaining({ name: "pod-a", namespace: "default" }),
+        { method: "GET" },
+      );
+      expect(mockedKubeExec).toHaveBeenCalledWith(
+        Pod,
+        expect.objectContaining({ name: "pod-b", namespace: "default" }),
+        { method: "GET" },
+      );
+    });
+
+    it("should allow reusing a fluent chain for multiple Delete(name) calls", async () => {
+      const pods = K8s(Pod).InNamespace("default");
+
+      await pods.Delete("pod-a");
+      // Second delete should not carry over name from the first call.
+      await expect(pods.Delete("pod-b")).resolves.toBeUndefined();
+
+      expect(mockedKubeExec).toHaveBeenCalledWith(
+        Pod,
+        expect.objectContaining({ name: "pod-a", namespace: "default" }),
+        { method: "DELETE" },
+      );
+      expect(mockedKubeExec).toHaveBeenCalledWith(
+        Pod,
+        expect.objectContaining({ name: "pod-b", namespace: "default" }),
+        { method: "DELETE" },
+      );
+    });
+
+    it("should not leak name from Create's syncFilters into subsequent Get", async () => {
+      // K8s() returns Create at the top level (before InNamespace).
+      const pods = K8s(Pod);
+
+      // Create writes the resource's name into filters via syncFilters.
+      await pods.Create({
+        metadata: { name: "created-pod", namespace: "default" },
+      } as InstanceType<typeof Pod>);
+
+      // A subsequent list-Get (no name) should not have name="created-pod".
+      await pods.Get();
+
+      const getCalls = mockedKubeExec.mock.calls.filter(([, , opts]) => opts.method === "GET");
+      expect(getCalls).toHaveLength(1);
+      // The filters passed to the list Get should have no name set.
+      expect(getCalls[0][1]).not.toHaveProperty("name", "created-pod");
+    });
+  });
+
   it("should remove finalizers if they are present", async () => {
     const fakePod: KubernetesObject = {
       metadata: {

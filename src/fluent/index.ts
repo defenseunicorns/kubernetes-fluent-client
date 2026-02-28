@@ -79,20 +79,22 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
   }
 
   /**
-   * Sync the filters with the provided payload.
+   * Sync the target filters with the provided payload, and fill in
+   * missing apiVersion/kind on the payload from the matched kind.
    *
    * @param payload - the payload to sync with
+   * @param target - the filters object to write into (should be a per-call clone)
    */
-  function syncFilters(payload: K) {
+  function syncFilters(payload: K, target: Filters) {
     // Ensure the payload has metadata
     payload.metadata = payload.metadata || {};
 
-    if (!filters.namespace) {
-      filters.namespace = payload.metadata.namespace;
+    if (!target.namespace) {
+      target.namespace = payload.metadata.namespace;
     }
 
-    if (!filters.name) {
-      filters.name = payload.metadata.name;
+    if (!target.name) {
+      target.name = payload.metadata.name;
     }
 
     if (!payload.apiVersion) {
@@ -109,16 +111,17 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
    * @see {@link K8sInit.Logs}
    */
   async function Logs(name?: string): Promise<string[]> {
+    const localFilters = { ...filters };
     let labels: Record<string, string> = {};
     const { kind } = matchedKind;
-    const { namespace } = filters;
+    const { namespace } = localFilters;
     const podList: K[] = [];
 
     if (name) {
-      if (filters.name) {
-        throw new Error(`Name already specified: ${filters.name}`);
+      if (localFilters.name) {
+        throw new Error(`Name already specified: ${localFilters.name}`);
       }
-      filters.name = name;
+      localFilters.name = name;
     }
 
     if (!namespace) {
@@ -129,7 +132,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
     }
 
     try {
-      const object = await k8sExec<T, K>(model, filters, { method: FetchMethods.GET });
+      const object = await k8sExec<T, K>(model, localFilters, { method: FetchMethods.GET });
 
       if (kind !== "Pod") {
         if (kind === "Service") {
@@ -145,7 +148,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
           labels = rs.spec!.selector.matchLabels ?? {};
         }
 
-        const list = await K8s(Pod, { namespace: filters.namespace, labels }).Get();
+        const list = await K8s(Pod, { namespace: localFilters.namespace, labels }).Get();
 
         list.items.forEach(item => {
           return podList.push(item as unknown as K);
@@ -161,7 +164,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
     const logPromises = podList.map(po =>
       k8sExec<T, string>(
         podModel,
-        { ...filters, name: po.metadata!.name! },
+        { ...localFilters, name: po.metadata!.name! },
         { method: FetchMethods.LOG },
       ),
     );
@@ -191,14 +194,17 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
    * @see {@link K8sInit.Get}
    */
   async function Get(name?: string) {
+    const localFilters = { ...filters };
     if (name) {
-      if (filters.name) {
-        throw new Error(`Name already specified: ${filters.name}`);
+      if (localFilters.name) {
+        throw new Error(`Name already specified: ${localFilters.name}`);
       }
-      filters.name = name;
+      localFilters.name = name;
     }
 
-    return k8sExec<T, K | KubernetesListObject<K>>(model, filters, { method: FetchMethods.GET });
+    return k8sExec<T, K | KubernetesListObject<K>>(model, localFilters, {
+      method: FetchMethods.GET,
+    });
   }
 
   /**
@@ -206,15 +212,16 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
    * @see {@link K8sInit.Delete}
    */
   async function Delete(filter?: K | string): Promise<void> {
+    const localFilters = { ...filters };
     if (typeof filter === "string") {
-      filters.name = filter;
+      localFilters.name = filter;
     } else if (filter) {
-      syncFilters(filter);
+      syncFilters(filter, localFilters);
     }
 
     try {
       // Try to delete the resource
-      await k8sExec<T, void>(model, filters, { method: FetchMethods.DELETE });
+      await k8sExec<T, void>(model, localFilters, { method: FetchMethods.DELETE });
     } catch (e) {
       // If the resource doesn't exist, ignore the error
       if (e.status === StatusCodes.NOT_FOUND) {
@@ -233,8 +240,14 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
     resource: PartialDeep<K>,
     applyCfg: ApplyCfg = { force: false },
   ): Promise<K> {
-    syncFilters(resource as K);
-    return k8sExec(model, filters, { method: FetchMethods.APPLY, payload: resource }, applyCfg);
+    const localFilters = { ...filters };
+    syncFilters(resource as K, localFilters);
+    return k8sExec(
+      model,
+      localFilters,
+      { method: FetchMethods.APPLY, payload: resource },
+      applyCfg,
+    );
   }
 
   /**
@@ -242,8 +255,9 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
    * @see {@link K8sInit.Create}
    */
   async function Create(resource: K): Promise<K> {
-    syncFilters(resource);
-    return k8sExec(model, filters, { method: FetchMethods.POST, payload: resource });
+    const localFilters = { ...filters };
+    syncFilters(resource, localFilters);
+    return k8sExec(model, localFilters, { method: FetchMethods.POST, payload: resource });
   }
 
   /**
@@ -251,10 +265,11 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
    * @see {@link K8sInit.Evict}
    */
   async function Evict(filter?: K | string): Promise<void> {
+    const localFilters = { ...filters };
     if (typeof filter === "string") {
-      filters.name = filter;
+      localFilters.name = filter;
     } else if (filter) {
-      syncFilters(filter);
+      syncFilters(filter, localFilters);
     }
 
     try {
@@ -262,12 +277,12 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
         apiVersion: "policy/v1",
         kind: "Eviction",
         metadata: {
-          name: filters.name,
-          namespace: filters.namespace,
+          name: localFilters.name,
+          namespace: localFilters.namespace,
         },
       };
       // Try to evict the resource
-      await k8sExec<T, void>(model, filters, {
+      await k8sExec<T, void>(model, localFilters, {
         method: FetchMethods.POST,
         payload: evictionPayload,
       });
@@ -298,8 +313,9 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
    * @see {@link K8sInit.PatchStatus}
    */
   async function PatchStatus(resource: PartialDeep<K>): Promise<K> {
-    syncFilters(resource as K);
-    return k8sExec(model, filters, { method: FetchMethods.PATCH_STATUS, payload: resource });
+    const localFilters = { ...filters };
+    syncFilters(resource as K, localFilters);
+    return k8sExec(model, localFilters, { method: FetchMethods.PATCH_STATUS, payload: resource });
   }
 
   /**
@@ -344,14 +360,15 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
     finalizer: string,
     name?: string,
   ): Promise<void> {
+    const localFilters = { ...filters };
     if (name) {
-      if (filters.name) {
-        throw new Error(`Name already specified: ${filters.name}`);
+      if (localFilters.name) {
+        throw new Error(`Name already specified: ${localFilters.name}`);
       }
-      filters.name = name;
+      localFilters.name = name;
     }
     // need to do a GET to get the array index of the finalizer
-    const object = await k8sExec<T, K>(model, filters, { method: FetchMethods.GET });
+    const object = await k8sExec<T, K>(model, localFilters, { method: FetchMethods.GET });
     if (!object) {
       throw new Error("Resource not found");
     }
@@ -361,7 +378,7 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
 
     await k8sExec<T, K>(
       model,
-      filters,
+      localFilters,
       {
         method: FetchMethods.APPLY,
         payload: {
@@ -384,16 +401,17 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
    * @see {@link K8sInit.Scale}
    */
   async function Scale(replicas: number, name?: string): Promise<void> {
+    const localFilters = { ...filters };
     if (name) {
-      if (filters.name) {
-        throw new Error(`Name already specified: ${filters.name}`);
+      if (localFilters.name) {
+        throw new Error(`Name already specified: ${localFilters.name}`);
       }
-      filters.name = name;
+      localFilters.name = name;
     }
 
     await k8sExec<T, K>(
       model,
-      filters,
+      localFilters,
       {
         method: FetchMethods.PATCH,
         payload: [{ op: "replace", path: "/spec/replicas", value: replicas }],
@@ -412,13 +430,14 @@ export function K8s<T extends GenericClass, K extends KubernetesObject = Instanc
    * @see {@link K8sInit.Proxy}
    */
   async function Proxy(name?: string, port?: string): Promise<string> {
+    const localFilters = { ...filters };
     if (name) {
-      if (filters.name) {
-        throw new Error(`Name already specified: ${filters.name}`);
+      if (localFilters.name) {
+        throw new Error(`Name already specified: ${localFilters.name}`);
       }
-      filters.name = name;
+      localFilters.name = name;
     }
-    const object = await k8sExec<T, K>(model, filters, {
+    const object = await k8sExec<T, K>(model, localFilters, {
       method: FetchMethods.GET,
       subResourceConfig: { ProxyConfig: { port: port || "" } },
     });
