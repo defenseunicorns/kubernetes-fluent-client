@@ -284,10 +284,8 @@ export class Watcher<T extends GenericClass> {
         return;
       }
 
-      // Gross hack, thanks upstream library :<
-      if ((list.metadata as { continue?: string }).continue) {
-        continueToken = (list.metadata as { continue?: string }).continue;
-      }
+      // Unconditionally assign the continue token from the response so that it is cleared on the last page
+      continueToken = (list.metadata as { continue?: string }).continue;
 
       // Emit the list event
       this.#events.emit(WatchEvent.LIST, list);
