@@ -65,6 +65,16 @@ beforeEach(() => {
   mockClient
     .intercept({ path: "/todos/invalid", method: "GET" })
     .replyWithError(new Error("Something bad happened"));
+
+  // A 200 response with content-type: application/json but a body that is not
+  // valid JSON. This triggers resp.json() to throw inside the try block.
+  mockClient
+    .intercept({ path: "/todos/malformed-json", method: "GET" })
+    .reply(StatusCodes.OK, "this is not valid json", {
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+      },
+    });
 });
 
 afterEach(async () => {
@@ -161,6 +171,18 @@ test("fetch: should handle failed requests without throwing an error", async () 
   expect(resp.data).toBe(undefined);
   expect(resp.ok).toBe(false);
   expect(resp.status).toBe(StatusCodes.BAD_REQUEST);
+});
+
+test("fetch: should preserve HTTP status but report failure when JSON parsing fails", async () => {
+  // The server returns 200 with content-type application/json but the body is
+  // malformed. The real HTTP status should be preserved for diagnostics, but
+  // ok must be false because the body is unusable.
+  const url = "https://jsonplaceholder.typicode.com/todos/malformed-json";
+  const resp = await fetch(url);
+
+  expect(resp.status).toBe(StatusCodes.OK);
+  expect(resp.ok).toBe(false);
+  expect(resp.e).toBeDefined();
 });
 
 test("fetch wrapper respects MockAgent", async () => {

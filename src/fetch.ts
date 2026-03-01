@@ -31,8 +31,22 @@ export async function fetch<T>(
   init?: RequestInit,
 ): Promise<FetchResponse<T>> {
   let data = undefined as unknown as T;
+
+  // Capture response metadata before body parsing so it survives catch blocks.
+  // Without this, a body-parsing failure (e.g. malformed JSON on a 200) loses
+  // the real HTTP status and replaces it with a synthetic 400.
+  let ok: boolean | undefined;
+  let status: number | undefined;
+  let statusText: string | undefined;
+  let headers: Headers | undefined;
+
   try {
     const resp = await undiciFetch(url, init);
+    ok = resp.ok;
+    status = resp.status;
+    statusText = resp.statusText;
+    headers = resp.headers;
+
     const contentType = resp.headers.get("content-type") || "";
 
     // Parse the response as JSON if the content type is JSON
@@ -43,23 +57,18 @@ export async function fetch<T>(
       data = (await resp.text()) as unknown as T;
     }
 
-    return {
-      data,
-      ok: resp.ok,
-      status: resp.status,
-      statusText: resp.statusText,
-      headers: resp.headers,
-    };
+    return { data, ok, status, statusText, headers };
   } catch (e) {
-    const status = parseInt(e?.code) || StatusCodes.BAD_REQUEST;
-    const statusText = e?.message || "Unknown error";
-
+    // Always treat a catch as a failure for callers — even when the HTTP
+    // transport returned 2xx, a body-parse error means `data` is unusable.
+    // We still preserve the real HTTP status/headers so callers can
+    // distinguish "server sent 200 with garbage body" from "network error".
     return {
       data,
       ok: false,
-      status,
-      statusText,
-      headers: new Headers(),
+      status: status ?? (parseInt(e?.code) || StatusCodes.BAD_REQUEST),
+      statusText: statusText ?? (e?.message || "Unknown error"),
+      headers: headers ?? new Headers(),
       e,
     };
   }
