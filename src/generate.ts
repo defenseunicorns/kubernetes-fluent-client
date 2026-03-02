@@ -214,7 +214,9 @@ export async function readOrFetchCrd(opts: GenerateOptions): Promise<CustomResou
     return [await K8s(CustomResourceDefinition).Get(opts.source)];
   } catch (error) {
     opts.logFn(`Error loading CRD: ${error.message}`);
-    throw new Error(`Failed to read ${opts.source} as a file, URL, or Kubernetes CRD`);
+    throw new Error(`Failed to read ${opts.source} as a file, URL, or Kubernetes CRD`, {
+      cause: error,
+    });
   }
 }
 

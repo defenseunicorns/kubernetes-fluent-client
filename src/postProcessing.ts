@@ -175,7 +175,12 @@ export function applyCRDPostProcessing(
 
     return normalizedLines.join("\n");
   } catch (error) {
-    throw new Error(`Error while applying post-processing for ${name}: ${error.message}`);
+    throw new Error(
+      `Error while applying post-processing for ${name}: ${(error as Error).message}`,
+      {
+        cause: error,
+      },
+    );
   }
 }
 
