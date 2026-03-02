@@ -483,6 +483,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
     kind: "IngressClass",
     version: "v1",
     group: "networking.k8s.io",
+    plural: "ingressclasses",
   },
 
   /**
@@ -521,6 +522,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
     kind: "RuntimeClass",
     version: "v1",
     group: "node.k8s.io",
+    plural: "runtimeclasses",
   },
 
   /**
@@ -569,6 +571,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
     kind: "CSIStorageCapacity",
     version: "v1",
     group: "storage.k8s.io",
+    plural: "csistoragecapacities",
   },
 
   /**
@@ -581,6 +584,7 @@ const gvkMap: Record<string, GroupVersionKind> = {
     kind: "StorageClass",
     version: "v1",
     group: "storage.k8s.io",
+    plural: "storageclasses",
   },
 };
 
