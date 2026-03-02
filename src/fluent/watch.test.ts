@@ -11,6 +11,23 @@ import { K8s } from "./index.js";
 import { WatchPhase } from "./shared-types.js";
 import { Watcher } from "./watch.js";
 
+// Strip the custom `dispatcher` from k8sCfg return values so that fetch
+// calls route through the global MockAgent instead of a real undici Agent.
+// Without this, the Agent from getHTTPSAgent bypasses the mock entirely.
+// Uses a plain function (not vi.fn) so vi.resetAllMocks() doesn't wipe it.
+vi.mock("./utils.js", async importOriginal => {
+  const actual = await importOriginal<typeof import("./utils.js")>();
+  return {
+    ...actual,
+    k8sCfg: async (...args: Parameters<typeof actual.k8sCfg>) => {
+      const result = await actual.k8sCfg(...args);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { dispatcher, ...opts } = result.opts as Record<string, unknown>;
+      return { ...result, opts };
+    },
+  };
+});
+
 let mockClient: Interceptable;
 describe("Watcher", () => {
   const evtMock = vi.fn<(update: kind.Pod, phase: WatchPhase) => void>();
@@ -311,6 +328,86 @@ describe("Watcher", () => {
         "request to https://jest-test:8080/api/v1/pods?watch=true&resourceVersion=45 failed, reason: Something bad happened",
       );
     });
+  });
+
+  it("should clear continueToken on the last pagination page and not re-request with stale token", async () => {
+    // Verifies that a paginated list (page 1 returns a continue token,
+    // page 2 omits it) completes without re-requesting using the stale
+    // continue token from page 1.
+
+    const namespace = "pagination-test";
+    let staleTokenReused = false;
+    let listCount = 0;
+
+    // Page 1: returns a continue token, indicating more pages exist.
+    mockClient
+      .intercept({
+        path: `/api/v1/namespaces/${namespace}/pods`,
+        method: "GET",
+      })
+      .reply(200, {
+        kind: "PodList",
+        apiVersion: "v1",
+        metadata: {
+          resourceVersion: "100",
+          continue: "page2-token",
+        },
+        items: [createMockPod("pod-page1", "1")],
+      });
+
+    // Page 2 (last page): no continue token in metadata.
+    mockClient
+      .intercept({
+        path: `/api/v1/namespaces/${namespace}/pods?continue=page2-token`,
+        method: "GET",
+      })
+      .reply(200, {
+        kind: "PodList",
+        apiVersion: "v1",
+        metadata: {
+          resourceVersion: "101",
+        },
+        items: [createMockPod("pod-page2", "2")],
+      });
+
+    // Canary: if the stale continue token were reused, this interceptor
+    // would be consumed and staleTokenReused would flip to true.
+    mockClient
+      .intercept({
+        path: `/api/v1/namespaces/${namespace}/pods?continue=page2-token`,
+        method: "GET",
+      })
+      .reply(200, () => {
+        staleTokenReused = true;
+        return {
+          kind: "PodList",
+          apiVersion: "v1",
+          metadata: { resourceVersion: "102" },
+          items: [],
+        };
+      });
+
+    watcher = K8s(kind.Pod).InNamespace(namespace).Watch(evtMock, {
+      resyncDelaySec: 5,
+      lastSeenLimitSeconds: 30,
+    });
+
+    // Wait for list pagination to complete. Each LIST event corresponds to
+    // one page of results. We expect exactly 2 pages.
+    await new Promise<void>(resolve => {
+      watcher.events.on(WatchEvent.LIST, () => {
+        listCount++;
+        if (listCount >= 2) {
+          resolve();
+        }
+      });
+      watcher.start().catch(() => {});
+    });
+
+    // Both pages were listed successfully.
+    expect(listCount).toBe(2);
+    // The stale continue token from page 1 was NOT reused after page 2.
+    expect(staleTokenReused).toBe(false);
   });
 
   it("should trigger reconnect after non-OK watch response", async () => {
