@@ -53,47 +53,47 @@
     "@kubernetes/client-node": "1.4.0",
     "fast-json-patch": "3.1.1",
     "http-status-codes": "2.3.0",
-    "js-yaml": "^4.1.1",
+    "js-yaml": "4.1.1",
     "node-fetch": "2.7.0",
     "quicktype-core": "23.2.6",
-    "tsx": "^4.21.0",
-    "type-fest": "^5.0.0",
-    "undici": "^7.7.0",
+    "tsx": "4.21.0",
+    "type-fest": "5.4.4",
+    "undici": "7.22.0",
     "yargs": "18.0.0"
   },
   "devDependencies": {
     "@commitlint/cli": "20.4.2",
     "@commitlint/config-conventional": "20.4.2",
-    "@defenseunicorns/eslint-config": "^1.1.2",
-    "@eslint/eslintrc": "^3.3.4",
-    "@eslint/js": "^10.0.1",
+    "@defenseunicorns/eslint-config": "1.2.0",
+    "@eslint/eslintrc": "3.3.4",
+    "@eslint/js": "10.0.1",
     "@types/byline": "4.2.36",
-    "@types/command-line-args": "^5.2.3",
+    "@types/command-line-args": "5.2.3",
     "@types/readable-stream": "4.0.23",
-    "@types/urijs": "^1.19.25",
-    "@types/ws": "^8.18.1",
+    "@types/urijs": "1.19.26",
+    "@types/ws": "8.18.1",
     "@types/yargs": "17.0.35",
     "@typescript-eslint/eslint-plugin": "8.56.1",
     "@typescript-eslint/parser": "8.56.1",
-    "@vitest/coverage-v8": "^4.0.1",
-    "command-line-args": "^6.0.1",
-    "eslint": "^10.0.2",
+    "@vitest/coverage-v8": "4.0.18",
+    "command-line-args": "6.0.1",
+    "eslint": "10.0.2",
     "eslint-plugin-jsdoc": "62.7.1",
-    "globals": "^17.4.0",
-    "husky": "^9.1.6",
-    "lint-staged": "^16.0.0",
+    "globals": "17.4.0",
+    "husky": "9.1.7",
+    "lint-staged": "16.3.1",
     "prettier": "3.8.1",
     "semantic-release": "25.0.3",
     "typescript": "5.9.3",
-    "vitest": "^4.0.1"
+    "vitest": "4.0.18"
   },
   "overrides": {
-    "tar-fs": "^3.1.1",
+    "tar-fs": "3.1.1",
     "semantic-release@24.2.0": {
       "npm": {
         "glob": {
           "foreground-child": {
-            "cross-spawn": "^7.0.6"
+            "cross-spawn": "7.0.6"
           }
         }
       }
