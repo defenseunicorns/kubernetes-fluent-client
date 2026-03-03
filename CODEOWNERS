@@ -4,3 +4,6 @@
 /CODEOWNERS @jeff-mccoy @daveworth
 /cosign.pub @jeff-mccoy @daveworth
 /LICENSE @jeff-mccoy @austenbryan
+
+# Auth-related code
+/src/fluent/ @jeff-mccoy @daveworth @soltysh @cmwylie19
