@@ -3,7 +3,7 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { V1APIGroup } from "@kubernetes/client-node";
-import { Operation } from "fast-json-patch";
+import { Operation } from "./types.js";
 import { KubernetesObject } from "@kubernetes/client-node";
 import { K8s, removeControllerFields, updateFinalizersOrSkip } from "./index.js";
 import { fetch } from "../fetch.js";

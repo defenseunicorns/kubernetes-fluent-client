@@ -2,8 +2,23 @@
 // SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
 
 import { KubernetesListObject, KubernetesObject } from "@kubernetes/client-node";
-import { Operation } from "fast-json-patch";
-import type { PartialDeep } from "type-fest";
+/**
+ * A JSON Patch operation as defined by RFC 6902.
+ *
+ * @see https://datatracker.ietf.org/doc/html/rfc6902
+ */
+export type Operation =
+  | { op: "add"; path: string; value: unknown }
+  | { op: "remove"; path: string }
+  | { op: "replace"; path: string; value: unknown }
+  | { op: "move"; path: string; from: string }
+  | { op: "copy"; path: string; from: string }
+  | { op: "test"; path: string; value: unknown };
+
+/**
+ * Recursively makes all properties of T optional.
+ */
+export type PartialDeep<T> = T extends object ? { [P in keyof T]?: PartialDeep<T[P]> } : T;
 import { GenericClass } from "../types.js";
 import { WatchCfg, Watcher } from "./watch.js";
 import https from "https";

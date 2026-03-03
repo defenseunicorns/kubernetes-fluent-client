@@ -2,14 +2,12 @@
 // SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
 
 import { KubernetesListObject, KubernetesObject } from "@kubernetes/client-node";
-import { Operation } from "fast-json-patch";
 import { StatusCodes } from "http-status-codes";
-import type { PartialDeep } from "type-fest";
 
 import { fetch } from "../fetch.js";
 import { modelToGroupVersionKind } from "../kinds.js";
 import { GenericClass } from "../types.js";
-import { K8sInit, Paths } from "./types.js";
+import { K8sInit, Operation, Paths, PartialDeep } from "./types.js";
 import { Filters, WatchAction, FetchMethods, ApplyCfg } from "./shared-types.js";
 import { k8sCfg, k8sExec } from "./utils.js";
 import { WatchCfg, Watcher } from "./watch.js";
