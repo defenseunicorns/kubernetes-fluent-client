@@ -52,6 +52,15 @@ const testCases = [
   },
   { name: kind.Ingress, expected: { group: "networking.k8s.io", version: "v1", kind: "Ingress" } },
   {
+    name: kind.IngressClass,
+    expected: {
+      group: "networking.k8s.io",
+      version: "v1",
+      kind: "IngressClass",
+      plural: "ingressclasses",
+    },
+  },
+  {
     name: kind.NetworkPolicy,
     expected: {
       group: "networking.k8s.io",
@@ -80,7 +89,12 @@ const testCases = [
   { name: kind.ResourceQuota, expected: { group: "", version: "v1", kind: "ResourceQuota" } },
   {
     name: kind.RuntimeClass,
-    expected: { group: "node.k8s.io", version: "v1", kind: "RuntimeClass" },
+    expected: {
+      group: "node.k8s.io",
+      version: "v1",
+      kind: "RuntimeClass",
+      plural: "runtimeclasses",
+    },
   },
   { name: kind.Secret, expected: { group: "", version: "v1", kind: "Secret" } },
   {
@@ -96,7 +110,12 @@ const testCases = [
   { name: kind.StatefulSet, expected: { group: "apps", version: "v1", kind: "StatefulSet" } },
   {
     name: kind.StorageClass,
-    expected: { group: "storage.k8s.io", version: "v1", kind: "StorageClass" },
+    expected: {
+      group: "storage.k8s.io",
+      version: "v1",
+      kind: "StorageClass",
+      plural: "storageclasses",
+    },
   },
   {
     name: kind.SubjectAccessReview,
@@ -133,6 +152,9 @@ test.each(testCases)(
       expect(gvk.group).toBe(expected.group);
       expect(gvk.version).toBe(expected.version);
       expect(gvk.kind).toBe(expected.kind);
+      if (expected.plural) {
+        expect(gvk.plural).toBe(expected.plural);
+      }
     } catch (error) {
       console.error(
         `Failed for model ${modelName}: Expected GroupVersionKind to be ${JSON.stringify(
