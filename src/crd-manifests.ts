@@ -152,7 +152,7 @@ async function loadCRDModule(filePath: string, logFn: LogFn): Promise<unknown> {
     return await import(pathToFileURL(filePath).href);
   } catch (error) {
     const base = `Failed to import CRD module: ${error instanceof Error ? error.message : String(error)}`;
-    throw new Error(base, { cause: error instanceof Error ? error : new Error(String(error)) });
+    throw new Error(base, { cause: error });
   }
 }
 
