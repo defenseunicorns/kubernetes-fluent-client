@@ -51,13 +51,11 @@
   },
   "dependencies": {
     "@kubernetes/client-node": "1.4.0",
-    "fast-json-patch": "3.1.1",
     "http-status-codes": "2.3.0",
     "js-yaml": "4.1.1",
     "node-fetch": "2.7.0",
     "quicktype-core": "23.2.6",
     "tsx": "4.21.0",
-    "type-fest": "5.4.4",
     "undici": "7.22.0",
     "yargs": "18.0.0"
   },
@@ -67,7 +65,6 @@
     "@defenseunicorns/eslint-config": "1.2.0",
     "@eslint/eslintrc": "3.3.4",
     "@eslint/js": "10.0.1",
-    "@types/byline": "4.2.36",
     "@types/command-line-args": "5.2.3",
     "@types/readable-stream": "4.0.23",
     "@types/urijs": "1.19.26",

@@ -21,6 +21,9 @@ export { WatchCfg, WatchEvent } from "./fluent/watch.js";
 // Export the fluent API entrypoint
 export { K8s } from "./fluent/index.js";
 
+// Export types used in the fluent API's public method signatures
+export type { Operation, PartialDeep } from "./fluent/types.js";
+
 // Export helpers for working with K8s types
 export { RegisterKind, modelToGroupVersionKind } from "./kinds.js";
 
