@@ -2,18 +2,8 @@
 // SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
 
 import { KubernetesListObject, KubernetesObject } from "@kubernetes/client-node";
-/**
- * A JSON Patch operation as defined by RFC 6902.
- *
- * @see https://datatracker.ietf.org/doc/html/rfc6902
- */
-export type Operation =
-  | { op: "add"; path: string; value: unknown }
-  | { op: "remove"; path: string }
-  | { op: "replace"; path: string; value: unknown }
-  | { op: "move"; path: string; from: string }
-  | { op: "copy"; path: string; from: string }
-  | { op: "test"; path: string; value: unknown };
+import type { Operation } from "fast-json-patch";
+export type { Operation };
 
 /**
  * Recursively makes all properties of T optional.
