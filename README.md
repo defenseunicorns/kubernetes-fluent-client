@@ -131,7 +131,8 @@ kubernetes-fluent-client crd crd.yaml types --noPost
 
 ### Exporting CRD Manifests from TypeScript/JavaScript Modules
 
-The Kubernetes Fluent Client can export Custom Resource Definition (CRD) manifests (YAML) from TypeScript or JavaScript modules using the `crd-manifests` command. This is useful when you define your CRDs in code and want to generate standalone YAML manifests for deployment.
+The Kubernetes Fluent Client can export Custom Resource Definition (CRD) manifests (YAML) from TypeScript or JavaScript modules using the `crd-manifests` command.
+This is useful when you define your CRDs in code and want to generate standalone YAML manifests for deployment.
 
 To export CRD manifests from a TypeScript/JavaScript module, run the following command:
 
@@ -204,4 +205,4 @@ The `crd-manifests` command dynamically imports and executes user-supplied TypeS
 
 ### Community 🦄
 
-To chat with other users and see some examples of the fluent client in active use, go to [Kubernetes Slack](https://communityinviter.com/apps/kubernetes/community) and join `#pepr` channel.
+To chat with other users and see some examples of the fluent client in active use, go to [Kubernetes Slack](https://communityinviter.com/apps/kubernetes/community) and join the `#pepr` channel.
