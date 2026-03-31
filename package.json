@@ -70,8 +70,8 @@
     "@types/urijs": "1.19.26",
     "@types/ws": "8.18.1",
     "@types/yargs": "17.0.35",
-    "@typescript-eslint/eslint-plugin": "8.57.2",
-    "@typescript-eslint/parser": "8.57.2",
+    "@typescript-eslint/eslint-plugin": "8.58.0",
+    "@typescript-eslint/parser": "8.58.0",
     "@vitest/coverage-v8": "4.1.1",
     "command-line-args": "6.0.2",
     "eslint": "10.1.0",
@@ -86,6 +86,7 @@
   },
   "overrides": {
     "tar-fs": "3.1.1",
+    "typescript-eslint": "8.58.0",
     "semantic-release@24.2.0": {
       "npm": {
         "glob": {
