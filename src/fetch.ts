@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
 
 import { StatusCodes } from "http-status-codes";
-import { fetch as undiciFetch, RequestInfo, RequestInit } from "undici";
+import { fetch as undiciFetch, Headers, RequestInfo, RequestInit } from "undici";
 
 export type FetchResponse<T> = {
   data: T;
@@ -57,7 +57,7 @@ export async function fetch<T>(
       data = (await resp.text()) as unknown as T;
     }
 
-    return { data, ok, status, statusText, headers };
+    return { data, ok, status, statusText, headers: headers! };
   } catch (e) {
     // Always treat a catch as a failure for callers — even when the HTTP
     // transport returned 2xx, a body-parse error means `data` is unusable.
