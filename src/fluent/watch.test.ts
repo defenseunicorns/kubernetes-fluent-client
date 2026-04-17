@@ -410,6 +410,382 @@ describe("Watcher", () => {
     expect(staleTokenReused).toBe(false);
   });
 
+  it("should not cache items when the callback fails", async () => {
+    const namespace = "callback-fail-test";
+    let callCount = 0;
+
+    mockClient
+      .intercept({
+        path: `/api/v1/namespaces/${namespace}/pods`,
+        method: "GET",
+      })
+      .reply(200, {
+        kind: "PodList",
+        apiVersion: "v1",
+        metadata: { resourceVersion: "50" },
+        items: [createMockPod("fail-pod", "1", "fail-pod-uid")],
+      });
+
+    mockClient
+      .intercept({
+        path: `/api/v1/namespaces/${namespace}/pods?watch=true&resourceVersion=50`,
+        method: "GET",
+      })
+      .reply(200);
+
+    const callback = vi
+      .fn<(pod: kind.Pod, phase: WatchPhase) => Promise<void>>()
+      .mockImplementation(async () => {
+        callCount++;
+        if (callCount === 1) {
+          throw new Error("callback failed");
+        }
+      });
+
+    watcher = K8s(kind.Pod).InNamespace(namespace).Watch(callback, {
+      resyncDelaySec: 5,
+      lastSeenLimitSeconds: 30,
+    });
+
+    const dataErrors: Error[] = [];
+    watcher.events.on(WatchEvent.DATA_ERROR, (err: Error) => dataErrors.push(err));
+
+    await watcher.start();
+
+    // Callback was called once and failed
+    expect(callback).toHaveBeenCalledTimes(1);
+    expect(dataErrors.length).toBe(1);
+    expect(dataErrors[0].message).toBe("callback failed");
+  });
+
+  it("should retry failed items on next relist via reconnect", async () => {
+    const namespace = "relist-retry-test";
+    let callCount = 0;
+    const listResponse = (rv: string) => ({
+      kind: "PodList",
+      apiVersion: "v1",
+      metadata: { resourceVersion: rv },
+      items: [createMockPod("retry-pod", "1", "retry-pod-uid")],
+    });
+
+    // Provide multiple list/watch interceptors to handle reconnect cycles.
+    // The first list processes the item (callback fails), subsequent lists
+    // re-deliver it (callback succeeds) because the item was never cached.
+    for (let i = 0; i < 5; i++) {
+      mockClient
+        .intercept({ path: `/api/v1/namespaces/${namespace}/pods`, method: "GET" })
+        .reply(200, listResponse(String(50 + i)));
+
+      mockClient
+        .intercept({
+          path: new RegExp(`/api/v1/namespaces/${namespace}/pods\\?watch=true`),
+          method: "GET",
+        })
+        .replyWithError(new Error("stream error"));
+    }
+
+    const callback = vi
+      .fn<(pod: kind.Pod, phase: WatchPhase) => Promise<void>>()
+      .mockImplementation(async () => {
+        callCount++;
+        if (callCount === 1) {
+          throw new Error("callback failed first time");
+        }
+      });
+
+    watcher = K8s(kind.Pod).InNamespace(namespace).Watch(callback, {
+      resyncDelaySec: 0.01,
+      lastSeenLimitSeconds: 0.01,
+    });
+
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(
+        () => reject(new Error("Timed out waiting for retry callback")),
+        10000,
+      );
+
+      watcher.events.on(WatchEvent.LIST, () => {
+        if (callCount >= 2) {
+          clearTimeout(timeout);
+          resolve();
+        }
+      });
+
+      watcher.start().catch(reject);
+    });
+
+    // Callback was called at least twice: first failed (item not cached), then retried on reconnect
+    expect(callCount).toBeGreaterThanOrEqual(2);
+  });
+
+  it("should cache items after successful callback", async () => {
+    const namespace = "cache-success-test";
+
+    // First list: item exists
+    mockClient
+      .intercept({
+        path: `/api/v1/namespaces/${namespace}/pods`,
+        method: "GET",
+      })
+      .reply(200, {
+        kind: "PodList",
+        apiVersion: "v1",
+        metadata: { resourceVersion: "50" },
+        items: [createMockPod("cached-pod", "1", "cached-pod-uid")],
+      });
+
+    mockClient
+      .intercept({
+        path: `/api/v1/namespaces/${namespace}/pods?watch=true&resourceVersion=50`,
+        method: "GET",
+      })
+      .reply(200);
+
+    // Second list (relist): same item at same resourceVersion
+    mockClient
+      .intercept({
+        path: `/api/v1/namespaces/${namespace}/pods`,
+        method: "GET",
+      })
+      .reply(200, {
+        kind: "PodList",
+        apiVersion: "v1",
+        metadata: { resourceVersion: "51" },
+        items: [createMockPod("cached-pod", "1", "cached-pod-uid")],
+      });
+
+    mockClient
+      .intercept({
+        path: `/api/v1/namespaces/${namespace}/pods?watch=true&resourceVersion=51`,
+        method: "GET",
+      })
+      .reply(200);
+
+    const callback = vi.fn<(pod: kind.Pod, phase: WatchPhase) => Promise<void>>();
+
+    watcher = K8s(kind.Pod).InNamespace(namespace).Watch(callback, {
+      resyncDelaySec: 5,
+      lastSeenLimitSeconds: 30,
+      relistIntervalSec: 0.1,
+    });
+
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        clearTimeout(timeout);
+        resolve();
+      }, 1500);
+
+      let listCount = 0;
+      watcher.events.on(WatchEvent.LIST, () => {
+        listCount++;
+        if (listCount >= 2) {
+          // Give a brief moment for processing, then resolve
+          setTimeout(() => {
+            clearTimeout(timeout);
+            resolve();
+          }, 100);
+        }
+      });
+
+      watcher.start().catch(reject);
+    });
+
+    // Callback should only be called once (first list adds it, second list sees same RV and skips)
+    expect(callback).toHaveBeenCalledTimes(1);
+  });
+
+  it("should return false from list when 429 exhausts retries", async () => {
+    const namespace = "list-429-test";
+
+    // List returns 429 with retry-after header
+    for (let i = 0; i <= 5; i++) {
+      mockClient
+        .intercept({
+          path: `/api/v1/namespaces/${namespace}/pods`,
+          method: "GET",
+        })
+        .reply(429, { message: "Too Many Requests" }, { headers: { "retry-after": "0" } });
+    }
+
+    // Watch mock (may not be reached)
+    mockClient
+      .intercept({
+        path: new RegExp(`/api/v1/namespaces/${namespace}/pods\\?watch=true`),
+        method: "GET",
+      })
+      .reply(200);
+
+    const listErrors: Error[] = [];
+    const callback = vi.fn();
+
+    watcher = K8s(kind.Pod).InNamespace(namespace).Watch(callback, {
+      resyncDelaySec: 60,
+      lastSeenLimitSeconds: 60,
+    });
+
+    watcher.events.on(WatchEvent.LIST_ERROR, (err: Error) => listErrors.push(err));
+
+    await watcher.start();
+
+    // LIST_ERROR should have been emitted
+    expect(listErrors.length).toBeGreaterThan(0);
+    // Callback should not have been called (list failed, no items processed)
+    expect(callback).not.toHaveBeenCalled();
+  });
+
+  it("should await process calls during list operations", async () => {
+    const namespace = "await-process-test";
+    const processOrder: string[] = [];
+
+    mockClient
+      .intercept({
+        path: `/api/v1/namespaces/${namespace}/pods`,
+        method: "GET",
+      })
+      .reply(200, {
+        kind: "PodList",
+        apiVersion: "v1",
+        metadata: { resourceVersion: "50" },
+        items: [createMockPod("pod-a", "1", "uid-a"), createMockPod("pod-b", "1", "uid-b")],
+      });
+
+    mockClient
+      .intercept({
+        path: `/api/v1/namespaces/${namespace}/pods?watch=true&resourceVersion=50`,
+        method: "GET",
+      })
+      .reply(200);
+
+    const callback = vi
+      .fn<(pod: kind.Pod, phase: WatchPhase) => Promise<void>>()
+      .mockImplementation(async pod => {
+        // Simulate async work
+        await new Promise(r => setTimeout(r, 10));
+        processOrder.push(pod.metadata!.name!);
+      });
+
+    watcher = K8s(kind.Pod).InNamespace(namespace).Watch(callback, {
+      resyncDelaySec: 60,
+      lastSeenLimitSeconds: 60,
+    });
+
+    const dataErrors: Error[] = [];
+    watcher.events.on(WatchEvent.DATA_ERROR, (err: Error) => dataErrors.push(err));
+
+    await watcher.start();
+
+    // Both callbacks completed (awaited, not fire-and-forget)
+    expect(callback).toHaveBeenCalledTimes(2);
+    expect(processOrder).toEqual(["pod-a", "pod-b"]);
+    // No unhandled errors
+    expect(dataErrors).toEqual([]);
+  });
+
+  it("should retry delete when delete callback fails", async () => {
+    const namespace = "delete-retry-test";
+    let deleteCallCount = 0;
+
+    // First list: item exists, callback succeeds (caches it)
+    mockClient
+      .intercept({
+        path: `/api/v1/namespaces/${namespace}/pods`,
+        method: "GET",
+      })
+      .reply(200, {
+        kind: "PodList",
+        apiVersion: "v1",
+        metadata: { resourceVersion: "50" },
+        items: [createMockPod("del-pod", "1", "del-pod-uid")],
+      });
+
+    mockClient
+      .intercept({
+        path: `/api/v1/namespaces/${namespace}/pods?watch=true&resourceVersion=50`,
+        method: "GET",
+      })
+      .reply(200);
+
+    // Second list (relist): item is GONE, triggering delete. Callback fails.
+    mockClient
+      .intercept({
+        path: `/api/v1/namespaces/${namespace}/pods`,
+        method: "GET",
+      })
+      .reply(200, {
+        kind: "PodList",
+        apiVersion: "v1",
+        metadata: { resourceVersion: "51" },
+        items: [], // item removed
+      });
+
+    mockClient
+      .intercept({
+        path: `/api/v1/namespaces/${namespace}/pods?watch=true&resourceVersion=51`,
+        method: "GET",
+      })
+      .reply(200);
+
+    // Third list (relist): item still GONE. Delete callback succeeds this time.
+    mockClient
+      .intercept({
+        path: `/api/v1/namespaces/${namespace}/pods`,
+        method: "GET",
+      })
+      .reply(200, {
+        kind: "PodList",
+        apiVersion: "v1",
+        metadata: { resourceVersion: "52" },
+        items: [],
+      });
+
+    mockClient
+      .intercept({
+        path: `/api/v1/namespaces/${namespace}/pods?watch=true&resourceVersion=52`,
+        method: "GET",
+      })
+      .reply(200);
+
+    const callback = vi
+      .fn<(pod: kind.Pod, phase: WatchPhase) => Promise<void>>()
+      .mockImplementation(async (_pod, phase) => {
+        if (phase === WatchPhase.Deleted) {
+          deleteCallCount++;
+          if (deleteCallCount === 1) {
+            throw new Error("delete callback failed");
+          }
+        }
+      });
+
+    watcher = K8s(kind.Pod).InNamespace(namespace).Watch(callback, {
+      resyncDelaySec: 5,
+      lastSeenLimitSeconds: 30,
+      relistIntervalSec: 0.1,
+    });
+
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(
+        () => reject(new Error("Timed out waiting for delete retry")),
+        5000,
+      );
+
+      let listCount = 0;
+      watcher.events.on(WatchEvent.LIST, () => {
+        listCount++;
+        if (listCount >= 3) {
+          setTimeout(() => {
+            clearTimeout(timeout);
+            resolve();
+          }, 200);
+        }
+      });
+
+      watcher.start().catch(reject);
+    });
+
+    // Delete callback was called at least twice (first failed, second succeeded)
+    expect(deleteCallCount).toBeGreaterThanOrEqual(2);
+  });
+
   it("should trigger reconnect after non-OK watch response", async () => {
     const namespace = "reconnect-test";
 
@@ -475,16 +851,17 @@ describe("Watcher", () => {
  *
  * @param name The name of the pod
  * @param resourceVersion The resource version of the pod
+ * @param uid The UID of the pod
  * @returns A mock pod object
  */
-function createMockPod(name: string, resourceVersion: string): kind.Pod {
+function createMockPod(name: string, resourceVersion: string, uid = "random-uid"): kind.Pod {
   return {
     kind: "Pod",
     apiVersion: "v1",
     metadata: {
       name: name,
       resourceVersion: resourceVersion,
-      uid: "random-uid",
+      uid,
     },
     spec: {
       containers: [
