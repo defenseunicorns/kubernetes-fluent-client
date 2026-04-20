@@ -76,7 +76,7 @@
     "command-line-args": "6.0.2",
     "eslint": "10.2.0",
     "eslint-plugin-jsdoc": "62.9.0",
-    "globals": "17.4.0",
+    "globals": "17.5.0",
     "husky": "9.1.7",
     "lint-staged": "16.4.0",
     "prettier": "3.8.2",
