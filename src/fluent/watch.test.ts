@@ -750,10 +750,8 @@ function mockListAndWatch(ns: string, items: kind.Pod[], rv: string, watchError?
     .intercept({ path: `/api/v1/namespaces/${ns}/pods`, method: "GET" })
     .reply(200, { kind: "PodList", apiVersion: "v1", metadata: { resourceVersion: rv }, items });
 
-  const watchIntercept = mockClient.intercept({
-    path: new RegExp(`/api/v1/namespaces/${ns}/pods\\?watch=true`),
-    method: "GET",
-  });
+  const watchPath = `/api/v1/namespaces/${ns}/pods?watch=true&resourceVersion=${rv}`;
+  const watchIntercept = mockClient.intercept({ path: watchPath, method: "GET" });
   if (watchError) watchIntercept.replyWithError(watchError);
   else watchIntercept.reply(200);
 }
@@ -773,14 +771,25 @@ function startAndWaitFor(
   timeoutMs = 10000,
 ) {
   return new Promise<void>((resolve, reject) => {
-    const t = setTimeout(() => reject(new Error(`Timed out waiting for ${event}`)), timeoutMs);
-    w.events.on(event, () => {
+    const cleanup = () => {
+      clearTimeout(t);
+      w.events.removeListener(event, handler);
+    };
+    const t = setTimeout(() => {
+      cleanup();
+      reject(new Error(`Timed out waiting for ${event}`));
+    }, timeoutMs);
+    const handler = () => {
       if (!predicate || predicate()) {
-        clearTimeout(t);
+        cleanup();
         resolve();
       }
+    };
+    w.events.on(event, handler);
+    w.start().catch(err => {
+      cleanup();
+      reject(err);
     });
-    w.start().catch(reject);
   });
 }
 
