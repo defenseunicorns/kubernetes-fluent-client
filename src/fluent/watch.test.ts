@@ -562,7 +562,7 @@ describe("Watcher", () => {
     expect(callCount).toBeGreaterThanOrEqual(2);
   });
 
-  it("should cache items after successful callback", async () => {
+  it("should skip re-processing cached items with unchanged resource version on relist", async () => {
     const namespace = "cache-success-test";
 
     // First list: item exists
@@ -614,10 +614,10 @@ describe("Watcher", () => {
     });
 
     await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        clearTimeout(timeout);
-        resolve();
-      }, 1500);
+      const timeout = setTimeout(
+        () => reject(new Error("Timed out waiting for second relist")),
+        5000,
+      );
 
       let listCount = 0;
       watcher.events.on(WatchEvent.LIST, () => {
@@ -638,7 +638,7 @@ describe("Watcher", () => {
     expect(callback).toHaveBeenCalledTimes(1);
   });
 
-  it("should return false from list when 429 exhausts retries", async () => {
+  it("should emit LIST_ERROR and skip callback when 429 exhausts retries", async () => {
     const namespace = "list-429-test";
 
     // List returns 429 with retry-after header
@@ -1125,7 +1125,11 @@ describe("Watcher", () => {
  * @param uid The UID of the pod
  * @returns A mock pod object
  */
-function createMockPod(name: string, resourceVersion: string, uid = "random-uid"): kind.Pod {
+function createMockPod(
+  name: string,
+  resourceVersion: string,
+  uid: string = crypto.randomUUID(),
+): kind.Pod {
   return {
     kind: "Pod",
     apiVersion: "v1",

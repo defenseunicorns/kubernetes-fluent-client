@@ -440,7 +440,9 @@ export class Watcher<T extends GenericClass> {
         };
       }
 
-      // Process the event payload, do not update the resource version as that is handled by the list operation
+      // Process the event payload, do not update the resource version as that is handled by the list operation.
+      // Watch-stream events are not retried on callback failure — the relist timer
+      // will re-detect unprocessed items on its next cycle.
       await process(payload, phase);
     } catch (err) {
       if (err.name === "TooOld") {
