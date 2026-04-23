@@ -288,7 +288,7 @@ export class Watcher<T extends GenericClass> {
 
           await sleep(backoffTime);
           try {
-            return this.#list(continueToken, removedItems, retryCount + 1, pageCount);
+            return await this.#list(continueToken, removedItems, retryCount + 1, pageCount);
           } catch (e) {
             this.#events.emit(
               WatchEvent.LIST_ERROR,
