@@ -1010,6 +1010,53 @@ describe("Watcher", () => {
     });
   });
 
+  it("should stop pagination at maximum page limit", async () => {
+    const namespace = "max-pages-test";
+
+    // Mock 12 pages of results, each with a continue token (except the last)
+    for (let i = 0; i < 12; i++) {
+      mockClient
+        .intercept({
+          path: new RegExp(`/api/v1/namespaces/${namespace}/pods`),
+          method: "GET",
+        })
+        .reply(200, {
+          kind: "PodList",
+          apiVersion: "v1",
+          metadata: {
+            resourceVersion: String(50 + i),
+            ...(i < 11 ? { continue: `page-${i + 1}-token` } : {}),
+          },
+          items: [createMockPod(`pod-page-${i}`, "1", `uid-page-${i}`)],
+        });
+    }
+
+    mockClient
+      .intercept({
+        path: new RegExp(`/api/v1/namespaces/${namespace}/pods\\?watch=true`),
+        method: "GET",
+      })
+      .reply(200);
+
+    const listErrors: string[] = [];
+    const callback = vi.fn();
+
+    watcher = K8s(kind.Pod).InNamespace(namespace).Watch(callback, {
+      resyncDelaySec: 60,
+      lastSeenLimitSeconds: 60,
+    });
+
+    watcher.events.on(WatchEvent.LIST_ERROR, (err: Error) =>
+      listErrors.push(err?.message ?? String(err)),
+    );
+
+    await watcher.start();
+
+    // Should have hit the pagination limit
+    const paginationError = listErrors.find(msg => msg.includes("Maximum pagination limit"));
+    expect(paginationError).toBeDefined();
+  });
+
   it("should trigger reconnect after non-OK watch response", async () => {
     const namespace = "reconnect-test";
 

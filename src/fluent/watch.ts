@@ -246,12 +246,14 @@ export class Watcher<T extends GenericClass> {
    * @param continueToken - the continue token for the list
    * @param removedItems - the list of items that have been removed
    * @param retryCount - current retry attempt count
+   * @param pageCount
    * @returns resolves when list processing is complete
    */
   #list = async (
     continueToken?: string,
     removedItems?: Map<string, InstanceType<T>>,
     retryCount = 0,
+    pageCount = 0,
   ): Promise<boolean> => {
     const isTopLevel = !continueToken && !removedItems;
     if (isTopLevel) {
@@ -288,7 +290,7 @@ export class Watcher<T extends GenericClass> {
 
           await sleep(backoffTime);
           try {
-            return this.#list(continueToken, removedItems, retryCount + 1);
+            return this.#list(continueToken, removedItems, retryCount + 1, pageCount);
           } catch (e) {
             this.#events.emit(
               WatchEvent.LIST_ERROR,
@@ -355,7 +357,7 @@ export class Watcher<T extends GenericClass> {
       // If there is a continue token, call the list function again with the same removed items
       if (continueToken) {
         // Safeguard against infinite pagination
-        if (retryCount >= maxPages) {
+        if (pageCount >= maxPages) {
           this.#events.emit(
             WatchEvent.LIST_ERROR,
             new Error(`Maximum pagination limit (${maxPages}) reached, stopping list operation`),
@@ -364,7 +366,7 @@ export class Watcher<T extends GenericClass> {
         }
 
         // Continue pagination (not a retry, so reset retryCount to 0)
-        return this.#list(continueToken, removedItems, 0);
+        return this.#list(continueToken, removedItems, 0, pageCount + 1);
       } else {
         // Otherwise, process the removed items
         for (const item of removedItems.values()) {
