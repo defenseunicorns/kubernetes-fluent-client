@@ -363,8 +363,11 @@ export class Watcher<T extends GenericClass> {
           return false;
         }
 
-        // Continue pagination (not a retry, so reset retryCount to 0)
-        return await this.#list(continueToken, removedItems, 0, pageCount + 1);
+        // Continue pagination (not a retry, so reset retryCount to 0).
+        // Combine with current page's failure state so a callback failure on
+        // an earlier page is not masked by a successful later page.
+        const nextPageSucceeded = await this.#list(continueToken, removedItems, 0, pageCount + 1);
+        return !anyCallbackFailed && nextPageSucceeded;
       } else {
         // Otherwise, process the removed items
         for (const item of removedItems.values()) {

@@ -643,6 +643,71 @@ describe("Watcher", () => {
     expect(maxConcurrentLists).toBeLessThanOrEqual(1);
   });
 
+  it("should propagate callback failure across pagination boundaries", async () => {
+    const namespace = "page-fail-propagate-test";
+
+    // Page 1: has an item whose callback will fail
+    mockClient
+      .intercept({ path: `/api/v1/namespaces/${namespace}/pods`, method: "GET" })
+      .reply(200, {
+        kind: "PodList",
+        apiVersion: "v1",
+        metadata: { resourceVersion: "50", continue: "page2-token" },
+        items: [createMockPod("fail-pod", "1", "fail-uid")],
+      });
+
+    // Page 2: succeeds with a different item
+    mockClient
+      .intercept({
+        path: `/api/v1/namespaces/${namespace}/pods?continue=page2-token`,
+        method: "GET",
+      })
+      .reply(200, {
+        kind: "PodList",
+        apiVersion: "v1",
+        metadata: { resourceVersion: "51" },
+        items: [createMockPod("ok-pod", "1", "ok-uid")],
+      });
+
+    // Provide watch + relist mocks for the reconnect cycle
+    for (let i = 0; i < 5; i++) {
+      mockClient
+        .intercept({
+          path: new RegExp(`/api/v1/namespaces/${namespace}/pods\\?watch=true`),
+          method: "GET",
+        })
+        .reply(200);
+      mockClient
+        .intercept({ path: `/api/v1/namespaces/${namespace}/pods`, method: "GET" })
+        .reply(200, {
+          kind: "PodList",
+          apiVersion: "v1",
+          metadata: { resourceVersion: String(52 + i) },
+          items: [
+            createMockPod("fail-pod", "1", "fail-uid"),
+            createMockPod("ok-pod", "1", "ok-uid"),
+          ],
+        });
+    }
+
+    let callCount = 0;
+    const callback = vi.fn().mockImplementation(async (pod: kind.Pod) => {
+      callCount++;
+      // Fail only on the first item (page 1)
+      if (pod.metadata!.uid === "fail-uid" && callCount === 1) {
+        throw new Error("page 1 callback fails");
+      }
+    });
+
+    watcher = K8s(kind.Pod).InNamespace(namespace).Watch(callback, {
+      resyncDelaySec: 0.01,
+      lastSeenLimitSeconds: 0.01,
+    });
+
+    // The page-1 failure should propagate, triggering a RECONNECT for faster resync
+    await startAndWaitFor(watcher, WatchEvent.RECONNECT);
+  });
+
   it("should stop pagination at maximum page limit", async () => {
     const namespace = "max-pages-test";
 
