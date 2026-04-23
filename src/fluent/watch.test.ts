@@ -458,6 +458,50 @@ describe("Watcher", () => {
     expect(dataErrors[0].message).toBe("callback failed");
   });
 
+  it("should not emit DATA when callback throws", async () => {
+    const namespace = "data-no-emit-test";
+
+    mockClient
+      .intercept({
+        path: `/api/v1/namespaces/${namespace}/pods`,
+        method: "GET",
+      })
+      .reply(200, {
+        kind: "PodList",
+        apiVersion: "v1",
+        metadata: { resourceVersion: "50" },
+        items: [createMockPod("fail-pod", "1", "data-fail-uid")],
+      });
+
+    mockClient
+      .intercept({
+        path: `/api/v1/namespaces/${namespace}/pods?watch=true&resourceVersion=50`,
+        method: "GET",
+      })
+      .reply(200);
+
+    const callback = vi
+      .fn<(pod: kind.Pod, phase: WatchPhase) => Promise<void>>()
+      .mockRejectedValue(new Error("callback throws"));
+
+    watcher = K8s(kind.Pod).InNamespace(namespace).Watch(callback, {
+      resyncDelaySec: 5,
+      lastSeenLimitSeconds: 30,
+    });
+
+    const dataEvents: kind.Pod[] = [];
+    const dataErrors: Error[] = [];
+    watcher.events.on(WatchEvent.DATA, (pod: kind.Pod) => dataEvents.push(pod));
+    watcher.events.on(WatchEvent.DATA_ERROR, (err: Error) => dataErrors.push(err));
+
+    await watcher.start();
+
+    // DATA should NOT have been emitted since callback threw
+    expect(dataEvents.length).toBe(0);
+    // DATA_ERROR should have been emitted
+    expect(dataErrors.length).toBe(1);
+  });
+
   it("should retry failed items on next relist via reconnect", async () => {
     const namespace = "relist-retry-test";
     let callCount = 0;

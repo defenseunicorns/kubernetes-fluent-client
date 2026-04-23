@@ -388,9 +388,6 @@ export class Watcher<T extends GenericClass> {
    * @param phase - the event phase
    */
   #process = async (payload: InstanceType<T>, phase: WatchPhase) => {
-    // Emit the data event before callback (informational)
-    this.#events.emit(WatchEvent.DATA, payload, phase);
-
     // Call the callback function — if it throws, the cache is NOT updated
     // so the next relist will detect the item as unprocessed and retry
     await this.#callback(payload, phase);
@@ -406,6 +403,9 @@ export class Watcher<T extends GenericClass> {
         this.#cache.delete(payload.metadata.uid);
         break;
     }
+
+    // Emit data event only after callback succeeds and cache is updated
+    this.#events.emit(WatchEvent.DATA, payload, phase);
   };
 
   // process a line from the chunk
