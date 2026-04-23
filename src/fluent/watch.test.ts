@@ -72,13 +72,6 @@ describe("Watcher", () => {
 
     mockClient = mockAgent.get("https://jest-test:8080");
 
-    // Setup MockAgent from undici
-    mockAgent = new MockAgent();
-    mockAgent.disableNetConnect();
-    setGlobalDispatcher(mockAgent);
-
-    mockClient = mockAgent.get("https://jest-test:8080");
-
     // Mock list operation
     mockClient
       .intercept({
