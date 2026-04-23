@@ -12,7 +12,7 @@ import {
   WatchAction,
   WatchPhase,
 } from "./shared-types.js";
-import { getHeaders, k8sCfg, pathBuilder, sleep, startSleep } from "./utils.js";
+import { getHeaders, k8sCfg, pathBuilder, sleep } from "./utils.js";
 
 export enum WatchEvent {
   /** Watch is connected successfully */
@@ -284,9 +284,7 @@ export class Watcher<T extends GenericClass> {
         const retryAfterHeader = response.headers.get("retry-after");
         // Retry with exponential backoff if under retry limit to prevent infinite recursion if the server is returning errors
         if (retryCount < maxRetries && retryAfterHeader) {
-          const backoffTime = retryAfterHeader
-            ? parseInt(retryAfterHeader) * 1000
-            : Math.min(startSleep * Math.pow(2, retryCount), 30000);
+          const backoffTime = parseInt(retryAfterHeader) * 1000;
 
           await sleep(backoffTime);
           try {
