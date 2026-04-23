@@ -513,6 +513,30 @@ describe("Watcher", () => {
     expect(callback).not.toHaveBeenCalled();
   });
 
+  it("should retry first-page 429 without being blocked by listInProgress guard", async () => {
+    const namespace = "list-429-retry-test";
+
+    // First attempt: 429 with retry-after
+    mockClient
+      .intercept({ path: `/api/v1/namespaces/${namespace}/pods`, method: "GET" })
+      .reply(429, { message: "Too Many Requests" }, { headers: { "retry-after": "0" } });
+
+    // Retry attempt: succeeds
+    mockListAndWatch(namespace, [createMockPod("retry-pod", "1", "retry-uid")], "50");
+
+    const callback = vi.fn();
+
+    watcher = K8s(kind.Pod).InNamespace(namespace).Watch(callback, {
+      resyncDelaySec: 60,
+      lastSeenLimitSeconds: 60,
+    });
+
+    await watcher.start();
+
+    // The retry succeeded — callback was invoked for the item
+    expect(callback).toHaveBeenCalledTimes(1);
+  });
+
   it("should await process calls during list operations", async () => {
     const namespace = "await-process-test";
     const processOrder: string[] = [];

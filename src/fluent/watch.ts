@@ -255,7 +255,7 @@ export class Watcher<T extends GenericClass> {
     retryCount = 0,
     pageCount = 0,
   ): Promise<boolean> => {
-    const isTopLevel = !continueToken && !removedItems;
+    const isTopLevel = !continueToken && !removedItems && retryCount === 0;
     if (isTopLevel) {
       if (this.#listInProgress) {
         return false;
