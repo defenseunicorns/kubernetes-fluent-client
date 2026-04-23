@@ -246,7 +246,7 @@ export class Watcher<T extends GenericClass> {
    * @param continueToken - the continue token for the list
    * @param removedItems - the list of items that have been removed
    * @param retryCount - current retry attempt count
-   * @param pageCount
+   * @param pageCount - number of continuation pages already fetched (0-based)
    * @returns resolves when list processing is complete
    */
   #list = async (
