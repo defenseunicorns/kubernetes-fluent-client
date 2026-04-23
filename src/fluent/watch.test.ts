@@ -786,6 +786,131 @@ describe("Watcher", () => {
     expect(deleteCallCount).toBeGreaterThanOrEqual(2);
   });
 
+  it("should not run concurrent list operations", async () => {
+    const namespace = "concurrent-list-test";
+    let concurrentLists = 0;
+    let maxConcurrentLists = 0;
+
+    // Provide many list/watch interceptors for reconnect cycles
+    for (let i = 0; i < 10; i++) {
+      mockClient
+        .intercept({ path: `/api/v1/namespaces/${namespace}/pods`, method: "GET" })
+        .reply(200, {
+          kind: "PodList",
+          apiVersion: "v1",
+          metadata: { resourceVersion: String(50 + i) },
+          items: [createMockPod("slow-pod", "1", "slow-pod-uid")],
+        });
+
+      mockClient
+        .intercept({
+          path: new RegExp(`/api/v1/namespaces/${namespace}/pods\\?watch=true`),
+          method: "GET",
+        })
+        .reply(200);
+    }
+
+    const callback = vi
+      .fn<(pod: kind.Pod, phase: WatchPhase) => Promise<void>>()
+      .mockImplementation(async () => {
+        concurrentLists++;
+        maxConcurrentLists = Math.max(maxConcurrentLists, concurrentLists);
+        // Slow callback to widen the race window
+        await new Promise(r => setTimeout(r, 100));
+        concurrentLists--;
+      });
+
+    watcher = K8s(kind.Pod).InNamespace(namespace).Watch(callback, {
+      resyncDelaySec: 5,
+      lastSeenLimitSeconds: 30,
+      relistIntervalSec: 0.05, // Very short relist interval to trigger overlap attempts
+    });
+
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(
+        () => reject(new Error("Timed out waiting for relist cycles")),
+        5000,
+      );
+
+      let listCount = 0;
+      watcher.events.on(WatchEvent.LIST, () => {
+        listCount++;
+        if (listCount >= 3) {
+          clearTimeout(timeout);
+          resolve();
+        }
+      });
+
+      watcher.start().catch(reject);
+    });
+
+    // At no point should more than one list operation have been processing concurrently
+    expect(maxConcurrentLists).toBeLessThanOrEqual(1);
+  });
+
+  it("should trigger faster resync when relist timer list fails", async () => {
+    const namespace = "relist-fail-resync-test";
+
+    // First list (from #watch) succeeds
+    mockClient
+      .intercept({
+        path: `/api/v1/namespaces/${namespace}/pods`,
+        method: "GET",
+      })
+      .reply(200, {
+        kind: "PodList",
+        apiVersion: "v1",
+        metadata: { resourceVersion: "50" },
+        items: [],
+      });
+
+    mockClient
+      .intercept({
+        path: `/api/v1/namespaces/${namespace}/pods?watch=true&resourceVersion=50`,
+        method: "GET",
+      })
+      .reply(200);
+
+    // Relist (from timer) fails with 500
+    for (let i = 0; i < 5; i++) {
+      mockClient
+        .intercept({
+          path: `/api/v1/namespaces/${namespace}/pods`,
+          method: "GET",
+        })
+        .reply(500, { message: "Internal Server Error" });
+
+      mockClient
+        .intercept({
+          path: new RegExp(`/api/v1/namespaces/${namespace}/pods\\?watch=true`),
+          method: "GET",
+        })
+        .reply(200);
+    }
+
+    const callback = vi.fn();
+
+    watcher = K8s(kind.Pod).InNamespace(namespace).Watch(callback, {
+      resyncDelaySec: 0.01,
+      lastSeenLimitSeconds: 0.01,
+      relistIntervalSec: 0.05,
+    });
+
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(
+        () => reject(new Error("Timed out waiting for reconnect after relist failure")),
+        5000,
+      );
+
+      watcher.events.on(WatchEvent.RECONNECT, () => {
+        clearTimeout(timeout);
+        resolve();
+      });
+
+      watcher.start().catch(reject);
+    });
+  });
+
   it("should trigger reconnect after non-OK watch response", async () => {
     const namespace = "reconnect-test";
 

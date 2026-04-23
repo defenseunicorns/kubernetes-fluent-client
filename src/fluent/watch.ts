@@ -96,6 +96,9 @@ export class Watcher<T extends GenericClass> {
   // Track if a reconnect is pending
   #pendingReconnect = false;
 
+  // Track if a list operation is in progress to prevent concurrent lists
+  #listInProgress = false;
+
   // The resource version to start the watch at, this will be updated after the list operation.
   #resourceVersion?: string;
 
@@ -138,7 +141,12 @@ export class Watcher<T extends GenericClass> {
       () => {
         this.#latestRelistWindow = new Date().toISOString();
         this.#events.emit(WatchEvent.INIT_CACHE_MISS, this.#latestRelistWindow);
-        void this.#list();
+        void (async () => {
+          const success = await this.#list();
+          if (!success) {
+            this.#lastSeenTime = OVERRIDE;
+          }
+        })();
       },
       watchCfg.relistIntervalSec * 1000 + jitter,
     );
@@ -245,6 +253,14 @@ export class Watcher<T extends GenericClass> {
     removedItems?: Map<string, InstanceType<T>>,
     retryCount = 0,
   ): Promise<boolean> => {
+    const isTopLevel = !continueToken && !removedItems;
+    if (isTopLevel) {
+      if (this.#listInProgress) {
+        return false;
+      }
+      this.#listInProgress = true;
+    }
+
     const maxRetries = 5;
     const maxPages = 10;
 
@@ -358,6 +374,10 @@ export class Watcher<T extends GenericClass> {
     } catch (err) {
       this.#events.emit(WatchEvent.LIST_ERROR, err);
       return false;
+    } finally {
+      if (isTopLevel) {
+        this.#listInProgress = false;
+      }
     }
   };
 
