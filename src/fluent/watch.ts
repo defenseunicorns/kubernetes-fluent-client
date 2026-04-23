@@ -364,7 +364,7 @@ export class Watcher<T extends GenericClass> {
         }
 
         // Continue pagination (not a retry, so reset retryCount to 0)
-        return this.#list(continueToken, removedItems, 0, pageCount + 1);
+        return await this.#list(continueToken, removedItems, 0, pageCount + 1);
       } else {
         // Otherwise, process the removed items
         for (const item of removedItems.values()) {
