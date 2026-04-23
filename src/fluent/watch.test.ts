@@ -579,22 +579,21 @@ describe("Watcher", () => {
 
   it.each([
     {
-      name: "callback failure during list",
+      name: "callback-failure-during-list",
       setup: (ns: string) => {
         for (let i = 0; i < 5; i++)
           mockListAndWatch(ns, [createMockPod("p", "1", "uid")], String(50 + i));
       },
-      callback: (() => {
+      makeCallback: () => {
         let n = 0;
         return async () => {
           if (++n <= 2) throw new Error("callback fails");
         };
-      })(),
+      },
     },
     {
-      name: "relist timer HTTP 500",
+      name: "relist-timer-HTTP-500",
       setup: (ns: string) => {
-        // First list succeeds, subsequent lists return 500
         mockListAndWatch(ns, [], "50");
         for (let i = 0; i < 5; i++) {
           mockClient
@@ -608,10 +607,11 @@ describe("Watcher", () => {
             .reply(200);
         }
       },
-      callback: vi.fn(),
+      makeCallback: () => vi.fn(),
     },
-  ])("should trigger faster resync on $name", async ({ setup, callback }) => {
-    const namespace = `resync-${Date.now()}`;
+  ])("should trigger faster resync on $name", async ({ name, setup, makeCallback }) => {
+    const namespace = `resync-${name}`;
+    const callback = makeCallback();
     setup(namespace);
 
     watcher = K8s(kind.Pod).InNamespace(namespace).Watch(callback, {
