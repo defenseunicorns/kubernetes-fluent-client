@@ -325,6 +325,8 @@ export class Watcher<T extends GenericClass> {
         if (!alreadyExists) {
           this.#events.emit(WatchEvent.CACHE_MISS, this.#latestRelistWindow);
           try {
+            // Keep lastSeenTime fresh to prevent spurious resync during slow list processing
+            this.#lastSeenTime = Date.now();
             await this.#process(item, WatchPhase.Added);
           } catch (err) {
             anyCallbackFailed = true;
@@ -341,6 +343,7 @@ export class Watcher<T extends GenericClass> {
         if (itemRV > cachedRV) {
           this.#events.emit(WatchEvent.CACHE_MISS, this.#latestRelistWindow);
           try {
+            this.#lastSeenTime = Date.now();
             await this.#process(item, WatchPhase.Modified);
           } catch (err) {
             anyCallbackFailed = true;
@@ -367,6 +370,7 @@ export class Watcher<T extends GenericClass> {
         for (const item of removedItems.values()) {
           this.#events.emit(WatchEvent.CACHE_MISS, this.#latestRelistWindow);
           try {
+            this.#lastSeenTime = Date.now();
             await this.#process(item, WatchPhase.Deleted);
           } catch (err) {
             anyCallbackFailed = true;
