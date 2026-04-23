@@ -412,10 +412,17 @@ describe("Watcher", () => {
 
   it("should not cache items or emit DATA when callback fails", async () => {
     const namespace = "callback-fail-test";
+    let callCount = 0;
 
     mockListAndWatch(namespace, [createMockPod("fail-pod", "1", "fail-pod-uid")], "50");
 
-    const callback = vi.fn().mockRejectedValue(new Error("callback failed"));
+    // Conditional throw: only the first call fails. If the item were incorrectly
+    // cached, it would not be retried and callCount would stay at 1. The retry
+    // test below verifies the second call succeeds on relist.
+    const callback = vi.fn().mockImplementation(async () => {
+      callCount++;
+      if (callCount === 1) throw new Error("callback failed");
+    });
 
     watcher = K8s(kind.Pod).InNamespace(namespace).Watch(callback, {
       resyncDelaySec: 5,
@@ -533,10 +540,14 @@ describe("Watcher", () => {
       lastSeenLimitSeconds: 60,
     });
 
+    const dataErrors: Error[] = [];
+    watcher.events.on(WatchEvent.DATA_ERROR, (err: Error) => dataErrors.push(err));
+
     await watcher.start();
 
     expect(callback).toHaveBeenCalledTimes(2);
     expect(processOrder).toEqual(["pod-a", "pod-b"]);
+    expect(dataErrors).toHaveLength(0);
   });
 
   it("should retry delete when delete callback fails", async () => {
