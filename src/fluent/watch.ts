@@ -312,6 +312,8 @@ export class Watcher<T extends GenericClass> {
       // If removed items are not provided, clone the cache
       removedItems = removedItems || new Map(this.#cache.entries());
 
+      let anyCallbackFailed = false;
+
       // Process each item in the list
       for (const item of list.items || []) {
         const { uid } = item.metadata;
@@ -325,6 +327,7 @@ export class Watcher<T extends GenericClass> {
           try {
             await this.#process(item, WatchPhase.Added);
           } catch (err) {
+            anyCallbackFailed = true;
             this.#events.emit(WatchEvent.DATA_ERROR, err);
           }
           continue;
@@ -340,6 +343,7 @@ export class Watcher<T extends GenericClass> {
           try {
             await this.#process(item, WatchPhase.Modified);
           } catch (err) {
+            anyCallbackFailed = true;
             this.#events.emit(WatchEvent.DATA_ERROR, err);
           }
         }
@@ -365,12 +369,13 @@ export class Watcher<T extends GenericClass> {
           try {
             await this.#process(item, WatchPhase.Deleted);
           } catch (err) {
+            anyCallbackFailed = true;
             this.#events.emit(WatchEvent.DATA_ERROR, err);
           }
         }
       }
 
-      return true;
+      return !anyCallbackFailed;
     } catch (err) {
       this.#events.emit(WatchEvent.LIST_ERROR, err);
       return false;

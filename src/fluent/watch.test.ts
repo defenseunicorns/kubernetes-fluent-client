@@ -830,6 +830,61 @@ describe("Watcher", () => {
     expect(deleteCallCount).toBeGreaterThanOrEqual(2);
   });
 
+  it("should trigger faster resync when callback fails during list", async () => {
+    const namespace = "callback-fail-resync-test";
+
+    // Provide list/watch interceptors for multiple reconnect cycles
+    for (let i = 0; i < 5; i++) {
+      mockClient
+        .intercept({ path: `/api/v1/namespaces/${namespace}/pods`, method: "GET" })
+        .reply(200, {
+          kind: "PodList",
+          apiVersion: "v1",
+          metadata: { resourceVersion: String(50 + i) },
+          items: [createMockPod("fail-pod", "1", "fail-resync-uid")],
+        });
+
+      mockClient
+        .intercept({
+          path: new RegExp(`/api/v1/namespaces/${namespace}/pods\\?watch=true`),
+          method: "GET",
+        })
+        .reply(200);
+    }
+
+    let callCount = 0;
+    const callback = vi
+      .fn<(pod: kind.Pod, phase: WatchPhase) => Promise<void>>()
+      .mockImplementation(async () => {
+        callCount++;
+        if (callCount <= 2) {
+          throw new Error("callback fails");
+        }
+      });
+
+    watcher = K8s(kind.Pod).InNamespace(namespace).Watch(callback, {
+      resyncDelaySec: 0.01,
+      lastSeenLimitSeconds: 0.01,
+    });
+
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(
+        () => reject(new Error("Timed out waiting for resync after callback failure")),
+        10000,
+      );
+
+      watcher.events.on(WatchEvent.RECONNECT, () => {
+        clearTimeout(timeout);
+        resolve();
+      });
+
+      watcher.start().catch(reject);
+    });
+
+    // A RECONNECT was triggered because the callback failure caused #list to return false
+    expect(callCount).toBeGreaterThanOrEqual(1);
+  });
+
   it("should not run concurrent list operations", async () => {
     const namespace = "concurrent-list-test";
     let concurrentLists = 0;
