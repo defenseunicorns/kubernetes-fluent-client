@@ -12,7 +12,7 @@ import {
   WatchAction,
   WatchPhase,
 } from "./shared-types.js";
-import { getHeaders, k8sCfg, pathBuilder, sleep, startSleep } from "./utils.js";
+import { getHeaders, k8sCfg, pathBuilder, sleep } from "./utils.js";
 
 export enum WatchEvent {
   /** Watch is connected successfully */
@@ -96,6 +96,9 @@ export class Watcher<T extends GenericClass> {
   // Track if a reconnect is pending
   #pendingReconnect = false;
 
+  // Track if a list operation is in progress to prevent concurrent lists
+  #listInProgress = false;
+
   // The resource version to start the watch at, this will be updated after the list operation.
   #resourceVersion?: string;
 
@@ -138,7 +141,12 @@ export class Watcher<T extends GenericClass> {
       () => {
         this.#latestRelistWindow = new Date().toISOString();
         this.#events.emit(WatchEvent.INIT_CACHE_MISS, this.#latestRelistWindow);
-        void this.#list();
+        void (async () => {
+          const success = await this.#list();
+          if (!success) {
+            this.#lastSeenTime = OVERRIDE;
+          }
+        })();
       },
       watchCfg.relistIntervalSec * 1000 + jitter,
     );
@@ -238,13 +246,23 @@ export class Watcher<T extends GenericClass> {
    * @param continueToken - the continue token for the list
    * @param removedItems - the list of items that have been removed
    * @param retryCount - current retry attempt count
+   * @param pageCount - number of continuation pages already fetched (0-based)
    * @returns resolves when list processing is complete
    */
   #list = async (
     continueToken?: string,
     removedItems?: Map<string, InstanceType<T>>,
     retryCount = 0,
-  ): Promise<void> => {
+    pageCount = 0,
+  ): Promise<boolean> => {
+    const isTopLevel = !continueToken && !removedItems && retryCount === 0;
+    if (isTopLevel) {
+      if (this.#listInProgress) {
+        return false;
+      }
+      this.#listInProgress = true;
+    }
+
     const maxRetries = 5;
     const maxPages = 10;
 
@@ -266,13 +284,11 @@ export class Watcher<T extends GenericClass> {
         const retryAfterHeader = response.headers.get("retry-after");
         // Retry with exponential backoff if under retry limit to prevent infinite recursion if the server is returning errors
         if (retryCount < maxRetries && retryAfterHeader) {
-          const backoffTime = retryAfterHeader
-            ? parseInt(retryAfterHeader) * 1000
-            : Math.min(startSleep * Math.pow(2, retryCount), 30000);
+          const backoffTime = parseInt(retryAfterHeader) * 1000;
 
           await sleep(backoffTime);
           try {
-            return this.#list(continueToken, removedItems, retryCount + 1);
+            return await this.#list(continueToken, removedItems, retryCount + 1, pageCount);
           } catch (e) {
             this.#events.emit(
               WatchEvent.LIST_ERROR,
@@ -281,7 +297,7 @@ export class Watcher<T extends GenericClass> {
           }
         }
 
-        return;
+        return false;
       }
 
       // Unconditionally assign the continue token from the response so that it is cleared on the last page
@@ -296,6 +312,8 @@ export class Watcher<T extends GenericClass> {
       // If removed items are not provided, clone the cache
       removedItems = removedItems || new Map(this.#cache.entries());
 
+      let anyCallbackFailed = false;
+
       // Process each item in the list
       for (const item of list.items || []) {
         const { uid } = item.metadata;
@@ -306,8 +324,14 @@ export class Watcher<T extends GenericClass> {
         // If the item does not exist, it is new and should be added
         if (!alreadyExists) {
           this.#events.emit(WatchEvent.CACHE_MISS, this.#latestRelistWindow);
-          // Send added event. Use void here because we don't care about the result (no consequences here if it fails)
-          void this.#process(item, WatchPhase.Added);
+          try {
+            // Keep lastSeenTime fresh to prevent spurious resync during slow list processing
+            this.#lastSeenTime = Date.now();
+            await this.#process(item, WatchPhase.Added);
+          } catch (err) {
+            anyCallbackFailed = true;
+            this.#events.emit(WatchEvent.DATA_ERROR, err);
+          }
           continue;
         }
 
@@ -318,33 +342,54 @@ export class Watcher<T extends GenericClass> {
         // Check if the resource version is newer than the cached version
         if (itemRV > cachedRV) {
           this.#events.emit(WatchEvent.CACHE_MISS, this.#latestRelistWindow);
-          // Send a modified event if the resource version has changed
-          void this.#process(item, WatchPhase.Modified);
+          try {
+            this.#lastSeenTime = Date.now();
+            await this.#process(item, WatchPhase.Modified);
+          } catch (err) {
+            anyCallbackFailed = true;
+            this.#events.emit(WatchEvent.DATA_ERROR, err);
+          }
         }
       }
 
       // If there is a continue token, call the list function again with the same removed items
       if (continueToken) {
         // Safeguard against infinite pagination
-        if (retryCount >= maxPages) {
+        if (pageCount >= maxPages) {
           this.#events.emit(
             WatchEvent.LIST_ERROR,
             new Error(`Maximum pagination limit (${maxPages}) reached, stopping list operation`),
           );
-          return;
+          return false;
         }
 
-        // Continue pagination (not a retry, so reset retryCount to 0)
-        await this.#list(continueToken, removedItems, 0);
+        // Continue pagination (not a retry, so reset retryCount to 0).
+        // Combine with current page's failure state so a callback failure on
+        // an earlier page is not masked by a successful later page.
+        const nextPageSucceeded = await this.#list(continueToken, removedItems, 0, pageCount + 1);
+        return !anyCallbackFailed && nextPageSucceeded;
       } else {
         // Otherwise, process the removed items
         for (const item of removedItems.values()) {
           this.#events.emit(WatchEvent.CACHE_MISS, this.#latestRelistWindow);
-          void this.#process(item, WatchPhase.Deleted);
+          try {
+            this.#lastSeenTime = Date.now();
+            await this.#process(item, WatchPhase.Deleted);
+          } catch (err) {
+            anyCallbackFailed = true;
+            this.#events.emit(WatchEvent.DATA_ERROR, err);
+          }
         }
       }
+
+      return !anyCallbackFailed;
     } catch (err) {
       this.#events.emit(WatchEvent.LIST_ERROR, err);
+      return false;
+    } finally {
+      if (isTopLevel) {
+        this.#listInProgress = false;
+      }
     }
   };
 
@@ -355,28 +400,24 @@ export class Watcher<T extends GenericClass> {
    * @param phase - the event phase
    */
   #process = async (payload: InstanceType<T>, phase: WatchPhase) => {
-    try {
-      switch (phase) {
-        // If the event is added or modified, update the cache
-        case WatchPhase.Added:
-        case WatchPhase.Modified:
-          this.#cache.set(payload.metadata.uid, payload);
-          break;
+    // Call the callback function — if it throws, the cache is NOT updated
+    // so the next relist will detect the item as unprocessed and retry
+    await this.#callback(payload, phase);
 
-        // If the event is deleted, remove the item from the cache
-        case WatchPhase.Deleted:
-          this.#cache.delete(payload.metadata.uid);
-          break;
-      }
+    // Only update cache after the callback succeeds
+    switch (phase) {
+      case WatchPhase.Added:
+      case WatchPhase.Modified:
+        this.#cache.set(payload.metadata.uid, payload);
+        break;
 
-      // Emit the data event
-      this.#events.emit(WatchEvent.DATA, payload, phase);
-
-      // Call the callback function with the parsed payload
-      await this.#callback(payload, phase);
-    } catch (err) {
-      this.#events.emit(WatchEvent.DATA_ERROR, err);
+      case WatchPhase.Deleted:
+        this.#cache.delete(payload.metadata.uid);
+        break;
     }
+
+    // Emit data event only after callback succeeds and cache is updated
+    this.#events.emit(WatchEvent.DATA, payload, phase);
   };
 
   // process a line from the chunk
@@ -402,7 +443,9 @@ export class Watcher<T extends GenericClass> {
         };
       }
 
-      // Process the event payload, do not update the resource version as that is handled by the list operation
+      // Process the event payload, do not update the resource version as that is handled by the list operation.
+      // Watch-stream events are not retried on callback failure — the relist timer
+      // will re-detect unprocessed items on its next cycle.
       await process(payload, phase);
     } catch (err) {
       if (err.name === "TooOld") {
@@ -422,11 +465,17 @@ export class Watcher<T extends GenericClass> {
    */
   #watch = async (retryCount = 0): Promise<void> => {
     const maxRetries = 5;
-    // Start with a list operation, but don't let it block the watch stream
+    // Start with a list operation
+    let listSucceeded = false;
     try {
-      await this.#list();
+      listSucceeded = await this.#list();
     } catch (listError) {
       this.#events.emit(WatchEvent.LIST_ERROR, listError);
+    }
+
+    // If the list failed, trigger a faster resync so items aren't permanently missed
+    if (!listSucceeded) {
+      this.#lastSeenTime = OVERRIDE;
     }
 
     // Build the URL and request options
