@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
+
+/* Required for publish step to set the release version */
+
+const fs = require("fs");
+
+const packageJSON = require("../package.json");
+const packageLockJSON = require("../package-lock.json");
+
+const generateVersion = () => {
+  const arg = process.argv[2];
+  if (!arg) {
+    console.error("Usage: node set-version.js <version>");
+    process.exit(1);
+  }
+  return arg;
+};
+
+const packageJSONVersion = (packageJSON, version) => {
+  packageJSON.version = version;
+  writeToFile("./package.json", packageJSON);
+};
+const packageLockJSONVersion = (packageLockJSON, version) => {
+  packageLockJSON.version = version;
+  packageLockJSON.packages[""].version = version;
+  writeToFile("./package-lock.json", packageLockJSON);
+};
+
+const writeToFile = (file, data) => {
+  fs.writeFileSync(file, JSON.stringify(data, null, 2));
+};
+
+const version = generateVersion();
+packageJSONVersion(packageJSON, version);
+packageLockJSONVersion(packageLockJSON, version);
