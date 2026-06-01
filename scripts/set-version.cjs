@@ -8,10 +8,16 @@ const fs = require("fs");
 const packageJSON = require("../package.json");
 const packageLockJSON = require("../package-lock.json");
 
+const SEMVER_REGEX = /^\d+\.\d+\.\d+/;
+
 const generateVersion = () => {
   const arg = process.argv[2];
   if (!arg) {
-    console.error("Usage: node set-version.js <version>");
+    console.error("Usage: node set-version.cjs <version>");
+    process.exit(1);
+  }
+  if (!SEMVER_REGEX.test(arg)) {
+    console.error(`Invalid semver version: "${arg}"`);
     process.exit(1);
   }
   return arg;
