@@ -70,9 +70,9 @@
     "@types/urijs": "1.19.26",
     "@types/ws": "8.18.1",
     "@types/yargs": "17.0.35",
-    "@typescript-eslint/eslint-plugin": "8.59.3",
-    "@typescript-eslint/parser": "8.59.3",
-    "@vitest/coverage-v8": "4.1.6",
+    "@typescript-eslint/eslint-plugin": "8.60.0",
+    "@typescript-eslint/parser": "8.60.0",
+    "@vitest/coverage-v8": "4.1.7",
     "command-line-args": "6.0.2",
     "eslint": "10.4.0",
     "eslint-plugin-jsdoc": "62.9.0",
@@ -82,7 +82,7 @@
     "prettier": "3.8.3",
     "semantic-release": "25.0.3",
     "typescript": "6.0.3",
-    "vitest": "4.1.6"
+    "vitest": "4.1.7"
   },
   "overrides": {
     "tar-fs": "3.1.1",
