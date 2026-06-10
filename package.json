@@ -37,7 +37,7 @@
   "scripts": {
     "prebuild": "rm -rf dist",
     "build": "tsc && npm pack",
-    "semantic-release": "semantic-release",
+    "set-version": "node ./scripts/set-version.cjs",
     "test": "vitest src run --coverage",
     "test:e2e": "vitest run e2e/",
     "test:e2e:prep-crds": "kubectl apply -f test/ && npx tsx src/cli.ts crd ./test/datastore.crd.yaml e2e && npx tsx src/cli.ts crd https://raw.githubusercontent.com/defenseunicorns/kubernetes-fluent-client/refs/heads/main/test/webapp.crd.yaml e2e && npx tsx src/cli.ts crd https://raw.githubusercontent.com/defenseunicorns/kubernetes-fluent-client/refs/heads/main/test/webapp.crd.yaml -l json-schema e2e/schemas/webapp",
@@ -80,27 +80,11 @@
     "husky": "9.1.7",
     "lint-staged": "16.4.0",
     "prettier": "3.8.3",
-    "semantic-release": "25.0.3",
     "typescript": "6.0.3",
     "vitest": "4.1.6"
   },
   "overrides": {
     "tar-fs": "3.1.1",
-    "typescript-eslint": "8.58.0",
-    "semantic-release@24.2.0": {
-      "npm": {
-        "glob": {
-          "foreground-child": {
-            "cross-spawn": "7.0.6"
-          }
-        }
-      }
-    }
-  },
-  "release": {
-    "branches": [
-      "main",
-      "next"
-    ]
+    "typescript-eslint": "8.58.0"
   }
 }
