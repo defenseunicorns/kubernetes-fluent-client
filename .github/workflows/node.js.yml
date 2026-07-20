@@ -34,7 +34,7 @@ jobs:
         run: npm run format:check:changed
 
       - name: Format check (full)
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || github.event_name == 'workflow_call'
         run: npm run format:check
 
       - name: Verify the integrity of provenance attestations and registry signatures for installed dependencies
