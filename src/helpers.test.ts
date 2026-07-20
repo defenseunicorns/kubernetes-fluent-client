@@ -5,6 +5,17 @@ import { describe, expect, it, test, vi, afterEach } from "vitest";
 
 import { fromEnv, hasLogs, waitForCluster } from "./helpers.js";
 
+vi.mock("@kubernetes/client-node", () => {
+  return {
+    KubeConfig: class MockKubeConfig {
+      loadFromDefault = vi.fn();
+      getCurrentCluster = vi.fn().mockReturnValue({
+        server: "https://jest-test:8080",
+      });
+    },
+  };
+});
+
 describe("helpers", () => {
   test("fromEnv for NodeJS", () => {
     expect(() => {
@@ -19,16 +30,6 @@ describe("helpers", () => {
 
 describe("Cluster Wait Function", () => {
   // Mock the KubeConfig class
-  vi.mock("@kubernetes/client-node", () => {
-    return {
-      KubeConfig: class MockKubeConfig {
-        loadFromDefault = vi.fn();
-        getCurrentCluster = vi.fn().mockReturnValue({
-          server: "https://jest-test:8080",
-        });
-      },
-    };
-  });
 
   afterEach(() => {
     vi.clearAllMocks();
