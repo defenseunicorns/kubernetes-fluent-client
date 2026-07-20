@@ -30,7 +30,6 @@ jobs:
       - name: Verify the integrity of provenance attestations and registry signatures for installed dependencies
         run: npm audit signatures
   test:
-    needs: e2e
     runs-on: ubuntu-latest
     strategy:
       matrix:
