@@ -46,6 +46,7 @@
     "test:e2e:run": "npm run test:e2e:prep-cluster && npm run test:e2e:prep-crds && npm run test:e2e:prep-image && npm run test:e2e && npm run test:e2e:cleanup",
     "test:e2e:cleanup": "k3d cluster delete kfc-dev",
     "format:check": "eslint src e2e && prettier . --check",
+    "format:check:changed": "bash scripts/format-changed.sh",
     "format:fix": "eslint --fix src e2e && prettier . --write",
     "prepare": "if [ \"$NODE_ENV\" != 'production' ]; then husky; fi"
   },
