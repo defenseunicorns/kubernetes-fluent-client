@@ -32,9 +32,11 @@ jobs:
       - name: Get changed files
         id: changed
         if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+        env:
+          BASE_REF: ${{ github.base_ref }}
         run: |
-          changed_ts=$(git diff --name-only --diff-filter=ACMR origin/${{ github.base_ref }}...HEAD -- 'src/**' 'e2e/**' | grep -E '\.(ts|js|mts|mjs)$' || true)
-          changed_fmt=$(git diff --name-only --diff-filter=ACMR origin/${{ github.base_ref }}...HEAD | grep -E '\.(ts|js|mts|mjs|json|yaml|yml|md)$' || true)
+          changed_ts=$(git diff --name-only --diff-filter=ACMR "origin/$BASE_REF"...HEAD -- 'src/**' 'e2e/**' | grep -E '\.(ts|js|mts|mjs)$' || true)
+          changed_fmt=$(git diff --name-only --diff-filter=ACMR "origin/$BASE_REF"...HEAD | grep -E '\.(ts|js|mts|mjs|json|yaml|yml|md)$' || true)
           echo "ts<<EOF" >> "$GITHUB_OUTPUT"
           echo "$changed_ts" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
@@ -44,11 +46,15 @@ jobs:
 
       - name: Lint (incremental)
         if: steps.changed.outputs.ts != ''
-        run: npx eslint ${{ steps.changed.outputs.ts }}
+        env:
+          CHANGED_TS: ${{ steps.changed.outputs.ts }}
+        run: npx eslint $CHANGED_TS
 
       - name: Prettier (incremental)
         if: steps.changed.outputs.fmt != ''
-        run: npx prettier --check ${{ steps.changed.outputs.fmt }}
+        env:
+          CHANGED_FMT: ${{ steps.changed.outputs.fmt }}
+        run: npx prettier --check $CHANGED_FMT
 
       - name: Lint (full)
         if: github.event_name == 'push'
