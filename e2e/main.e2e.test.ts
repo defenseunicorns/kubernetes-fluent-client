@@ -12,17 +12,20 @@ describe("KFC e2e test", () => {
     try {
       await K8s(kind.Namespace).Apply({ metadata: { name: namespace } }, { force: true });
 
-      await K8s(kind.Deployment).Apply({
-        metadata: { name: `${namespace}-scale`, namespace },
-        spec: {
-          replicas: 1,
-          selector: { matchLabels: { app: "nginx" } },
-          template: {
-            metadata: { labels: { app: "nginx" } },
-            spec: { containers: [{ name: "nginx", image: "nginx" }] },
+      await K8s(kind.Deployment).Apply(
+        {
+          metadata: { name: `${namespace}-scale`, namespace },
+          spec: {
+            replicas: 1,
+            selector: { matchLabels: { app: "nginx" } },
+            template: {
+              metadata: { labels: { app: "nginx" } },
+              spec: { containers: [{ name: "nginx", image: "nginx" }] },
+            },
           },
         },
-      });
+        { force: true },
+      );
     } catch (e) {
       expect(e).toBeUndefined();
     }

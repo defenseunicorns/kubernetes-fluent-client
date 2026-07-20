@@ -7,6 +7,7 @@ import * as fs from "fs";
 import path from "path";
 import { quicktype } from "quicktype-core";
 import { fetch } from "./fetch.js";
+import { Headers } from "undici";
 import { loadAllYaml } from "@kubernetes/client-node";
 import { K8s } from "./fluent/index.js";
 import { CustomResourceDefinition } from "./upstream.js";
