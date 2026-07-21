@@ -7,7 +7,7 @@
   "types": "dist/index.d.ts",
   "type": "module",
   "engines": {
-    "node": ">=20.6.0"
+    "node": ">=22.19.0"
   },
   "repository": {
     "type": "git",
@@ -46,17 +46,18 @@
     "test:e2e:run": "npm run test:e2e:prep-cluster && npm run test:e2e:prep-crds && npm run test:e2e:prep-image && npm run test:e2e && npm run test:e2e:cleanup",
     "test:e2e:cleanup": "k3d cluster delete kfc-dev",
     "format:check": "eslint src e2e && prettier . --check",
+    "format:check:changed": "bash scripts/format-changed.sh",
     "format:fix": "eslint --fix src e2e && prettier . --write",
     "prepare": "if [ \"$NODE_ENV\" != 'production' ]; then husky; fi"
   },
   "dependencies": {
     "@kubernetes/client-node": "1.4.0",
     "http-status-codes": "2.3.0",
-    "js-yaml": "4.1.1",
+    "js-yaml": "4.3.0",
     "node-fetch": "2.7.0",
     "quicktype-core": "23.2.6",
     "tsx": "4.22.0",
-    "undici": "7.24.6",
+    "undici": "8.4.1",
     "yargs": "18.0.0"
   },
   "devDependencies": {
@@ -75,7 +76,7 @@
     "@vitest/coverage-v8": "4.1.6",
     "command-line-args": "6.0.2",
     "eslint": "10.4.0",
-    "eslint-plugin-jsdoc": "62.9.0",
+    "eslint-plugin-jsdoc": "63.0.0",
     "globals": "17.6.0",
     "husky": "9.1.7",
     "lint-staged": "16.4.0",
