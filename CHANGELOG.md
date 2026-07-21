@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.11.10](https://github.com/defenseunicorns/kubernetes-fluent-client/compare/v3.11.9...v3.11.10) (2026-07-21)
+
+
+### Bug Fixes
+
+* add eslint warning ratchet and skip format on release ([#1197](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1197)) ([f56a6fc](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/f56a6fcb1d1ead456a154a763dccbc2ce857ccb0))
+
 ## [3.11.9](https://github.com/defenseunicorns/kubernetes-fluent-client/compare/v3.11.8...v3.11.9) (2026-07-21)
 
 
