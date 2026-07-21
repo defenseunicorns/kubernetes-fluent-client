@@ -47,7 +47,7 @@
     "test:e2e:cleanup": "k3d cluster delete kfc-dev",
     "format:check": "eslint --max-warnings 37 src e2e && prettier . --check",
     "format:check:changed": "bash scripts/format-changed.sh",
-    "format:fix": "eslint --fix --max-warnings 37 src e2e && prettier . --write",
+    "format:fix": "eslint --fix src e2e && prettier . --write",
     "prepare": "if [ \"$NODE_ENV\" != 'production' ]; then husky; fi"
   },
   "dependencies": {
