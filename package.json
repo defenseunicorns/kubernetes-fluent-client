@@ -62,7 +62,7 @@
   },
   "devDependencies": {
     "@commitlint/cli": "20.5.3",
-    "@commitlint/config-conventional": "20.5.3",
+    "@commitlint/config-conventional": "21.0.2",
     "@defenseunicorns/eslint-config": "1.2.0",
     "@eslint/eslintrc": "3.3.6",
     "@eslint/js": "10.0.1",
