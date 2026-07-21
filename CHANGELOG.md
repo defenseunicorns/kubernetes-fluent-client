@@ -1,5 +1,20 @@
 # Changelog
 
+## [3.11.9](https://github.com/defenseunicorns/kubernetes-fluent-client/compare/v3.11.8...v3.11.9) (2026-07-21)
+
+
+### Chores
+
+* **deps-dev:** bump @commitlint/config-conventional from 20.5.3 to 21.0.2 ([#1148](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1148)) ([3d37ef0](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/3d37ef0c442c0e418a2fe34cb531afb549acd8fb))
+* **deps:** bump actions/setup-node from 6.4.0 to 7.0.0 ([#1193](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1193)) ([d939a6e](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/d939a6e541386827406974110a328b2ec03a3b9e))
+* **deps:** bump docker/setup-buildx-action from 4.1.0 to 4.2.0 ([#1173](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1173)) ([34a130b](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/34a130bf45a36bed28d49c742eb17559090c590f))
+* **deps:** bump esbuild from 0.28.0 to 0.28.1 ([#1157](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1157)) ([dec20cd](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/dec20cd4ef29f5caee1d73ba80dd34fec3bdfe57))
+* **deps:** bump github/codeql-action/analyze from 4.36.2 to 4.37.0 ([#1174](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1174)) ([9d3f7e8](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/9d3f7e80a89d4a91bf6b6dcaf5c49dc44b1b153d))
+* **deps:** bump github/codeql-action/init from 4.36.2 to 4.37.0 ([#1178](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1178)) ([7d943ec](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/7d943ecc9cad3212087448c5aac9309773d49a32))
+* **deps:** bump the production-dependencies group across 1 directory with 2 updates ([#1180](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1180)) ([026946e](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/026946e7e3301ad7139483c95cda8fc607ee23d4))
+* **deps:** bump undici from 8.4.1 to 8.5.0 ([#1179](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1179)) ([f950fe6](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/f950fe67e64c907127da0d256d6dee86ef16f945))
+* ignore CHANGELOG.md in prettier ([#1196](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1196)) ([5939d8b](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/5939d8b92d9371001ff543d0cfacb411cd32a531))
+
 ## [3.11.8](https://github.com/defenseunicorns/kubernetes-fluent-client/compare/v3.11.7...v3.11.8) (2026-07-20)
 
 ### Chores
