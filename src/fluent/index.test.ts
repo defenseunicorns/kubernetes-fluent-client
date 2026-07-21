@@ -7,6 +7,7 @@ import { Operation } from "./types.js";
 import { KubernetesObject } from "@kubernetes/client-node";
 import { K8s, removeControllerFields, updateFinalizersOrSkip } from "./index.js";
 import { fetch } from "../fetch.js";
+import { Headers } from "undici";
 import { Pod } from "../upstream.js";
 import { k8sCfg, k8sExec } from "./utils.js";
 
