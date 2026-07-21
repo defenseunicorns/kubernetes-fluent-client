@@ -8,7 +8,7 @@ mapfile -t fmt_files < <(git diff --name-only --diff-filter=ACMRTUXB "$BASE" | g
 
 if [ ${#ts_files[@]} -gt 0 ]; then
   echo "Linting changed files..."
-  npx eslint "${ts_files[@]}"
+  npx eslint --max-warnings 0 "${ts_files[@]}"
 else
   echo "No lint targets changed."
 fi

@@ -1,3 +1,4 @@
+.omc
 e2e/crds
 e2e/crds/**/*.ts
 e2e/generated
