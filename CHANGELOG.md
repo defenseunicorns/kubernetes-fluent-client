@@ -1,5 +1,14 @@
 # Changelog
 
+## [3.11.11](https://github.com/defenseunicorns/kubernetes-fluent-client/compare/v3.11.10...v3.11.11) (2026-07-23)
+
+
+### Chores
+
+* **deps-dev:** bump @commitlint/cli from 20.5.3 to 21.2.1 ([#1202](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1202)) ([55ac9d2](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/55ac9d2a8efaf5943452230692fee77e2b85dfa9))
+* **deps-dev:** bump fast-uri from 3.1.2 to 3.1.4 ([#1195](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1195)) ([cf00735](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/cf007354d6dbaa6a9d917e2ffcc4824515a2ada2))
+* **deps:** bump quicktype-core from 23.2.6 to 25.0.0 ([#1201](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1201)) ([5aeede5](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/5aeede5aa87b669b7bef8e66acb281ff1fefa665))
+
 ## [3.11.10](https://github.com/defenseunicorns/kubernetes-fluent-client/compare/v3.11.9...v3.11.10) (2026-07-21)
 
 
