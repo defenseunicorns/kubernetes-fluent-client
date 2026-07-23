@@ -61,7 +61,7 @@
     "yargs": "18.0.0"
   },
   "devDependencies": {
-    "@commitlint/cli": "20.5.3",
+    "@commitlint/cli": "21.2.1",
     "@commitlint/config-conventional": "21.0.2",
     "@defenseunicorns/eslint-config": "1.2.0",
     "@eslint/eslintrc": "3.3.6",
