@@ -53,7 +53,7 @@
   "dependencies": {
     "@kubernetes/client-node": "1.4.0",
     "http-status-codes": "2.3.0",
-    "js-yaml": "4.3.0",
+    "js-yaml": "5.2.1",
     "node-fetch": "2.7.0",
     "quicktype-core": "25.0.0",
     "tsx": "4.23.1",
@@ -61,8 +61,8 @@
     "yargs": "18.0.0"
   },
   "devDependencies": {
-    "@commitlint/cli": "20.5.3",
-    "@commitlint/config-conventional": "21.0.2",
+    "@commitlint/cli": "21.2.1",
+    "@commitlint/config-conventional": "21.2.0",
     "@defenseunicorns/eslint-config": "1.2.0",
     "@eslint/eslintrc": "3.3.6",
     "@eslint/js": "10.0.1",
@@ -76,7 +76,7 @@
     "@vitest/coverage-v8": "4.1.10",
     "command-line-args": "6.0.2",
     "eslint": "10.7.0",
-    "eslint-plugin-jsdoc": "63.0.13",
+    "eslint-plugin-jsdoc": "63.0.14",
     "globals": "17.7.0",
     "husky": "9.1.7",
     "lint-staged": "16.4.0",
