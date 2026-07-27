@@ -4,9 +4,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PatchStrategy, KubeConfig } from "@kubernetes/client-node";
 import * as fs from "fs";
-import { RequestInit } from "node-fetch";
 import { fetch } from "../fetch.js";
-import { Headers } from "undici";
+import { Headers, HeadersInit, RequestInit } from "undici";
 import { RegisterKind } from "../kinds.js";
 import { GenericClass } from "../types.js";
 import { ClusterRole, Ingress, Pod } from "../upstream.js";

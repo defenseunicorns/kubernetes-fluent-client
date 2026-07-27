@@ -9,7 +9,7 @@ import * as kind from "./upstream.js";
 /** kind is a collection of K8s types to be used within a K8s call: `K8s(kind.Secret).Apply({})`. */
 export { kind };
 
-// Export the node-fetch wrapper
+// Export the fetch wrapper
 export { fetch } from "./fetch.js";
 
 // Export the HTTP status codes

@@ -2,9 +2,8 @@
 
 import { KubeConfig } from "@kubernetes/client-node";
 import type { RequestOptions } from "https";
-import type { HeadersInit, RequestInit } from "node-fetch";
 import { PassThrough } from "stream";
-import { Interceptable, MockAgent, setGlobalDispatcher } from "undici";
+import { HeadersInit, Interceptable, MockAgent, RequestInit, setGlobalDispatcher } from "undici";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { WatchEvent, kind } from "../index.js";
 import { K8s } from "./index.js";

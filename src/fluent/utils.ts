@@ -2,9 +2,8 @@
 // SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
 
 import { KubeConfig, PatchStrategy } from "@kubernetes/client-node";
-import { RequestInit } from "node-fetch";
 import { URL } from "url";
-import { Agent, Dispatcher } from "undici";
+import { Agent, Dispatcher, RequestInit } from "undici";
 import { Agent as httpsAgent } from "https";
 import { fetch } from "../fetch.js";
 import { modelToGroupVersionKind } from "../kinds.js";
@@ -46,7 +45,7 @@ export async function getHeaders(token?: string | null): Promise<Record<string, 
 /**
  * Get the agent for a request
  *
- * @param opts - the request options from node-fetch
+ * @param opts - the request options from undici
  * @returns the agent for undici
  */
 export function getHTTPSAgent(opts: RequestInit): Dispatcher | undefined {
@@ -160,7 +159,7 @@ export function pathBuilder<T extends GenericClass>(
  * A few notes:
  * - The kubeconfig is loaded from the default location, and can check for in-cluster config
  * - We have to create an agent to handle the TLS connection (for the custom CA + mTLS in some cases)
- * - The K8s lib uses request instead of node-fetch today so the object is slightly different
+ * - The K8s lib uses request instead of undici today so the object is slightly different
  *
  * @param method - the HTTP method to use
  * @returns the fetch options and server URL
@@ -182,8 +181,7 @@ export async function k8sCfg(method: FetchMethods): K8sConfigPromise {
   const headersMap = symbols
     .map(symbol => Object.getOwnPropertyDescriptor(opts.headers, symbol)?.value)
     .find(value => typeof value === "object" && value !== null) as
-    | Record<string, string[]>
-    | undefined;
+    Record<string, string[]> | undefined;
 
   // Extract the Authorization header
   const extractedHeaders: Record<string, string | undefined> = {
