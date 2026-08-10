@@ -8,39 +8,6 @@ const shortTimeoutMs = 5000;
 const recoveryTimeoutMs = 15000;
 
 /**
- * Resolve after an event has fired a target number of times.
- *
- * @param events - event source
- * @param event - event name
- * @param targetCount - number of events to observe
- * @returns promise that resolves when the target count is reached
- */
-function waitForEventCount(
-  events: EventEmitter,
-  event: string,
-  targetCount: number,
-): Promise<void> {
-  return new Promise<void>((resolve, reject) => {
-    let count = 0;
-    const timeout = setTimeout(() => {
-      events.off(event, onEvent);
-      reject(new Error(`Timed out waiting for ${targetCount} ${event} events`));
-    }, recoveryTimeoutMs);
-
-    const onEvent = () => {
-      count++;
-      if (count >= targetCount) {
-        clearTimeout(timeout);
-        events.off(event, onEvent);
-        resolve();
-      }
-    };
-
-    events.on(event, onEvent);
-  });
-}
-
-/**
  * Wait for the watcher to see the pod, emit reconnect, then establish a replacement watch.
  *
  * @param events - watcher event source
@@ -48,20 +15,98 @@ function waitForEventCount(
  * @returns promise that resolves after reconnect recovery is proven
  */
 function watcherRecoveryPromise(events: EventEmitter, seenPodPromise: Promise<void>) {
-  const reconnectPromise = eventPromise<number>(
-    events,
-    WatchEvent.RECONNECT,
-    recoveryTimeoutMs,
-  ).then(num => {
-    expect(num).toBe(1);
-  });
-  const recoveredConnectPromise = waitForEventCount(events, WatchEvent.CONNECT, 2);
+  return new Promise<void>((resolve, reject) => {
+    let initialConnectSeen = false;
+    let podSeen = false;
+    let reconnectSeen = false;
+    let settled = false;
 
-  return Promise.all([
-    withTimeout(seenPodPromise, "callback to see pod", shortTimeoutMs),
-    reconnectPromise,
-    recoveredConnectPromise,
-  ]);
+    const cleanup = () => {
+      clearTimeout(timeout);
+      events.off(WatchEvent.CONNECT, onConnect);
+      events.off(WatchEvent.RECONNECT, onReconnect);
+    };
+
+    const finish = (err?: unknown) => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      cleanup();
+
+      if (err) {
+        reject(err);
+        return;
+      }
+
+      resolve();
+    };
+
+    const failOutOfOrder = (message: string) => {
+      finish(new Error(`Watcher recovery events out of order: ${message}`));
+    };
+
+    const timeout = setTimeout(() => {
+      const state = [
+        initialConnectSeen && "initial CONNECT",
+        podSeen && "pod callback",
+        reconnectSeen && "RECONNECT",
+      ]
+        .filter(Boolean)
+        .join(", ");
+
+      finish(
+        new Error(
+          `Timed out waiting for watcher lifecycle; observed ${state || "no recovery events"}`,
+        ),
+      );
+    }, recoveryTimeoutMs);
+
+    const onConnect = () => {
+      if (!initialConnectSeen) {
+        initialConnectSeen = true;
+        return;
+      }
+
+      if (!reconnectSeen) {
+        failOutOfOrder("replacement CONNECT occurred before RECONNECT");
+        return;
+      }
+
+      finish();
+    };
+
+    const onReconnect = (num: number) => {
+      try {
+        expect(num).toBe(1);
+      } catch (err) {
+        finish(err);
+        return;
+      }
+
+      if (!initialConnectSeen) {
+        failOutOfOrder("RECONNECT occurred before initial CONNECT");
+        return;
+      }
+
+      if (!podSeen) {
+        failOutOfOrder("RECONNECT occurred before callback saw pod");
+        return;
+      }
+
+      reconnectSeen = true;
+    };
+
+    events.on(WatchEvent.CONNECT, onConnect);
+    events.on(WatchEvent.RECONNECT, onReconnect);
+
+    withTimeout(seenPodPromise, "callback to see pod", shortTimeoutMs)
+      .then(() => {
+        podSeen = true;
+      })
+      .catch(finish);
+  });
 }
 
 /**
@@ -85,30 +130,6 @@ function watcherFailurePromise(events: EventEmitter): Promise<never> {
       throw err;
     }),
   ]);
-}
-
-/**
- * Resolve when an event fires, or reject if it does not fire before the timeout.
- *
- * @param events - event source
- * @param event - event name
- * @param timeoutMs - timeout in milliseconds
- * @returns first event argument
- */
-function eventPromise<T>(events: EventEmitter, event: string, timeoutMs: number): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      events.off(event, onEvent);
-      reject(new Error(`Timed out waiting for ${event}`));
-    }, timeoutMs);
-
-    const onEvent = (value: T) => {
-      clearTimeout(timeout);
-      resolve(value);
-    };
-
-    events.once(event, onEvent);
-  });
 }
 
 /**
