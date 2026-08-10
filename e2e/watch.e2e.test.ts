@@ -1,9 +1,146 @@
 import { GenericClass, K8s, kind, KubernetesObject } from "../src";
 import { beforeAll, describe, expect, it } from "vitest";
-import { execSync } from "child_process";
 import { WatchPhase } from "../src/fluent/shared-types.js";
 import { WatchEvent } from "../src";
+import type { EventEmitter } from "node:events";
 const namespace = `kfc-watch`;
+const shortTimeoutMs = 5000;
+const recoveryTimeoutMs = 15000;
+
+/**
+ * Resolve after an event has fired a target number of times.
+ *
+ * @param events - event source
+ * @param event - event name
+ * @param targetCount - number of events to observe
+ * @returns promise that resolves when the target count is reached
+ */
+function waitForEventCount(
+  events: EventEmitter,
+  event: string,
+  targetCount: number,
+): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    let count = 0;
+    const timeout = setTimeout(() => {
+      events.off(event, onEvent);
+      reject(new Error(`Timed out waiting for ${targetCount} ${event} events`));
+    }, recoveryTimeoutMs);
+
+    const onEvent = () => {
+      count++;
+      if (count >= targetCount) {
+        clearTimeout(timeout);
+        events.off(event, onEvent);
+        resolve();
+      }
+    };
+
+    events.on(event, onEvent);
+  });
+}
+
+/**
+ * Wait for the watcher to see the pod, emit reconnect, then establish a replacement watch.
+ *
+ * @param events - watcher event source
+ * @param seenPodPromise - resolves after callback sees the listed pod
+ * @returns promise that resolves after reconnect recovery is proven
+ */
+function watcherRecoveryPromise(events: EventEmitter, seenPodPromise: Promise<void>) {
+  const reconnectPromise = eventPromise<number>(
+    events,
+    WatchEvent.RECONNECT,
+    recoveryTimeoutMs,
+  ).then(num => {
+    expect(num).toBe(1);
+  });
+  const recoveredConnectPromise = waitForEventCount(events, WatchEvent.CONNECT, 2);
+
+  return Promise.all([
+    withTimeout(seenPodPromise, "callback to see pod", shortTimeoutMs),
+    reconnectPromise,
+    recoveredConnectPromise,
+  ]);
+}
+
+/**
+ * Reject when the watcher emits any failure event relevant to this test.
+ *
+ * @param events - watcher event source
+ * @returns promise that rejects with the emitted failure
+ */
+function watcherFailurePromise(events: EventEmitter): Promise<never> {
+  return Promise.race([
+    onceEvent<Error>(events, WatchEvent.DATA_ERROR).then(err => {
+      throw err;
+    }),
+    onceEvent<Error>(events, WatchEvent.LIST_ERROR).then(err => {
+      throw err;
+    }),
+    onceEvent<Error>(events, WatchEvent.WATCH_ERROR).then(err => {
+      throw err;
+    }),
+    onceEvent<Error>(events, WatchEvent.NETWORK_ERROR).then(err => {
+      throw err;
+    }),
+  ]);
+}
+
+/**
+ * Resolve when an event fires, or reject if it does not fire before the timeout.
+ *
+ * @param events - event source
+ * @param event - event name
+ * @param timeoutMs - timeout in milliseconds
+ * @returns first event argument
+ */
+function eventPromise<T>(events: EventEmitter, event: string, timeoutMs: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      events.off(event, onEvent);
+      reject(new Error(`Timed out waiting for ${event}`));
+    }, timeoutMs);
+
+    const onEvent = (value: T) => {
+      clearTimeout(timeout);
+      resolve(value);
+    };
+
+    events.once(event, onEvent);
+  });
+}
+
+/**
+ * Add a timeout to an existing promise.
+ *
+ * @param promise - promise to bound
+ * @param label - label used in timeout errors
+ * @param timeoutMs - timeout in milliseconds
+ * @returns original promise result
+ */
+function withTimeout<T>(promise: Promise<T>, label: string, timeoutMs: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      setTimeout(() => reject(new Error(`Timed out waiting for ${label}`)), timeoutMs);
+    }),
+  ]);
+}
+
+/**
+ * Resolve when an event is emitted.
+ *
+ * @param events - event source
+ * @param event - event name
+ * @returns emitted event payload
+ */
+function onceEvent<T>(events: EventEmitter, event: string): Promise<T> {
+  return new Promise<T>(resolve => {
+    events.once(event, resolve);
+  });
+}
+
 describe("watcher e2e", () => {
   beforeAll(async () => {
     try {
@@ -27,6 +164,35 @@ describe("watcher e2e", () => {
       expect(e).toBeUndefined();
     }
   }, 80000);
+
+  it("should handle the RECONNECT event", async () => {
+    let seenPodResolve!: () => void;
+    const seenPodPromise = new Promise<void>(resolve => {
+      seenPodResolve = resolve;
+    });
+    const watcher = K8s(kind.Pod)
+      .InNamespace(namespace)
+      .Watch(
+        po => {
+          expect(po.metadata!.name).toBe(namespace);
+          seenPodResolve();
+        },
+        {
+          resyncDelaySec: 0.01,
+          lastSeenLimitSeconds: 0.01,
+        },
+      );
+
+    try {
+      const watcherErrorPromise = watcherFailurePromise(watcher.events);
+      const recoveryPromise = watcherRecoveryPromise(watcher.events, seenPodPromise);
+
+      void watcher.start();
+      await Promise.race([recoveryPromise, watcherErrorPromise]);
+    } finally {
+      watcher.close();
+    }
+  }, 90000);
 
   it("should watch named resources", () => {
     return new Promise<void>(resolve => {
@@ -73,25 +239,6 @@ describe("watcher e2e", () => {
     await connectPromise;
     watcher.close();
   });
-
-  it("should handle the RECONNECT event", () => {
-    return new Promise<void>(resolve => {
-      const watcher = K8s(kind.Pod)
-        .InNamespace(namespace)
-        .Watch(po => {
-          expect(po.metadata!.name).toBe(namespace);
-        });
-      void watcher.start();
-
-      watcher.events.on(WatchEvent.RECONNECT, num => {
-        expect(num).toBe(1);
-      });
-      execSync(`k3d cluster stop kfc-dev`, { stdio: "inherit" });
-      execSync(`k3d cluster start kfc-dev`, { stdio: "inherit" });
-      watcher.close();
-      resolve();
-    });
-  }, 90000);
 
   it("should handle the DATA event", () => {
     return new Promise<void>(resolve => {

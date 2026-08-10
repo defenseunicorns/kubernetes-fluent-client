@@ -6,6 +6,8 @@ import { V1APIGroup } from "@kubernetes/client-node";
 import { beforeEach } from "node:test";
 
 const namespace = `e2e-tests`;
+const e2eFetchAttempts = 4;
+const e2eFetchBackoffMs = 250;
 
 describe("KFC e2e test", () => {
   beforeAll(async () => {
@@ -381,31 +383,128 @@ it("kfc fetch", async () => {
   const jsonURL = "https://api.github.com/repositories/1";
   const stringURL = "https://api.github.com/octocat";
 
-  interface GHRepo {
+  interface TestRepo {
     id: number;
     name: string;
     full_name: string;
   }
-  // string
-  try {
-    const { data, ok } = await fetch(stringURL);
-    expect(ok).toBe(true);
-    expect(data).toBeDefined();
-    expect(data).toContain("MMMMMMMMMMMMM");
-  } catch (e) {
-    expect(e).toBeUndefined();
+
+  const stringResponse = await fetchWithE2EDiagnostics<string>(stringURL);
+  expect(stringResponse.ok).toBe(true);
+  expect(stringResponse.data).toBeDefined();
+  expect(stringResponse.data).toContain("MMMMMMMMMMMMM");
+
+  const jsonResponse = await fetchWithE2EDiagnostics<TestRepo>(jsonURL);
+  expect(jsonResponse.ok).toBe(true);
+  expect(jsonResponse.data).toBeDefined();
+  expect(jsonResponse.data.id).toBe(1);
+});
+
+/**
+ * Fetch an external e2e resource with short retries and actionable diagnostics.
+ *
+ * @param url - URL to fetch
+ * @returns successful KFC fetch response
+ */
+async function fetchWithE2EDiagnostics<T>(
+  url: string,
+): Promise<Awaited<ReturnType<typeof fetch<T>>>> {
+  let lastResponse: Awaited<ReturnType<typeof fetch<T>>> | undefined;
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= e2eFetchAttempts; attempt++) {
+    try {
+      const response = await fetch<T>(url);
+      if (response.ok) {
+        return response;
+      }
+
+      lastResponse = response;
+      logFetchFailure(url, attempt, response);
+    } catch (error) {
+      lastError = error;
+      logFetchFailure(url, attempt, undefined, error);
+    }
+
+    if (attempt < e2eFetchAttempts) {
+      await sleepMilliseconds(e2eFetchBackoffMs);
+    }
   }
 
-  // JSON payload
-  try {
-    const { data, ok } = await fetch<GHRepo>(jsonURL);
-    expect(ok).toBe(true);
-    expect(data).toBeDefined();
-    expect(data.id).toBe(1);
-  } catch (e) {
-    expect(e).toBeUndefined();
+  throw new Error(
+    `Failed to fetch ${url} after ${e2eFetchAttempts} attempts. ${fetchFailureDetails(
+      lastResponse,
+      lastError,
+    )}`,
+  );
+}
+
+/**
+ * Log a failed external e2e fetch attempt.
+ *
+ * @param url - URL that failed
+ * @param attempt - one-based attempt number
+ * @param response - failed KFC fetch response
+ * @param error - thrown error, if any
+ */
+function logFetchFailure<T>(
+  url: string,
+  attempt: number,
+  response?: Awaited<ReturnType<typeof fetch<T>>>,
+  error?: unknown,
+): void {
+  console.warn(
+    `[e2e fetch] ${url} attempt ${attempt}/${e2eFetchAttempts} failed. ${fetchFailureDetails(
+      response,
+      error,
+    )}`,
+  );
+}
+
+/**
+ * Format fetch failure context for e2e logs.
+ *
+ * @param response - failed KFC fetch response
+ * @param error - thrown error, if any
+ * @returns concise failure context
+ */
+function fetchFailureDetails<T>(
+  response?: Awaited<ReturnType<typeof fetch<T>>>,
+  error?: unknown,
+): string {
+  const responseDetails = response
+    ? `ok=${response.ok} status=${response.status} statusText=${response.statusText}`
+    : "no response";
+  const responseError = response?.e ? ` responseError=${errorDetails(response.e)}` : "";
+  const thrownError = error ? ` thrownError=${errorDetails(error)}` : "";
+
+  return `${responseDetails}${responseError}${thrownError}`;
+}
+
+/**
+ * Format an unknown error value.
+ *
+ * @param error - error-like value
+ * @returns error message
+ */
+function errorDetails(error: unknown): string {
+  if (error instanceof Error) {
+    const cause = error.cause ? ` cause=${String(error.cause)}` : "";
+    return `${error.name}: ${error.message}${cause}`;
   }
-});
+
+  return String(error);
+}
+
+/**
+ * Sleep for a fixed number of milliseconds.
+ *
+ * @param milliseconds - milliseconds to sleep
+ * @returns Promise<void>
+ */
+function sleepMilliseconds(milliseconds: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, milliseconds));
+}
 
 /**
  * sleep for a given number of seconds
