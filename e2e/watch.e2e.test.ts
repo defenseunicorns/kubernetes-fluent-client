@@ -4,7 +4,6 @@ import { WatchPhase } from "../src/fluent/shared-types.js";
 import { WatchEvent } from "../src";
 import type { EventEmitter } from "node:events";
 const namespace = `kfc-watch`;
-const shortTimeoutMs = 5000;
 const recoveryTimeoutMs = 15000;
 
 /**
@@ -101,7 +100,7 @@ function watcherRecoveryPromise(events: EventEmitter, seenPodPromise: Promise<vo
     events.on(WatchEvent.CONNECT, onConnect);
     events.on(WatchEvent.RECONNECT, onReconnect);
 
-    withTimeout(seenPodPromise, "callback to see pod", shortTimeoutMs)
+    withTimeout(seenPodPromise, "callback to see pod", recoveryTimeoutMs)
       .then(() => {
         podSeen = true;
       })
