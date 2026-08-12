@@ -5,6 +5,30 @@
   "bin": "./dist/cli.js",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./test": {
+      "types": "./dist/test/index.d.ts",
+      "import": "./dist/test/index.js",
+      "default": "./dist/test/index.js"
+    },
+    "./test/vitest": {
+      "types": "./dist/test/vitest/index.d.ts",
+      "import": "./dist/test/vitest/index.js",
+      "default": "./dist/test/vitest/index.js"
+    },
+    "./test/vitest/setup": {
+      "types": "./dist/test/vitest/setup.d.ts",
+      "import": "./dist/test/vitest/setup.js",
+      "default": "./dist/test/vitest/setup.js"
+    },
+    "./package.json": "./package.json",
+    "./*": "./*"
+  },
   "type": "module",
   "engines": {
     "node": ">=22.19.0"
@@ -37,6 +61,8 @@
   "scripts": {
     "prebuild": "rm -rf dist",
     "build": "tsc && npm pack",
+    "architecture:check": "eslint src --quiet && node scripts/verify-architecture.mjs",
+    "package:check": "node scripts/verify-package.mjs",
     "set-version": "node ./scripts/set-version.cjs",
     "test": "vitest src run --coverage",
     "test:e2e": "vitest run e2e/",
@@ -83,6 +109,14 @@
     "prettier": "3.9.6",
     "typescript": "6.0.3",
     "vitest": "4.1.10"
+  },
+  "peerDependencies": {
+    "vitest": "^3.2.4 || ^4.1.10"
+  },
+  "peerDependenciesMeta": {
+    "vitest": {
+      "optional": true
+    }
   },
   "overrides": {
     "tar-fs": "3.1.1",

@@ -1,10 +1,14 @@
-import { GenericClass, K8s, kind, KubernetesObject } from "../src";
-import { beforeAll, describe, expect, it } from "vitest";
+import { K8s, kind } from "../src";
+import { applyWithOwnership, deleteAllByOwnership } from "../src/test/index.js";
+import { setupKubernetesPreflight } from "../src/test/vitest/setup.js";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { WatchPhase } from "../src/fluent/shared-types.js";
 import { WatchEvent } from "../src";
 import type { EventEmitter } from "node:events";
+import { e2eOwnership, waitForRunningStatusPhase } from "./support.js";
 const namespace = `kfc-watch`;
 const recoveryTimeoutMs = 15000;
+const ownership = e2eOwnership("kfc-e2e-watch");
 
 /**
  * Wait for the watcher to see the pod, emit reconnect, then establish a replacement watch.
@@ -162,28 +166,33 @@ function onceEvent<T>(events: EventEmitter, event: string): Promise<T> {
 }
 
 describe("watcher e2e", () => {
+  setupKubernetesPreflight();
+
   beforeAll(async () => {
-    try {
-      await K8s(kind.Namespace).Apply(
-        { metadata: { name: namespace } },
-        {
-          force: true,
-        },
-      );
-      await K8s(kind.Pod).Apply(
-        {
-          metadata: { name: namespace, namespace, labels: { app: "nginx" } },
-          spec: { containers: [{ name: "nginx", image: "nginx" }] },
-        },
-        { force: true },
-      );
-      await waitForRunningStatusPhase(kind.Pod, {
-        metadata: { name: namespace, namespace },
-      });
-    } catch (e) {
-      expect(e).toBeUndefined();
-    }
+    await applyWithOwnership(
+      kind.Namespace,
+      { metadata: { name: namespace } },
+      {
+        ...ownership,
+        force: true,
+      },
+    );
+    await applyWithOwnership(
+      kind.Pod,
+      {
+        metadata: { name: namespace, namespace, labels: { app: "nginx" } },
+        spec: { containers: [{ name: "nginx", image: "nginx" }] },
+      },
+      { ...ownership, force: true },
+    );
+    await waitForRunningStatusPhase(kind.Pod, {
+      metadata: { name: namespace, namespace },
+    });
   }, 80000);
+
+  afterAll(async () => {
+    await deleteAllByOwnership(kind.Namespace, { ...ownership, waitForDeletion: true });
+  }, 60000);
 
   it("should handle the RECONNECT event", async () => {
     let seenPodResolve!: () => void;
@@ -347,34 +356,3 @@ describe("watcher e2e", () => {
     });
   });
 });
-
-/**
- * sleep for a given number of seconds
- *
- * @param seconds - number of seconds to sleep
- * @returns Promise<void>
- */
-export function sleep(seconds: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, seconds * 1000));
-}
-
-/**
- * Wait for the status phase to be Running
- *
- * @param k - GenericClass
- * @param o - KubernetesObject
- * @returns Promise<void>
- */
-export async function waitForRunningStatusPhase(
-  k: GenericClass,
-  o: KubernetesObject,
-): Promise<void> {
-  const object = await K8s(k)
-    .InNamespace(o.metadata?.namespace || "")
-    .Get(o.metadata?.name || "");
-
-  if (object.status?.phase !== "Running") {
-    await sleep(2);
-    return waitForRunningStatusPhase(k, o);
-  }
-}

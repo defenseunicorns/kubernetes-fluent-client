@@ -120,4 +120,45 @@ export default [
       ],
     },
   },
+  {
+    files: ["src/**/*.ts"],
+    ignores: ["src/test/**/*.ts", "src/**/*.test.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              regex:
+                "^(?:kubernetes-fluent-client/test(?:/|$)|(?:\\.\\.?/)+(?:[^/]+/)*test(?:/|$))",
+              message: "Runtime code must not import the test-only module.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/test/**/*.ts"],
+    ignores: ["src/test/vitest/**/*.ts", "src/test/**/*.test.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "vitest",
+              message: "The core test helpers must remain test-runner neutral.",
+            },
+          ],
+          patterns: [
+            {
+              group: ["vitest/*", "@vitest/*"],
+              message: "The core test helpers must remain test-runner neutral.",
+            },
+          ],
+        },
+      ],
+    },
+  },
 ];

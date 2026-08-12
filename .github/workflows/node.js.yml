@@ -55,5 +55,11 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Check test-helper architecture boundaries
+        run: npm run architecture:check
+
+      - name: Verify published package entry points
+        run: npm run package:check
+
       - name: Test Unit
         run: npm test

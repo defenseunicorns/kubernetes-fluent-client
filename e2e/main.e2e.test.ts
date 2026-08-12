@@ -1,52 +1,67 @@
 import { kind, K8s, fetch, GenericClass, KubernetesObject } from "kubernetes-fluent-client";
-import { beforeAll, it, describe, expect } from "vitest";
+import { applyWithOwnership, deleteAllByOwnership, ownershipLabel } from "../src/test/index.js";
+import { setupKubernetesPreflight } from "../src/test/vitest/setup.js";
+import { afterAll, beforeAll, beforeEach, it, describe, expect } from "vitest";
 import { Datastore, Kind as Backing } from "./datastore-v1alpha1";
 import { WebApp, Phase, Language, Theme } from "./webapp-v1alpha1";
 import { V1APIGroup } from "@kubernetes/client-node";
-import { beforeEach } from "node:test";
+import {
+  e2eOwnership,
+  gone,
+  untilTrue,
+  waitForRunningStatusPhase,
+  waitForStatusPhase,
+} from "./support.js";
 
 const namespace = `e2e-tests`;
 const e2eFetchAttempts = 4;
 const e2eFetchBackoffMs = 250;
+const ownership = e2eOwnership("kfc-e2e-main");
 
-describe("KFC e2e test", () => {
-  beforeAll(async () => {
-    try {
-      await K8s(kind.Namespace).Apply({ metadata: { name: namespace } }, { force: true });
+setupKubernetesPreflight();
 
-      await K8s(kind.Deployment).Apply(
-        {
-          metadata: { name: `${namespace}-scale`, namespace },
-          spec: {
-            replicas: 1,
-            selector: { matchLabels: { app: "nginx" } },
-            template: {
-              metadata: { labels: { app: "nginx" } },
-              spec: { containers: [{ name: "nginx", image: "nginx" }] },
-            },
-          },
-        },
-        { force: true },
-      );
-    } catch (e) {
-      expect(e).toBeUndefined();
-    }
-  }, 30000);
-
-  beforeEach(async () => {
-    try {
-      await K8s(kind.Pod).Apply(
-        {
-          metadata: { name: namespace, namespace, labels: { app: "nginx" } },
+beforeAll(async () => {
+  await applyWithOwnership(
+    kind.Namespace,
+    { metadata: { name: namespace } },
+    {
+      ...ownership,
+      force: true,
+    },
+  );
+  await applyWithOwnership(
+    kind.Deployment,
+    {
+      metadata: { name: `${namespace}-scale`, namespace },
+      spec: {
+        replicas: 1,
+        selector: { matchLabels: { app: "nginx" } },
+        template: {
+          metadata: { labels: { app: "nginx" } },
           spec: { containers: [{ name: "nginx", image: "nginx" }] },
         },
-        { force: true },
-      );
-    } catch (e) {
-      expect(e).toBeUndefined();
-    }
+      },
+    },
+    { ...ownership, force: true },
+  );
+}, 30000);
+
+afterAll(async () => {
+  await deleteAllByOwnership(kind.Namespace, { ...ownership, waitForDeletion: true });
+}, 60000);
+
+describe("KFC e2e test", () => {
+  beforeEach(async () => {
+    await applyWithOwnership(
+      kind.Pod,
+      {
+        metadata: { name: namespace, namespace, labels: { app: "nginx" } },
+        spec: { containers: [{ name: "nginx", image: "nginx" }] },
+      },
+      { ...ownership, force: true },
+    );
     await waitForRunningStatusPhase(kind.Pod, { metadata: { name: namespace, namespace } });
-  });
+  }, 80000);
 
   it("Adds Finalizer to Deployment", async () => {
     await K8s(kind.Deployment)
@@ -74,6 +89,7 @@ describe("KFC e2e test", () => {
 }, 40000);
 
 it("Apply", async () => {
+  const owner = ownershipLabel(ownership);
   // No Force Test - NS is already created
   try {
     const ns = await K8s(kind.Namespace).Get(namespace);
@@ -88,6 +104,7 @@ it("Apply", async () => {
         metadata: {
           name: namespace,
           labels: {
+            [owner.key]: owner.value,
             "e2e-test": "true",
           },
         },
@@ -283,12 +300,12 @@ it("PatchStatus", async () => {
     },
   });
 
-  await waitForGenericStatusPhase(
+  await waitForStatusPhase(
     WebApp,
     { metadata: { name: "webapp", namespace } },
     Phase.Ready.toString(),
   );
-  await waitForGenericStatusPhase(
+  await waitForStatusPhase(
     Datastore,
     { metadata: { name: "valkey", namespace } },
     Phase.Ready.toString(),
@@ -504,95 +521,6 @@ function errorDetails(error: unknown): string {
  */
 function sleepMilliseconds(milliseconds: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, milliseconds));
-}
-
-/**
- * sleep for a given number of seconds
- *
- * @param seconds - number of seconds to sleep
- * @returns Promise<void>
- */
-export function sleep(seconds: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, seconds * 1000));
-}
-
-/**
- * Wait for the status phase to be Running
- *
- * @param k - GenericClass
- * @param o - KubernetesObject
- * @returns Promise<void>
- */
-export async function waitForRunningStatusPhase(
-  k: GenericClass,
-  o: KubernetesObject,
-): Promise<void> {
-  const object = await K8s(k)
-    .InNamespace(o.metadata?.namespace || "")
-    .Get(o.metadata?.name || "");
-
-  if (object.status?.phase !== "Running") {
-    await sleep(2);
-    return waitForRunningStatusPhase(k, o);
-  }
-}
-
-/**
- * Wait for the status phase to be the given status
- *
- * @param k - GenericClass
- * @param o - KubernetesObject
- * @param status - string
- * @returns Promise<void>
- */
-export async function waitForGenericStatusPhase(
-  k: GenericClass,
-  o: KubernetesObject,
-  status: string,
-): Promise<void> {
-  const object = await K8s(k)
-    .InNamespace(o.metadata?.namespace || "")
-    .Get(o.metadata?.name || "");
-  if (object.status?.phase.toString() !== status) {
-    await sleep(2);
-    return waitForGenericStatusPhase(k, o, status);
-  }
-}
-
-/**
- * Check if the object is gone
- *
- * @param k - GenericClass
- * @param o - KubernetesObject
- * @returns Promise<boolean>
- */
-export async function gone(k: GenericClass, o: KubernetesObject): Promise<boolean> {
-  const ns = o.metadata?.namespace ? o.metadata.namespace : "";
-
-  try {
-    await K8s(k)
-      .InNamespace(ns)
-      .Get(o.metadata?.name || "");
-  } catch {
-    return Promise.resolve(true);
-  }
-  return Promise.resolve(false);
-}
-
-/**
- * Wait until the predicate is true
- *
- * @param predicate - () => Promise<boolean>
- * @returns Promise<void>
- */
-export async function untilTrue(predicate: () => Promise<boolean>): Promise<void> {
-  let condition = false;
-  while (!condition) {
-    condition = await predicate();
-    if (!condition) {
-      await sleep(0.25);
-    }
-  }
 }
 
 /**

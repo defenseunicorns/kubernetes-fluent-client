@@ -13,6 +13,38 @@ To install the Kubernetes Fluent Client, run the following command:
 npm install kubernetes-fluent-client
 ```
 
+### Kubernetes integration testing
+
+Runner-neutral helpers for polling, preflight checks, diagnostics, ownership-aware apply, and
+label-scoped cleanup are available from the test-only entry point:
+
+```typescript
+import {
+  applyWithOwnership,
+  deleteAllByOwnership,
+  preflight,
+  waitFor,
+} from "kubernetes-fluent-client/test";
+```
+
+Vitest projects can also share the integration-test configuration and register preflight as a
+suite hook. Vitest is an optional peer dependency and is only required when this entry point is
+used.
+
+```typescript
+// vitest.config.ts
+import { defineKubernetesTestConfig } from "kubernetes-fluent-client/test/vitest";
+
+export default defineKubernetesTestConfig();
+```
+
+```typescript
+// example.test.ts
+import { setupKubernetesPreflight } from "kubernetes-fluent-client/test/vitest/setup";
+
+setupKubernetesPreflight();
+```
+
 See below for some example uses of the library.
 
 ```typescript
