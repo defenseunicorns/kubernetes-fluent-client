@@ -131,7 +131,8 @@ export default [
             {
               regex:
                 "^(?:kubernetes-fluent-client/test(?:/|$)|(?:\\.\\.?/)+(?:[^/]+/)*test(?:/|$))",
-              message: "Runtime code must not import the test-only module.",
+              message:
+                "Test helpers are test-only and must not be reachable from runtime code. Move this import into test code; see ADR 0002.",
             },
           ],
         },
@@ -148,13 +149,15 @@ export default [
           paths: [
             {
               name: "vitest",
-              message: "The core test helpers must remain test-runner neutral.",
+              message:
+                "Core test helpers must remain runner-neutral. Move Vitest integration under src/test/vitest; see ADR 0002.",
             },
           ],
           patterns: [
             {
               group: ["vitest/*", "@vitest/*"],
-              message: "The core test helpers must remain test-runner neutral.",
+              message:
+                "Core test helpers must remain runner-neutral. Move Vitest integration under src/test/vitest; see ADR 0002.",
             },
           ],
         },

@@ -5,16 +5,18 @@ import type { KubernetesObject } from "@kubernetes/client-node";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { K8s } from "../fluent/index.js";
+import { k8sExec } from "../fluent/utils.js";
 import {
   TEST_OWNERSHIP_LABEL,
+  TEST_RUN_ID_LABEL,
   applyWithOwnership,
   deleteAllByOwnership,
-  deleteIgnoringNotFound,
-  ownershipLabel,
+  ownershipLabels,
   waitForResource,
 } from "./resources.js";
 
 vi.mock("../fluent/index.js", () => ({ K8s: vi.fn() }));
+vi.mock("../fluent/utils.js", () => ({ k8sExec: vi.fn() }));
 
 class ExampleResource implements KubernetesObject {
   metadata?: KubernetesObject["metadata"];
@@ -23,7 +25,8 @@ class ExampleResource implements KubernetesObject {
 const Apply = vi.fn();
 const Delete = vi.fn();
 const Get = vi.fn();
-const WithLabel = vi.fn(() => ({ Get }));
+const WithLabel = vi.fn();
+const filteredClient = { Delete, Get, WithLabel };
 const InNamespace = vi.fn(() => ({ Delete, Get, WithLabel }));
 
 beforeEach(() => {
@@ -32,22 +35,22 @@ beforeEach(() => {
   Delete.mockReset();
   Get.mockReset();
   InNamespace.mockImplementation(() => ({ Delete, Get, WithLabel }));
-  WithLabel.mockImplementation(() => ({ Get }));
+  WithLabel.mockReturnValue(filteredClient);
   vi.mocked(K8s).mockReturnValue({ Apply, Delete, Get, InNamespace, WithLabel } as never);
+  vi.mocked(k8sExec).mockReset();
 });
 
-describe("ownershipLabel", () => {
+describe("ownershipLabels", () => {
   it("preserves the stable owner when no run ID is supplied", () => {
-    expect(ownershipLabel({ owner: "suite" })).toEqual({
-      key: TEST_OWNERSHIP_LABEL,
-      value: "suite",
+    expect(ownershipLabels({ owner: "suite" })).toEqual({
+      [TEST_OWNERSHIP_LABEL]: "suite",
     });
   });
 
-  it("adds an opt-in run ID", () => {
-    expect(ownershipLabel({ owner: "suite", runId: "ci-42" })).toEqual({
-      key: TEST_OWNERSHIP_LABEL,
-      value: "suite.ci-42",
+  it("uses a separate label for an opt-in run ID", () => {
+    expect(ownershipLabels({ owner: "suite.a", runId: "a.ci-42" })).toEqual({
+      [TEST_OWNERSHIP_LABEL]: "suite.a",
+      [TEST_RUN_ID_LABEL]: "a.ci-42",
     });
   });
 
@@ -57,13 +60,35 @@ describe("ownershipLabel", () => {
     { owner: "suite", runId: "" },
     { owner: "a".repeat(64) },
   ])("rejects invalid ownership values: %o", options => {
-    expect(() => ownershipLabel(options)).toThrow("Invalid Kubernetes ownership label value");
+    expect(() => ownershipLabels(options)).toThrow("Invalid Kubernetes");
   });
 
   it("rejects invalid custom label keys", () => {
-    expect(() => ownershipLabel({ owner: "suite", labelKey: "Not Valid/key" })).toThrow(
+    expect(() => ownershipLabels({ owner: "suite", labelKey: "Not Valid/key" })).toThrow(
       "Invalid Kubernetes ownership label key",
     );
+  });
+
+  it("supports distinct repository-specific owner and run-ID label keys", () => {
+    expect(
+      ownershipLabels({
+        owner: "suite",
+        runId: "ci-42",
+        labelKey: "example.dev/owner",
+        runIdLabelKey: "example.dev/run",
+      }),
+    ).toEqual({ "example.dev/owner": "suite", "example.dev/run": "ci-42" });
+  });
+
+  it("rejects colliding owner and run-ID label keys", () => {
+    expect(() =>
+      ownershipLabels({
+        owner: "suite",
+        runId: "ci-42",
+        labelKey: "example.dev/identity",
+        runIdLabelKey: "example.dev/identity",
+      }),
+    ).toThrow("must be different");
   });
 });
 
@@ -106,7 +131,7 @@ describe("applyWithOwnership", () => {
     );
   });
 
-  it("stamps the opt-in run ID into the ownership value", async () => {
+  it("stamps the opt-in run ID into a separate label", async () => {
     await applyWithOwnership(
       ExampleResource,
       { metadata: { name: "example" } },
@@ -119,7 +144,10 @@ describe("applyWithOwnership", () => {
     expect(Apply).toHaveBeenCalledWith(
       expect.objectContaining({
         metadata: expect.objectContaining({
-          labels: { [TEST_OWNERSHIP_LABEL]: "suite.ci-42" },
+          labels: {
+            [TEST_OWNERSHIP_LABEL]: "suite",
+            [TEST_RUN_ID_LABEL]: "ci-42",
+          },
         }),
       }),
       { force: undefined },
@@ -128,42 +156,32 @@ describe("applyWithOwnership", () => {
 });
 
 describe("deleteAllByOwnership", () => {
-  it("lists and deletes only resources with the exact ownership label", async () => {
-    Get.mockResolvedValue({
-      items: [
-        { metadata: { name: "first", namespace: "testing" } },
-        { metadata: { name: "second", namespace: "testing" } },
-      ],
-    });
-
+  it("rejects a blank namespace before making a request", async () => {
     await expect(
-      deleteAllByOwnership(ExampleResource, {
-        owner: "suite",
-        runId: "ci-42",
-        namespace: "testing",
-      }),
-    ).resolves.toEqual([
-      { name: "first", namespace: "testing" },
-      { name: "second", namespace: "testing" },
-    ]);
-
-    expect(WithLabel).toHaveBeenCalledWith(TEST_OWNERSHIP_LABEL, "suite.ci-42");
-    expect(Delete).toHaveBeenCalledTimes(2);
-    expect(Delete).toHaveBeenCalledWith("first");
-    expect(Delete).toHaveBeenCalledWith("second");
-  });
-
-  it("does nothing when no owned resources exist", async () => {
-    Get.mockResolvedValue({ items: [] });
-
-    await expect(deleteAllByOwnership(ExampleResource, { owner: "suite" })).resolves.toEqual([]);
+      deleteAllByOwnership(ExampleResource, { owner: "suite", namespace: " " }),
+    ).rejects.toThrow("Resource namespace must not be blank");
     expect(Delete).not.toHaveBeenCalled();
   });
 
-  it("optionally waits for every deletion to finish", async () => {
+  it("deletes through exact owner and run-ID label selectors", async () => {
+    await expect(
+      deleteAllByOwnership(ExampleResource, {
+        owner: "suite.a",
+        runId: "a.ci-42",
+        namespace: "testing",
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(InNamespace).toHaveBeenCalledWith("testing");
+    expect(WithLabel).toHaveBeenNthCalledWith(1, TEST_OWNERSHIP_LABEL, "suite.a");
+    expect(WithLabel).toHaveBeenNthCalledWith(2, TEST_RUN_ID_LABEL, "a.ci-42");
+    expect(Delete).toHaveBeenCalledOnce();
+    expect(Delete).toHaveBeenCalledWith();
+  });
+
+  it("optionally waits until the exact-label query is empty", async () => {
     Get.mockResolvedValueOnce({ items: [{ metadata: { name: "first" } }] });
-    Get.mockResolvedValueOnce({ metadata: { name: "first" } });
-    Get.mockRejectedValueOnce({ status: 404 });
+    Get.mockResolvedValueOnce({ items: [] });
 
     await expect(
       deleteAllByOwnership(ExampleResource, {
@@ -172,44 +190,89 @@ describe("deleteAllByOwnership", () => {
         timeoutMs: 50,
         intervalMs: 1,
       }),
-    ).resolves.toEqual([{ name: "first" }]);
+    ).resolves.toBeUndefined();
 
-    expect(Get).toHaveBeenCalledTimes(3);
+    expect(Get).toHaveBeenCalledTimes(2);
+    expect(WithLabel).toHaveBeenCalledWith(TEST_OWNERSHIP_LABEL, "suite");
   });
 
-  it("refuses to delete a malformed API response", async () => {
-    Get.mockResolvedValue({ items: [{ metadata: {} }] });
+  it("falls back to identity-and-version preconditions when collection deletion is unsupported", async () => {
+    Delete.mockRejectedValueOnce({ status: 405 });
+    Get.mockResolvedValueOnce({
+      items: [
+        {
+          metadata: {
+            name: "testing",
+            uid: "2d8eab64-62d5-4b59-a63c-31cfc178450e",
+            resourceVersion: "42",
+          },
+        },
+      ],
+    });
+
+    await expect(
+      deleteAllByOwnership(ExampleResource, { owner: "suite" }),
+    ).resolves.toBeUndefined();
+
+    expect(k8sExec).toHaveBeenCalledWith(
+      ExampleResource,
+      { name: "testing", namespace: undefined },
+      {
+        method: "DELETE",
+        payload: {
+          apiVersion: "v1",
+          kind: "DeleteOptions",
+          preconditions: {
+            resourceVersion: "42",
+            uid: "2d8eab64-62d5-4b59-a63c-31cfc178450e",
+          },
+        },
+      },
+    );
+  });
+
+  it("refuses an unsafe fallback deletion without API identity metadata", async () => {
+    Delete.mockRejectedValueOnce({ status: 405 });
+    Get.mockResolvedValueOnce({ items: [{ metadata: { name: "testing" } }] });
 
     await expect(deleteAllByOwnership(ExampleResource, { owner: "suite" })).rejects.toThrow(
-      "resource has no metadata.name",
+      "metadata.name, uid, and resourceVersion are required",
     );
-    expect(Delete).not.toHaveBeenCalled();
+    expect(k8sExec).not.toHaveBeenCalled();
+  });
+
+  it("re-lists after a precondition conflict instead of using stale identity data", async () => {
+    const conflict = { status: 409 };
+    Delete.mockRejectedValueOnce({ status: 405 });
+    Get.mockResolvedValue({
+      items: [
+        {
+          metadata: {
+            name: "testing",
+            uid: "2d8eab64-62d5-4b59-a63c-31cfc178450e",
+            resourceVersion: "42",
+          },
+        },
+      ],
+    });
+    vi.mocked(k8sExec).mockRejectedValueOnce(conflict);
+
+    await expect(
+      deleteAllByOwnership(ExampleResource, {
+        owner: "suite",
+        timeoutMs: 50,
+        intervalMs: 1,
+      }),
+    ).resolves.toBeUndefined();
+    expect(Get).toHaveBeenCalledTimes(2);
+    expect(k8sExec).toHaveBeenCalledTimes(2);
   });
 
   it("propagates deletion failures", async () => {
     const forbidden = Object.assign(new Error("forbidden"), { status: 403 });
-    Get.mockResolvedValue({ items: [{ metadata: { name: "first" } }] });
     Delete.mockRejectedValue(forbidden);
 
     await expect(deleteAllByOwnership(ExampleResource, { owner: "suite" })).rejects.toBe(forbidden);
-  });
-});
-
-describe("deleteIgnoringNotFound", () => {
-  it("deletes a namespaced resource through KFC", async () => {
-    await deleteIgnoringNotFound(ExampleResource, { name: "example", namespace: "testing" });
-
-    expect(InNamespace).toHaveBeenCalledWith("testing");
-    expect(Delete).toHaveBeenCalledWith("example");
-  });
-
-  it("propagates errors not suppressed by KFC", async () => {
-    const forbidden = Object.assign(new Error("forbidden"), { status: 403 });
-    Delete.mockRejectedValueOnce(forbidden);
-
-    await expect(deleteIgnoringNotFound(ExampleResource, { name: "example" })).rejects.toBe(
-      forbidden,
-    );
   });
 });
 
@@ -229,5 +292,17 @@ describe("waitForResource", () => {
 
     expect(InNamespace).toHaveBeenCalledWith("testing");
     expect(Get).toHaveBeenCalledWith("example");
+  });
+
+  it.each([
+    { name: "", namespace: "testing", message: "name" },
+    { name: "   ", namespace: "testing", message: "name" },
+    { name: "example", namespace: "", message: "namespace" },
+    { name: "example", namespace: "   ", message: "namespace" },
+  ])("rejects a blank $message before making a request", options => {
+    expect(() => waitForResource(ExampleResource, options)).toThrow(
+      `Resource ${options.message} must not be blank`,
+    );
+    expect(Get).not.toHaveBeenCalled();
   });
 });

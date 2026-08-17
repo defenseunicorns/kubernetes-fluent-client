@@ -186,10 +186,12 @@ function recognizedDisposition(error: ErrorLike): ErrorDisposition | undefined {
  * @param error - Error raised by the probe.
  * @returns Whether the wait should retry the error.
  */
-export function classifyKubernetesError(error: unknown): ErrorDisposition {
+function classifyKubernetesError(error: unknown): ErrorDisposition {
   let current = errorLike(error);
+  const visited = new Set<ErrorLike>();
 
-  while (current) {
+  while (current && !visited.has(current)) {
+    visited.add(current);
     const disposition = recognizedDisposition(current);
     if (disposition) return disposition;
     current = nestedError(current);

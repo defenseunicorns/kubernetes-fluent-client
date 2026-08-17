@@ -52,14 +52,5 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build
-        run: npm run build
-
-      - name: Check test-helper architecture boundaries
-        run: npm run architecture:check
-
-      - name: Verify published package entry points
-        run: npm run package:check
-
-      - name: Test Unit
+      - name: Build and Test
         run: npm test

@@ -1,5 +1,5 @@
 import { kind, K8s, fetch, GenericClass, KubernetesObject } from "kubernetes-fluent-client";
-import { applyWithOwnership, deleteAllByOwnership, ownershipLabel } from "../src/test/index.js";
+import { applyWithOwnership, deleteAllByOwnership, ownershipLabels } from "../src/test/index.js";
 import { setupKubernetesPreflight } from "../src/test/vitest/setup.js";
 import { afterAll, beforeAll, beforeEach, it, describe, expect } from "vitest";
 import { Datastore, Kind as Backing } from "./datastore-v1alpha1";
@@ -89,7 +89,7 @@ describe("KFC e2e test", () => {
 }, 40000);
 
 it("Apply", async () => {
-  const owner = ownershipLabel(ownership);
+  const owner = ownershipLabels(ownership);
   // No Force Test - NS is already created
   try {
     const ns = await K8s(kind.Namespace).Get(namespace);
@@ -104,7 +104,7 @@ it("Apply", async () => {
         metadata: {
           name: namespace,
           labels: {
-            [owner.key]: owner.value,
+            ...owner,
             "e2e-test": "true",
           },
         },

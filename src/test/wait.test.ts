@@ -3,34 +3,11 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { WaitForTimeoutError, classifyKubernetesError, waitFor } from "./wait.js";
+import { WaitForTimeoutError, waitFor } from "./wait.js";
 
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
-});
-
-describe("classifyKubernetesError", () => {
-  it.each([404, 408, 409, 429, 500, 503])("retries HTTP status %s", status => {
-    expect(classifyKubernetesError({ status })).toBe("retry");
-  });
-
-  it.each([400, 401, 403, 422])("terminates for HTTP status %s", status => {
-    expect(classifyKubernetesError({ status })).toBe("terminal");
-  });
-
-  it("recognizes a nested transport timeout", () => {
-    expect(
-      classifyKubernetesError({
-        status: 400,
-        e: { cause: { code: "UND_ERR_CONNECT_TIMEOUT" } },
-      }),
-    ).toBe("retry");
-  });
-
-  it("treats unknown programming errors as terminal", () => {
-    expect(classifyKubernetesError(new TypeError("bad probe"))).toBe("terminal");
-  });
 });
 
 describe("waitFor", () => {
@@ -48,18 +25,55 @@ describe("waitFor", () => {
     expect(probe).toHaveBeenCalledTimes(2);
   });
 
-  it("retries a missing resource", async () => {
+  it.each([404, 408, 409, 429, 500, 503])("retries HTTP status %s", async status => {
     vi.useFakeTimers();
     const resource = { metadata: { name: "example" } };
     const probe = vi
       .fn<() => Promise<typeof resource>>()
-      .mockRejectedValueOnce({ status: 404 })
+      .mockRejectedValueOnce({ status })
       .mockResolvedValueOnce(resource);
     const pending = waitFor("resource", probe, { timeoutMs: 100, intervalMs: 10 });
 
     await vi.advanceTimersByTimeAsync(10);
 
     await expect(pending).resolves.toBe(resource);
+    expect(probe).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([400, 401, 403, 422])("terminates for HTTP status %s", async status => {
+    const error = Object.assign(new Error("terminal"), { status });
+    const probe = vi.fn().mockRejectedValue(error);
+
+    await expect(waitFor("resource", probe)).rejects.toBe(error);
+    expect(probe).toHaveBeenCalledOnce();
+  });
+
+  it("retries a nested transport timeout", async () => {
+    vi.useFakeTimers();
+    const nestedTimeout = {
+      status: 400,
+      e: { cause: { code: "UND_ERR_CONNECT_TIMEOUT" } },
+    };
+    const probe = vi.fn().mockRejectedValueOnce(nestedTimeout).mockResolvedValueOnce("ready");
+    const pending = waitFor("connection", probe, { timeoutMs: 100, intervalMs: 10 });
+
+    await vi.advanceTimersByTimeAsync(10);
+
+    await expect(pending).resolves.toBe("ready");
+  });
+
+  it("treats unknown programming errors as terminal", async () => {
+    const error = new TypeError("bad probe");
+    await expect(waitFor("program", () => Promise.reject(error))).rejects.toBe(error);
+  });
+
+  it("terminates safely for a cyclic error cause", async () => {
+    const error: { status: number; cause?: unknown } = { status: 400 };
+    error.cause = error;
+    const probe = vi.fn().mockRejectedValue(error);
+
+    await expect(waitFor("cyclic error", probe)).rejects.toBe(error);
+    expect(probe).toHaveBeenCalledOnce();
   });
 
   it("immediately rethrows a terminal error", async () => {

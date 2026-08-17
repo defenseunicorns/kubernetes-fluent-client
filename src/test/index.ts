@@ -19,21 +19,20 @@ export {
 export { preflight, type PreflightOptions, type PreflightResult } from "./preflight.js";
 export {
   TEST_OWNERSHIP_LABEL,
+  TEST_RUN_ID_LABEL,
   applyWithOwnership,
   deleteAllByOwnership,
-  deleteIgnoringNotFound,
-  ownershipLabel,
+  ownershipLabels,
   waitForResource,
   type ApplyWithOwnershipOptions,
   type DeleteAllByOwnershipOptions,
-  type OwnershipLabel,
+  type OwnershipLabels,
   type OwnershipOptions,
   type ResourceReference,
   type WaitForResourceOptions,
 } from "./resources.js";
 export {
   WaitForTimeoutError,
-  classifyKubernetesError,
   waitFor,
   type ErrorClassifier,
   type ErrorDisposition,
