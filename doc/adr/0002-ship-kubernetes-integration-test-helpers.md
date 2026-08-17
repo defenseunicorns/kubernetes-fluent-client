@@ -123,10 +123,6 @@ Success criteria for continued investment and expansion after the initial KFC re
 package adopts with less bespoke glue than either example package; migrations delete more code than
 the subtree adds; a contributor beyond the original author lands a change.
 
-Decisions made during review: the subpaths are `./test` and `./test/vitest`; helper changes use the
-`test` conventional-commit scope; default waiter timeouts adopt the values from the existing KFC
-e2e suite, documented with rationale, and are overridable via `env()`; runner neutrality in the core
-entry is enforced by a CI lint rule (not left to review).
 
 Remaining open question: the artifact size budget that would trigger reconsidering a sibling
 package. The package verification check reports packed and unpacked sizes so the project can set
