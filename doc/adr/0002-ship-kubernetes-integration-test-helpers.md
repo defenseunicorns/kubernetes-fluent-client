@@ -75,8 +75,7 @@ subpath exports:
   the core preflight check as a Vitest `beforeAll` hook. The separate setup entry prevents config
   loading from eagerly importing Vitest's runtime APIs. The `KUBERNETES_TEST_TIMEOUT_MS` constant is
   also exported for consumers that need to align related configuration. `vitest` is an optional
-  peer dependency used only by these entries; its range covers Vitest 3 and 4 so existing KFC
-  consumers do not encounter an install-time peer conflict.
+  peer dependency used only by these entries and supports the repository's current Vitest major.
   Sync matchers are deferred until at least two consumers share a concrete assertion pattern.
 
 Guardrails: no cluster provisioning; no package-level fixtures or namespace DSL (packages that test in

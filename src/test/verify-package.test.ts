@@ -52,8 +52,8 @@ describe("published package", () => {
     if (npmCache) await rm(npmCache, { recursive: true });
   });
 
-  it("declares Vitest 3 and 4 as an optional peer dependency", () => {
-    expect(packageJson.peerDependencies?.vitest).toBe("^3.2.4 || ^4.1.10");
+  it("declares Vitest 4 as an optional peer dependency", () => {
+    expect(packageJson.peerDependencies?.vitest).toBe("^4.1.10");
     expect(packageJson.peerDependenciesMeta?.vitest?.optional).toBe(true);
   });
 
