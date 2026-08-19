@@ -10,16 +10,15 @@ import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 interface PackResult {
-  entryCount: number;
   files: { path: string }[];
-  size: number;
-  unpackedSize: number;
 }
 
 const packageJson = JSON.parse(
   await readFile(new URL("../../package.json", import.meta.url), "utf8"),
 );
 const packageRoot = fileURLToPath(new URL("../../", import.meta.url));
+const allowedRootFiles = new Set(["LICENSE", "README.md", "package.json"]);
+const implementationTestFile = /\.(?:test|spec)\.(?:d\.)?[cm]?[jt]sx?(?:\.map)?$/;
 const requiredFiles = [
   "dist/index.js",
   "dist/index.d.ts",
@@ -113,9 +112,22 @@ describe("published package", () => {
     }
   });
 
-  it("measures the published artifact", () => {
-    expect(packResult.entryCount).toBeGreaterThan(0);
-    expect(packResult.size).toBeGreaterThan(0);
-    expect(packResult.unpackedSize).toBeGreaterThan(packResult.size);
+  it("includes files only from intentional package paths", () => {
+    const unexpectedFiles = packResult.files
+      .map(entry => entry.path)
+      .filter(
+        file =>
+          !allowedRootFiles.has(file) && !file.startsWith("src/") && !file.startsWith("dist/"),
+      );
+
+    expect(unexpectedFiles).toEqual([]);
+  });
+
+  it("excludes implementation test files", () => {
+    const testFiles = packResult.files
+      .map(entry => entry.path)
+      .filter(file => implementationTestFile.test(file));
+
+    expect(testFiles).toEqual([]);
   });
 });
