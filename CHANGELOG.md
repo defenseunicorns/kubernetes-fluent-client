@@ -1,5 +1,21 @@
 # Changelog
 
+## [3.12.0](https://github.com/defenseunicorns/kubernetes-fluent-client/compare/v3.11.11...v3.12.0) (2026-08-20)
+
+
+### Features
+
+* **test:** add Kubernetes integration test helpers ([#1253](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1253)) ([cb78ea0](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/cb78ea03461d96bbda4ab4253a11e108f908fa10))
+
+
+### Chores
+
+* **deps-dev:** bump eslint-plugin-jsdoc from 63.3.3 to 64.0.2 ([#1258](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1258)) ([c2d909c](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/c2d909cc94491e634cb4e6b376e35fcd3b6d7804))
+* **deps-dev:** bump the development-dependencies group across 1 directory with 5 updates ([#1262](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1262)) ([82694e8](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/82694e811e3e657e3546c3dc8df6fcafecb5c19e))
+* **deps:** bump the codeql-action group with 3 updates ([#1267](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1267)) ([ed5834d](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/ed5834d52c53cf40bef25b02af4ac4c0b80829e5))
+* **deps:** bump tsx from 4.23.5 to 4.23.7 in the production-dependencies group ([#1254](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1254)) ([0ed72e8](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/0ed72e87fca7baa503ebe3ff9d25faced452a1c0))
+* **deps:** bump tsx from 4.23.7 to 4.23.8 in the production-dependencies group ([#1256](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1256)) ([677b27b](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/677b27b0695563d19ffba561ef80829e362171d2))
+
 ## [3.11.11](https://github.com/defenseunicorns/kubernetes-fluent-client/compare/v3.11.10...v3.11.11) (2026-08-11)
 
 
