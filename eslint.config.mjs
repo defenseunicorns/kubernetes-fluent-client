@@ -120,4 +120,48 @@ export default [
       ],
     },
   },
+  {
+    files: ["src/**/*.ts"],
+    ignores: ["src/test/**/*.ts", "src/**/*.test.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              regex:
+                "^(?:kubernetes-fluent-client/test(?:/|$)|(?:\\.\\.?/)+(?:[^/]+/)*test(?:/|$))",
+              message:
+                "Test helpers are test-only and must not be reachable from runtime code. Move this import into test code; see ADR 0002.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/test/**/*.ts"],
+    ignores: ["src/test/vitest/**/*.ts", "src/test/**/*.test.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "vitest",
+              message:
+                "Core test helpers must remain runner-neutral. Move Vitest integration under src/test/vitest; see ADR 0002.",
+            },
+          ],
+          patterns: [
+            {
+              group: ["vitest/*", "@vitest/*"],
+              message:
+                "Core test helpers must remain runner-neutral. Move Vitest integration under src/test/vitest; see ADR 0002.",
+            },
+          ],
+        },
+      ],
+    },
+  },
 ];

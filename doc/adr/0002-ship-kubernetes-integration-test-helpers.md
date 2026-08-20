@@ -50,17 +50,33 @@ Alternatives considered:
 We will ship a runner-neutral test helper module inside `kubernetes-fluent-client`, exposed as two
 subpath exports:
 
-- `kubernetes-fluent-client/test`: the core, limited to helpers duplicated in both audited
-  packages. `waitFor` with retryable/terminal error classification (401/403/422 abort;
-  404/409/timeouts/5xx retry) and an `onTimeout` diagnostics hook; `preflight()`; `env()`
-  (including waiter-timeout overrides); `applyWithOwnership()` (default label key
-  `test.defenseunicorns.dev/source`); `deleteIgnoringNotFound()`; waiters (`waitForResource`,
-  `waitForPodsByLabel`); sync predicates (`hasContainer`); composable diagnostics collectors.
+- `kubernetes-fluent-client/test`: the runner-neutral core. It extracts the shared `waitFor`
+  call shape and ownership conventions and consolidates their repeated support patterns into
+  small generic primitives. `waitFor` has retryable/terminal error classification (401/403/422 abort;
+  404/409/timeouts/5xx retry), an exported `WaitForTimeoutError` carrying structured failure details,
+  a custom-classifier option, and an `onTimeout` diagnostics hook;
+  `preflight()`; `env()` (including exported timing defaults and environment-variable names);
+  `applyWithOwnership()` and `ownershipLabels()` (default exported label keys
+  `test.defenseunicorns.dev/source` and `test.defenseunicorns.dev/run-id`); `waitForResource`; and composable,
+  structured diagnostics through `collectDiagnostics()` that do not write output. Public function
+  option and result types are exported so TypeScript consumers can define reusable configuration
+  without duplicating library types. `preflight()` is a new fail-fast guardrail rather than code
+  copied from either package. `waitForPodsByLabel` and `hasContainer` are deferred because only Peat
+  Node Injector currently supplies a concrete use.
+  `deleteAllByOwnership()` deletes resources through exact label selectors evaluated by Kubernetes,
+  with UID and resource-version preconditions for APIs that do not support collection deletion.
+  Ownership and the optional run ID use separate labels so their identities are unambiguous;
+  omitting a run ID preserves the stable owner-only behavior.
   Helpers present in only one consumer (e.g. deployment-ownership lookup, log tailing, CRD
   registration and waiters, namespace lifecycle) stay in that consumer until a second case appears.
-- `kubernetes-fluent-client/test/vitest`: a thin layer. `defineKubernetesTestConfig()` (the
-  packages' current shared config), a preflight setup helper, and sync matchers. `vitest` is an
-  optional peer dependency used only by this entry.
+- `kubernetes-fluent-client/test/vitest`: a thin, config-safe layer. It provides
+  `defineKubernetesTestConfig()` (the packages' current shared config), while
+  `kubernetes-fluent-client/test/vitest/setup` exposes `setupKubernetesPreflight()`, which registers
+  the core preflight check as a Vitest `beforeAll` hook. The separate setup entry prevents config
+  loading from eagerly importing Vitest's runtime APIs. The `KUBERNETES_TEST_TIMEOUT_MS` constant is
+  also exported for consumers that need to align related configuration. `vitest` is an optional
+  peer dependency used only by these entries and supports the repository's current Vitest major.
+  Sync matchers are deferred until at least two consumers share a concrete assertion pattern.
 
 Guardrails: no cluster provisioning; no package-level fixtures or namespace DSL (packages that test in
 an existing package namespace stay first-class); no async polling matchers, custom environments,
@@ -70,11 +86,11 @@ runner neutrality in the core entry is enforced by a separate CI lint rule that 
 vitest-specific imports. For external consumers, the `/test` subpath signals test-only use (the
 same convention as `@angular/core/testing`).
 
-Rollout: (0) exports and build wiring with empty stubs, optional-peer declaration, import-direction
-CI check, artifact size measurement; (1) extract the core and migrate both packages, deleting local
-copies; (2) label-scoped cleanup, opt-in run-ID label values, and migration of KFC's own e2e package
-onto the core; (3) ship the Vitest entry and point `uds-package-test`/reference-package
-scaffolding at it.
+This implementation includes the exports, build wiring, runner-neutral core, race-resistant
+label-scoped cleanup, KFC e2e migration, and Vitest adapters. After KFC publishes a version
+containing these entry points, Argo Events and Peat Node Injector can land their prepared migrations
+and `uds-package-test/reference-package` scaffolding can adopt the shared adapters. The KFC release
+comes first because cross-repository consumers cannot depend on unpublished entry points.
 
 ## Consequences
 
@@ -84,7 +100,8 @@ Positive:
 - Test bodies lose the repeated diagnostics boilerplate; RBAC failures fail in seconds.
 - Adoption is an import statement for every existing KFC consumer, and helper and client versions
   cannot skew (no peer-range matrix exists).
-- The semantic-release pipeline is untouched, and the README change is one new feature-list entry.
+- The semantic-release pipeline is untouched, and the README gains one focused integration-testing
+  section documenting the new public entry points.
 
 Negative:
 
@@ -93,23 +110,17 @@ Negative:
   small (only helpers duplicated in both audited packages); additional helpers are promoted when a
   second consumer appears. Revisit the sibling-package option if churn or surface growth becomes
   disruptive.
-- The published artifact grows by the test subtree; measured in phase 0 against an agreed budget.
+- The published artifact grows by the test subtree; package verification reports its packed and
+  unpacked sizes against a future agreed budget.
 - KFC maintainers take on the helpers' triage and API stability surface; this decision requires
   their buy-in.
 - Error classification and `onTimeout` are behavior changes riding along with extraction; package
   migrations must call them out.
 
-Success criteria for continuing past phase 1: a third package adopts with less bespoke glue than
-either example package; migrations delete more code than the subtree adds; a contributor beyond
-the original author lands a change. Revert to blessed copy-paste helpers if packages begin wrapping
-the helpers or single-consumer options.
+Success criteria for continued investment and expansion after the initial KFC release: a third
+package adopts with less bespoke glue than either example package; migrations delete more code than
+the subtree adds; a contributor beyond the original author lands a change.
 
-Decisions made during review: default waiter timeouts adopt the values from the existing KFC e2e
-suite, documented with rationale, and are overridable via `env()`; runner neutrality in the core
-entry is enforced by a CI lint rule (not left to review).
-
-Open questions for the workshop: subpath naming (`./test` vs `./testing` vs `./e2e`, noting the
-repo's existing `test/` fixtures directory); whether helper-only changes carry a distinct
-conventional-commit scope; whether run-ID label values are opt-in or default-on; the diagnostics
-output contract (console vs artifact files); and the artifact size budget that would trigger
-reconsidering a sibling package.
+Remaining open question: the artifact size budget that would trigger reconsidering a sibling
+package. The package verification check reports packed and unpacked sizes so the project can set
+that threshold from measured releases.

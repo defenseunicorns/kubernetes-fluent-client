@@ -5,6 +5,30 @@
   "bin": "./dist/cli.js",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./test": {
+      "types": "./dist/test/index.d.ts",
+      "import": "./dist/test/index.js",
+      "default": "./dist/test/index.js"
+    },
+    "./test/vitest": {
+      "types": "./dist/test/vitest/index.d.ts",
+      "import": "./dist/test/vitest/index.js",
+      "default": "./dist/test/vitest/index.js"
+    },
+    "./test/vitest/setup": {
+      "types": "./dist/test/vitest/setup.d.ts",
+      "import": "./dist/test/vitest/setup.js",
+      "default": "./dist/test/vitest/setup.js"
+    },
+    "./package.json": "./package.json",
+    "./*": "./*"
+  },
   "type": "module",
   "engines": {
     "node": ">=22.19.0"
@@ -38,7 +62,7 @@
     "prebuild": "rm -rf dist",
     "build": "tsc && npm pack",
     "set-version": "node ./scripts/set-version.cjs",
-    "test": "vitest src run --coverage",
+    "test": "vitest run src --coverage --coverage.exclude='dist/**'",
     "test:e2e": "vitest run e2e/",
     "test:e2e:prep-crds": "kubectl apply -f test/ && npx tsx src/cli.ts crd ./test/datastore.crd.yaml e2e && npx tsx src/cli.ts crd https://raw.githubusercontent.com/defenseunicorns/kubernetes-fluent-client/refs/heads/main/test/webapp.crd.yaml e2e && npx tsx src/cli.ts crd https://raw.githubusercontent.com/defenseunicorns/kubernetes-fluent-client/refs/heads/main/test/webapp.crd.yaml -l json-schema e2e/schemas/webapp",
     "test:e2e:prep-cluster": "k3d cluster create kfc-dev --k3s-arg '--debug@server:0' --wait && kubectl rollout status deployment -n kube-system",
@@ -83,6 +107,14 @@
     "prettier": "3.9.6",
     "typescript": "6.0.3",
     "vitest": "4.1.10"
+  },
+  "peerDependencies": {
+    "vitest": "^4.1.10"
+  },
+  "peerDependenciesMeta": {
+    "vitest": {
+      "optional": true
+    }
   },
   "overrides": {
     "tar-fs": "3.1.1",

@@ -13,6 +13,59 @@ To install the Kubernetes Fluent Client, run the following command:
 npm install kubernetes-fluent-client
 ```
 
+### Kubernetes integration testing
+
+Runner-neutral helpers for polling, preflight checks, diagnostics, ownership-aware apply, and
+label-scoped cleanup are available from the test-only entry point. The ownership helpers stamp and
+delete through the same exact labels, preventing one suite from cleaning up another suite's
+resources.
+
+```typescript
+import { kind, K8s } from "kubernetes-fluent-client";
+import {
+  applyWithOwnership,
+  deleteAllByOwnership,
+  preflight,
+  waitFor,
+} from "kubernetes-fluent-client/test";
+
+const ownership = { owner: "example-suite" };
+
+// Fail before the suite starts when the active Kubernetes context is unusable.
+await preflight();
+
+// Apply resources with labels that can be targeted safely during cleanup.
+await applyWithOwnership(
+  kind.ConfigMap,
+  { metadata: { name: "example", namespace: "testing" } },
+  ownership,
+);
+
+// Poll with a bounded deadline and Kubernetes-aware error handling.
+await waitFor("example ConfigMap", () => K8s(kind.ConfigMap).InNamespace("testing").Get("example"));
+
+// Delete only ConfigMaps carrying this suite's exact ownership labels.
+await deleteAllByOwnership(kind.ConfigMap, { ...ownership, namespace: "testing" });
+```
+
+Vitest projects can also share the integration-test configuration and register preflight as a
+suite hook. Vitest is an optional peer dependency and is only required when this entry point is
+used.
+
+```typescript
+// vitest.config.ts
+import { defineKubernetesTestConfig } from "kubernetes-fluent-client/test/vitest";
+
+export default defineKubernetesTestConfig();
+```
+
+```typescript
+// example.test.ts
+import { setupKubernetesPreflight } from "kubernetes-fluent-client/test/vitest/setup";
+
+setupKubernetesPreflight();
+```
+
 See below for some example uses of the library.
 
 ```typescript
