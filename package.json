@@ -80,7 +80,7 @@
     "js-yaml": "5.2.3",
     "node-fetch": "2.7.0",
     "quicktype-core": "25.0.0",
-    "tsx": "4.23.8",
+    "tsx": "4.23.12",
     "undici": "8.10.0",
     "yargs": "18.1.0"
   },
