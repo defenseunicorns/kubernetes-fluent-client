@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 interface PackResult {
+  filename: string;
   files: { path: string }[];
 }
 
@@ -31,24 +32,57 @@ const requiredFiles = [
 ];
 
 describe("published package", () => {
-  let npmCache: string | undefined;
+  let packageWorkspace: string | undefined;
+  let consumerRoot: string;
+  let npmCache: string;
+  let tarballPath: string;
   let packResult: PackResult;
 
   beforeAll(async () => {
-    npmCache = await mkdtemp(join(tmpdir(), "kfc-package-check-"));
+    packageWorkspace = await mkdtemp(join(tmpdir(), "kfc-package-check-"));
+    consumerRoot = join(packageWorkspace, "consumer");
+    npmCache = join(packageWorkspace, "npm-cache");
+    const packDestination = join(packageWorkspace, "pack");
+    await mkdir(packDestination);
     [packResult] = JSON.parse(
       execFileSync(
         "npm",
-        ["pack", "--dry-run", "--ignore-scripts", "--cache", npmCache, "--json"],
+        [
+          "pack",
+          "--ignore-scripts",
+          "--cache",
+          npmCache,
+          "--json",
+          "--pack-destination",
+          packDestination,
+        ],
         {
+          cwd: packageRoot,
           encoding: "utf8",
         },
       ),
     ) as PackResult[];
-  });
+    tarballPath = join(packDestination, packResult.filename);
+
+    await mkdir(consumerRoot);
+    await writeFile(
+      join(consumerRoot, "package.json"),
+      JSON.stringify({ private: true, type: "module" }),
+    );
+    execFileSync(
+      "npm",
+      ["install", "--ignore-scripts", "--package-lock=false", "--cache", npmCache, tarballPath],
+      { cwd: consumerRoot, encoding: "utf8" },
+    );
+    await symlink(
+      join(packageRoot, "node_modules", "vitest"),
+      join(consumerRoot, "node_modules", "vitest"),
+      "dir",
+    );
+  }, 60_000);
 
   afterAll(async () => {
-    if (npmCache) await rm(npmCache, { recursive: true });
+    if (packageWorkspace) await rm(packageWorkspace, { recursive: true, force: true });
   });
 
   it("declares Vitest 4 as an optional peer dependency", () => {
@@ -57,20 +91,29 @@ describe("published package", () => {
   });
 
   it("loads every intentional public entry point and preserves existing deep imports", async () => {
-    const entries = [
-      packageJson.name,
-      `${packageJson.name}/test`,
-      `${packageJson.name}/test/vitest`,
-      `${packageJson.name}/test/vitest/setup`,
-      `${packageJson.name}/dist/fetch.js`,
-    ];
-    const [, , vitestConfigEntry, vitestSetupEntry] = (await Promise.all(
-      entries.map(entry => import(entry)),
-    )) as Record<string, unknown>[];
+    const output = execFileSync(
+      "node",
+      [
+        "--input-type=module",
+        "--eval",
+        `
+          import * as rootEntry from ${JSON.stringify(packageJson.name)};
+          import ${JSON.stringify(`${packageJson.name}/test`)};
+          import * as vitestConfigEntry from ${JSON.stringify(`${packageJson.name}/test/vitest`)};
+          import * as vitestSetupEntry from ${JSON.stringify(`${packageJson.name}/test/vitest/setup`)};
+          import ${JSON.stringify(`${packageJson.name}/dist/fetch.js`)};
 
-    expect(vitestConfigEntry.defineKubernetesTestConfig).toBeTypeOf("function");
-    expect(vitestConfigEntry).not.toHaveProperty("setupKubernetesPreflight");
-    expect(vitestSetupEntry.setupKubernetesPreflight).toBeTypeOf("function");
+          if (rootEntry.WatchPhase.Added !== "ADDED") throw new Error("WatchPhase is unavailable");
+          if (typeof rootEntry.Watcher !== "function") throw new Error("Watcher is unavailable");
+          if (typeof vitestConfigEntry.defineKubernetesTestConfig !== "function") throw new Error("Vitest config helper is unavailable");
+          if ("setupKubernetesPreflight" in vitestConfigEntry) throw new Error("Vitest config entry exports setup helpers");
+          if (typeof vitestSetupEntry.setupKubernetesPreflight !== "function") throw new Error("Vitest setup helper is unavailable");
+        `,
+      ],
+      { cwd: consumerRoot, encoding: "utf8" },
+    );
+
+    expect(output).toBe("");
   });
 
   it.each(requiredFiles)("includes %s", file => {
@@ -78,38 +121,42 @@ describe("published package", () => {
     expect(packedFiles).toContain(file);
   });
 
-  it("compiles a consumer's Vitest configuration", async () => {
-    const consumerRoot = await mkdtemp(join(tmpdir(), "kfc-consumer-check-"));
-
-    try {
-      const nodeModules = join(consumerRoot, "node_modules");
-      const consumerConfig = join(consumerRoot, "vitest.config.ts");
-      await mkdir(nodeModules);
-      await symlink(packageRoot, join(nodeModules, packageJson.name), "dir");
-      await writeFile(
+  it("compiles a NodeNext consumer using the public fluent API", async () => {
+    const consumerConfig = join(consumerRoot, "vitest.config.ts");
+    const consumerSource = join(consumerRoot, "consumer.ts");
+    await writeFile(
+      consumerConfig,
+      'import { defineKubernetesTestConfig } from "kubernetes-fluent-client/test/vitest";\n' +
+        "export default defineKubernetesTestConfig();\n",
+    );
+    await writeFile(
+      consumerSource,
+      'import { WatchEvent, WatchPhase, Watcher, type K8sInit, type KubernetesListObject, type WatchCfg, type WatcherType } from "kubernetes-fluent-client";\n' +
+        "const phase = WatchPhase.Added;\n" +
+        "const event = WatchEvent.CONNECT;\n" +
+        "void phase;\n" +
+        "void event;\n" +
+        "void Watcher;\n" +
+        "type PublicFluentTypes = [K8sInit<any, any>, KubernetesListObject<any>, WatchCfg, WatcherType<any>];\n" +
+        "void (null as unknown as PublicFluentTypes);\n",
+    );
+    execFileSync(
+      join(packageRoot, "node_modules", ".bin", "tsc"),
+      [
+        "--noEmit",
+        "--strict",
+        "--skipLibCheck",
+        "--target",
+        "ES2022",
+        "--module",
+        "NodeNext",
+        "--moduleResolution",
+        "NodeNext",
         consumerConfig,
-        'import { defineKubernetesTestConfig } from "kubernetes-fluent-client/test/vitest";\n' +
-          "export default defineKubernetesTestConfig();\n",
-      );
-      execFileSync(
-        join(packageRoot, "node_modules", ".bin", "tsc"),
-        [
-          "--noEmit",
-          "--strict",
-          "--skipLibCheck",
-          "--target",
-          "ES2022",
-          "--module",
-          "NodeNext",
-          "--moduleResolution",
-          "NodeNext",
-          consumerConfig,
-        ],
-        { cwd: consumerRoot, encoding: "utf8" },
-      );
-    } finally {
-      await rm(consumerRoot, { recursive: true });
-    }
+        consumerSource,
+      ],
+      { cwd: consumerRoot, encoding: "utf8" },
+    );
   });
 
   it("includes files only from intentional package paths", () => {

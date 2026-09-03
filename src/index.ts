@@ -15,14 +15,15 @@ export { fetch } from "./fetch.js";
 // Export the HTTP status codes
 export { StatusCodes as fetchStatus } from "http-status-codes";
 
-// Export the Watch Config and Event types
-export { WatchCfg, WatchEvent } from "./fluent/watch.js";
+// Export watch types used by clients that reconcile Kubernetes resources.
+export { WatchCfg, WatchEvent, Watcher } from "./fluent/watch.js";
+export { WatchPhase } from "./fluent/shared-types.js";
 
 // Export the fluent API entrypoint
 export { K8s } from "./fluent/index.js";
 
 // Export types used in the fluent API's public method signatures
-export type { Operation, PartialDeep } from "./fluent/types.js";
+export type { K8sInit, Operation, PartialDeep, WatcherType } from "./fluent/types.js";
 
 // Export helpers for working with K8s types
 export { RegisterKind, modelToGroupVersionKind } from "./kinds.js";
