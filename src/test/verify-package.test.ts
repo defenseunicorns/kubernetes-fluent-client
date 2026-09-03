@@ -64,10 +64,12 @@ describe("published package", () => {
       `${packageJson.name}/test/vitest/setup`,
       `${packageJson.name}/dist/fetch.js`,
     ];
-    const [, , vitestConfigEntry, vitestSetupEntry] = (await Promise.all(
+    const [rootEntry, , vitestConfigEntry, vitestSetupEntry] = (await Promise.all(
       entries.map(entry => import(entry)),
     )) as Record<string, unknown>[];
 
+    expect(rootEntry.WatchPhase).toMatchObject({ Added: "ADDED" });
+    expect(rootEntry.Watcher).toBeTypeOf("function");
     expect(vitestConfigEntry.defineKubernetesTestConfig).toBeTypeOf("function");
     expect(vitestConfigEntry).not.toHaveProperty("setupKubernetesPreflight");
     expect(vitestSetupEntry.setupKubernetesPreflight).toBeTypeOf("function");
@@ -78,18 +80,30 @@ describe("published package", () => {
     expect(packedFiles).toContain(file);
   });
 
-  it("compiles a consumer's Vitest configuration", async () => {
+  it("compiles a NodeNext consumer using the public fluent API", async () => {
     const consumerRoot = await mkdtemp(join(tmpdir(), "kfc-consumer-check-"));
 
     try {
       const nodeModules = join(consumerRoot, "node_modules");
       const consumerConfig = join(consumerRoot, "vitest.config.ts");
+      const consumerSource = join(consumerRoot, "consumer.ts");
       await mkdir(nodeModules);
       await symlink(packageRoot, join(nodeModules, packageJson.name), "dir");
       await writeFile(
         consumerConfig,
         'import { defineKubernetesTestConfig } from "kubernetes-fluent-client/test/vitest";\n' +
           "export default defineKubernetesTestConfig();\n",
+      );
+      await writeFile(
+        consumerSource,
+        'import { WatchEvent, WatchPhase, Watcher, type K8sInit, type KubernetesListObject, type WatchCfg, type WatcherType } from "kubernetes-fluent-client";\n' +
+          "const phase = WatchPhase.Added;\n" +
+          "const event = WatchEvent.CONNECT;\n" +
+          "void phase;\n" +
+          "void event;\n" +
+          "void Watcher;\n" +
+          "type PublicFluentTypes = [K8sInit<any, any>, KubernetesListObject<any>, WatchCfg, WatcherType<any>];\n" +
+          "void (null as unknown as PublicFluentTypes);\n",
       );
       execFileSync(
         join(packageRoot, "node_modules", ".bin", "tsc"),
@@ -104,6 +118,7 @@ describe("published package", () => {
           "--moduleResolution",
           "NodeNext",
           consumerConfig,
+          consumerSource,
         ],
         { cwd: consumerRoot, encoding: "utf8" },
       );
