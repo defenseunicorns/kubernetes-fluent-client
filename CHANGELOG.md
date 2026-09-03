@@ -1,5 +1,26 @@
 # Changelog
 
+## [3.12.1](https://github.com/defenseunicorns/kubernetes-fluent-client/compare/v3.12.0...v3.12.1) (2026-09-03)
+
+
+### Bug Fixes
+
+* export fluent watch types from package root ([#1284](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1284)) ([b744b93](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/b744b9313c0664c5dc9492b7a30b68415030fe22))
+
+
+### Chores
+
+* **deps-dev:** bump eslint from 10.8.1 to 10.9.0 in the development-dependencies group ([#1278](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1278)) ([6225856](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/622585612015fc2ae7a894db0f54ea62d96c5cf8))
+* **deps-dev:** bump the development-dependencies group across 1 directory with 3 updates ([#1276](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1276)) ([4f10d16](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/4f10d16834a9774271ceab41707992ed901ae6cf))
+* **deps-dev:** bump the development-dependencies group with 3 updates ([#1269](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1269)) ([d56b4fe](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/d56b4fe60a54c9dce9b05dafaf67c2b261a8a803))
+* **deps-dev:** bump the development-dependencies group with 3 updates ([#1279](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1279)) ([2bc9d45](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/2bc9d454d860647cec80b9f90c9565ab0ab67f1f))
+* **deps:** bump brace-expansion ([#1268](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1268)) ([477d52b](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/477d52b8b6fc19c8897e4e5d6a99d36642b00959))
+* **deps:** bump docker/setup-buildx-action from 4.2.0 to 4.3.0 ([#1275](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1275)) ([f2b58e6](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/f2b58e6fa0c9bb570c0f1a470549ea07317e6a2c))
+* **deps:** bump js-yaml from 5.2.3 to 5.3.0 in the production-dependencies group ([#1272](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1272)) ([8338742](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/8338742320b39670d67db678508b1aa8e112b1f5))
+* **deps:** bump step-security/harden-runner from 2.20.1 to 2.21.0 ([#1270](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1270)) ([787889f](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/787889f5539fd2eba10b94273958fa95e01a453b))
+* **deps:** bump the codeql-action group with 3 updates ([#1277](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1277)) ([38d6992](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/38d69921d866457f77a8a8339ddf664437125295))
+* **deps:** bump tsx from 4.23.8 to 4.23.12 in the production-dependencies group across 1 directory ([#1261](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1261)) ([774a20e](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/774a20e6b6fa0c1b48338d61dadce6b836f8f153))
+
 ## [3.12.0](https://github.com/defenseunicorns/kubernetes-fluent-client/compare/v3.11.11...v3.12.0) (2026-08-20)
 
 
