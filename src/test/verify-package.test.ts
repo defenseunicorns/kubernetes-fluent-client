@@ -71,18 +71,22 @@ describe("published package", () => {
     );
     execFileSync(
       "npm",
+      ["install", "--ignore-scripts", "--package-lock=false", "--cache", npmCache, tarballPath],
+      { cwd: consumerRoot, encoding: "utf8" },
+    );
+    execFileSync(
+      "npm",
       [
         "install",
         "--ignore-scripts",
         "--package-lock=false",
         "--cache",
         npmCache,
-        tarballPath,
         `vitest@${packageJson.peerDependencies.vitest}`,
       ],
       { cwd: consumerRoot, encoding: "utf8" },
     );
-  });
+  }, 60_000);
 
   afterAll(async () => {
     if (packageWorkspace) await rm(packageWorkspace, { recursive: true, force: true });
