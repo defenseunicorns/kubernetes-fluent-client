@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026-Present The Kubernetes Fluent Client Authors
 
 import { execFileSync } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -74,17 +74,10 @@ describe("published package", () => {
       ["install", "--ignore-scripts", "--package-lock=false", "--cache", npmCache, tarballPath],
       { cwd: consumerRoot, encoding: "utf8" },
     );
-    execFileSync(
-      "npm",
-      [
-        "install",
-        "--ignore-scripts",
-        "--package-lock=false",
-        "--cache",
-        npmCache,
-        `vitest@${packageJson.peerDependencies.vitest}`,
-      ],
-      { cwd: consumerRoot, encoding: "utf8" },
+    await symlink(
+      join(packageRoot, "node_modules", "vitest"),
+      join(consumerRoot, "node_modules", "vitest"),
+      "dir",
     );
   }, 60_000);
 
