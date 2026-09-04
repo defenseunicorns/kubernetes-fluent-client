@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.12.3](https://github.com/defenseunicorns/kubernetes-fluent-client/compare/v3.12.2...v3.12.3) (2026-09-04)
+
+
+### Bug Fixes
+
+* restore legacy KFC deep import compatibility ([#1287](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1287)) ([8abc976](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/8abc976e4943fc8ee15421c151c7bfa6173f562b))
+
 ## [3.12.2](https://github.com/defenseunicorns/kubernetes-fluent-client/compare/v3.12.1...v3.12.2) (2026-09-04)
 
 
