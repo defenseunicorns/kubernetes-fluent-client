@@ -103,9 +103,11 @@ describe("published package", () => {
           import * as vitestConfigEntry from ${JSON.stringify(`${packageJson.name}/test/vitest`)};
           import * as vitestSetupEntry from ${JSON.stringify(`${packageJson.name}/test/vitest/setup`)};
           import ${JSON.stringify(`${packageJson.name}/dist/fetch.js`)};
+          import * as legacySharedTypesEntry from ${JSON.stringify(`${packageJson.name}/dist/fluent/shared-types`)};
 
           if (rootEntry.WatchPhase.Added !== "ADDED") throw new Error("WatchPhase is unavailable");
           if (legacyDistEntry.WatchPhase !== rootEntry.WatchPhase) throw new Error("Legacy dist entry does not export the root API");
+          if (legacySharedTypesEntry.WatchPhase !== rootEntry.WatchPhase) throw new Error("Legacy extensionless deep import does not export WatchPhase");
           if (typeof rootEntry.Watcher !== "function") throw new Error("Watcher is unavailable");
           if (typeof vitestConfigEntry.defineKubernetesTestConfig !== "function") throw new Error("Vitest config helper is unavailable");
           if ("setupKubernetesPreflight" in vitestConfigEntry) throw new Error("Vitest config entry exports setup helpers");
@@ -146,13 +148,16 @@ describe("published package", () => {
       consumerSource,
       'import { WatchEvent, WatchPhase, Watcher, type K8sInit, type KubernetesListObject, type WatchCfg, type WatcherType } from "kubernetes-fluent-client";\n' +
         'import { K8s as LegacyK8s } from "kubernetes-fluent-client/dist";\n' +
+        'import { WatchPhase as LegacyWatchPhase } from "kubernetes-fluent-client/dist/fluent/shared-types";\n' +
+        'import type { WatcherType as LegacyWatcherType } from "kubernetes-fluent-client/dist/fluent/types";\n' +
         "const phase = WatchPhase.Added;\n" +
         "const event = WatchEvent.CONNECT;\n" +
         "void phase;\n" +
         "void event;\n" +
         "void Watcher;\n" +
         "void LegacyK8s;\n" +
-        "type PublicFluentTypes = [K8sInit<any, any>, KubernetesListObject<any>, WatchCfg, WatcherType<any>];\n" +
+        "void LegacyWatchPhase;\n" +
+        "type PublicFluentTypes = [K8sInit<any, any>, KubernetesListObject<any>, WatchCfg, WatcherType<any>, LegacyWatcherType<any>];\n" +
         "void (null as unknown as PublicFluentTypes);\n",
     );
     execFileSync(
