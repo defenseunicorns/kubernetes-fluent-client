@@ -86,16 +86,18 @@ jobs:
         env:
           KFC_TGZ: ${{ github.workspace }}/kubernetes-fluent-client-0.0.0-development.tgz
         run: |
+          npm pkg set "dependencies.kubernetes-fluent-client=file:${KFC_TGZ}"
           npm pkg set "overrides.kubernetes-fluent-client=file:${KFC_TGZ}"
           npm install --ignore-scripts
           node --eval '
             const path = require("node:path");
+            const rootKfcPackageJson = require.resolve("kubernetes-fluent-client/package.json");
             const peprRoot = path.dirname(require.resolve("pepr/package.json"));
             const kfcPackageJson = require.resolve("kubernetes-fluent-client/package.json", {
               paths: [peprRoot],
             });
             const { version } = require(kfcPackageJson);
-            if (version !== "0.0.0-development") {
+            if (kfcPackageJson !== rootKfcPackageJson || version !== "0.0.0-development") {
               throw new Error(`Pepr resolved kubernetes-fluent-client ${version}, not the candidate package`);
             }
           '
