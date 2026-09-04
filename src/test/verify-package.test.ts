@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2026-Present The Kubernetes Fluent Client Authors
 
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -98,12 +98,14 @@ describe("published package", () => {
         "--eval",
         `
           import * as rootEntry from ${JSON.stringify(packageJson.name)};
+          import * as legacyDistEntry from ${JSON.stringify(`${packageJson.name}/dist`)};
           import ${JSON.stringify(`${packageJson.name}/test`)};
           import * as vitestConfigEntry from ${JSON.stringify(`${packageJson.name}/test/vitest`)};
           import * as vitestSetupEntry from ${JSON.stringify(`${packageJson.name}/test/vitest/setup`)};
           import ${JSON.stringify(`${packageJson.name}/dist/fetch.js`)};
 
           if (rootEntry.WatchPhase.Added !== "ADDED") throw new Error("WatchPhase is unavailable");
+          if (legacyDistEntry.WatchPhase !== rootEntry.WatchPhase) throw new Error("Legacy dist entry does not export the root API");
           if (typeof rootEntry.Watcher !== "function") throw new Error("Watcher is unavailable");
           if (typeof vitestConfigEntry.defineKubernetesTestConfig !== "function") throw new Error("Vitest config helper is unavailable");
           if ("setupKubernetesPreflight" in vitestConfigEntry) throw new Error("Vitest config entry exports setup helpers");
@@ -114,6 +116,17 @@ describe("published package", () => {
     );
 
     expect(output).toBe("");
+  });
+
+  it("warns consumers to replace the legacy dist entry point", () => {
+    const result = spawnSync(
+      "node",
+      ["--input-type=module", "--eval", `import ${JSON.stringify(`${packageJson.name}/dist`)};`],
+      { cwd: consumerRoot, encoding: "utf8" },
+    );
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toContain("[KFC_LEGACY_IMPORT] DeprecationWarning");
   });
 
   it.each(requiredFiles)("includes %s", file => {
@@ -132,11 +145,13 @@ describe("published package", () => {
     await writeFile(
       consumerSource,
       'import { WatchEvent, WatchPhase, Watcher, type K8sInit, type KubernetesListObject, type WatchCfg, type WatcherType } from "kubernetes-fluent-client";\n' +
+        'import { K8s as LegacyK8s } from "kubernetes-fluent-client/dist";\n' +
         "const phase = WatchPhase.Added;\n" +
         "const event = WatchEvent.CONNECT;\n" +
         "void phase;\n" +
         "void event;\n" +
         "void Watcher;\n" +
+        "void LegacyK8s;\n" +
         "type PublicFluentTypes = [K8sInit<any, any>, KubernetesListObject<any>, WatchCfg, WatcherType<any>];\n" +
         "void (null as unknown as PublicFluentTypes);\n",
     );
