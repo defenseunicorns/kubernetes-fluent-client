@@ -148,6 +148,7 @@ describe("published package", () => {
       consumerSource,
       'import { WatchEvent, WatchPhase, Watcher, type K8sInit, type KubernetesListObject, type WatchCfg, type WatcherType } from "kubernetes-fluent-client";\n' +
         'import { K8s as LegacyK8s } from "kubernetes-fluent-client/dist";\n' +
+        'import { fetch as LegacyFetch } from "kubernetes-fluent-client/dist/fetch.js";\n' +
         'import { WatchPhase as LegacyWatchPhase } from "kubernetes-fluent-client/dist/fluent/shared-types";\n' +
         'import type { WatcherType as LegacyWatcherType } from "kubernetes-fluent-client/dist/fluent/types";\n' +
         "const phase = WatchPhase.Added;\n" +
@@ -156,6 +157,7 @@ describe("published package", () => {
         "void event;\n" +
         "void Watcher;\n" +
         "void LegacyK8s;\n" +
+        "void LegacyFetch;\n" +
         "void LegacyWatchPhase;\n" +
         "type PublicFluentTypes = [K8sInit<any, any>, KubernetesListObject<any>, WatchCfg, WatcherType<any>, LegacyWatcherType<any>];\n" +
         "void (null as unknown as PublicFluentTypes);\n",

@@ -77,8 +77,12 @@ jobs:
       - name: Install k3d
         shell: bash
         run: |
-          set -o pipefail
-          curl -sSfL https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | TAG=v5.9.0 bash
+          K3D_VERSION=v5.9.0
+          K3D_SHA256=06d8f25bc3a971c4eb29e0ff08429b180402db0f4dec838c9eac427e296800a0
+          K3D_BIN="${RUNNER_TEMP}/k3d"
+          curl -sSfL --output "${K3D_BIN}" "https://github.com/k3d-io/k3d/releases/download/${K3D_VERSION}/k3d-linux-amd64"
+          echo "${K3D_SHA256}  ${K3D_BIN}" | sha256sum --check --strict
+          sudo install -m 0755 "${K3D_BIN}" /usr/local/bin/k3d
           k3d version
 
       - name: Install the candidate package for Pepr
