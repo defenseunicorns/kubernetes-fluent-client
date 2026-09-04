@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.12.2](https://github.com/defenseunicorns/kubernetes-fluent-client/compare/v3.12.1...v3.12.2) (2026-09-04)
+
+
+### Bug Fixes
+
+* restore legacy dist import compatibility ([#1285](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1285)) ([36be517](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/36be51760164d2a124d039a156b3cc147b05d682))
+
 ## [3.12.1](https://github.com/defenseunicorns/kubernetes-fluent-client/compare/v3.12.0...v3.12.1) (2026-09-03)
 
 
