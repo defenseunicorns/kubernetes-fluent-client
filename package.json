@@ -96,7 +96,7 @@
     "node-fetch": "2.7.0",
     "quicktype-core": "25.0.0",
     "tsx": "4.23.13",
-    "undici": "8.10.1",
+    "undici": "8.10.2",
     "yargs": "18.1.0"
   },
   "devDependencies": {
