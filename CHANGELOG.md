@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.12.5](https://github.com/defenseunicorns/kubernetes-fluent-client/compare/v3.12.4...v3.12.5) (2026-09-28)
+
+
+### Chores
+
+* **deps:** bump the production-dependencies group with 2 updates ([#1311](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1311)) ([11a2b2b](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/11a2b2bd5caf0dacc18540a8175ee4babd381043))
+
 ## [3.12.4](https://github.com/defenseunicorns/kubernetes-fluent-client/compare/v3.12.3...v3.12.4) (2026-09-25)
 
 
