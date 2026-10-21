@@ -9,7 +9,14 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const version = process.argv[2];
-assert(["4.1.10", "4.1.11", "5.0.4"].includes(version), "Pass a supported Vitest version");
+const { peerDependencies } = JSON.parse(
+  await readFile(new URL("../package.json", import.meta.url), "utf8"),
+);
+const peerRanges = peerDependencies.vitest.split(" || ");
+assert(
+  peerRanges.flatMap(range => [range.slice(1), range]).includes(version),
+  "Pass an advertised Vitest caret range or its minimum version",
+);
 const packageRoot = fileURLToPath(new URL("../", import.meta.url));
 const workspace = await mkdtemp(join(tmpdir(), "kfc-vitest-compat-"));
 
@@ -59,7 +66,7 @@ assert.throws(() => createRequire(import.meta.url).resolve("vitest"), { code: "M
   const installedVitest = JSON.parse(
     await readFile(join(workspace, "node_modules/vitest/package.json"), "utf8"),
   );
-  assert.equal(installedVitest.version, version);
+  if (!peerRanges.includes(version)) assert.equal(installedVitest.version, version);
   run("npm", ["ls", "kubernetes-fluent-client", "vitest"]);
 
   // Run the existing adapter tests against public exports of the installed tarball.
@@ -101,7 +108,9 @@ export default config;
   );
   run(process.execPath, [join(packageRoot, "node_modules/typescript/bin/tsc")]);
   run(process.execPath, [join(workspace, "node_modules/vitest/vitest.mjs"), "run"]);
-  console.log(`Published Vitest ${version} compatibility and optional-peer isolation passed.`);
+  console.log(
+    `Published Vitest ${installedVitest.version} (${version}) compatibility and optional-peer isolation passed.`,
+  );
 } finally {
   await rm(workspace, { recursive: true, force: true });
 }
