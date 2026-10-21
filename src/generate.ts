@@ -16,6 +16,7 @@ import { fetch } from "./fetch.js";
 import { K8s } from "./fluent/index.js";
 import { CustomResourceDefinition } from "./upstream.js";
 import { LogFn } from "./types.js";
+import { CompatibleTypeScriptTargetLanguage } from "./quicktype-compatibility.js";
 
 /**
  * Recursively fixes _enum properties to enum for quicktype compatibility.
@@ -155,8 +156,19 @@ export async function generateTypes(
   // Generate the types
   const out = await quicktype({
     inputData,
-    lang: opts.language,
-    rendererOptions: { "just-types": "true" },
+    lang:
+      opts.language === undefined ||
+      opts.language === "ts" ||
+      opts.language === "typescript" ||
+      opts.language === "tsx"
+        ? new CompatibleTypeScriptTargetLanguage()
+        : opts.language,
+    rendererOptions: {
+      "just-types": "true",
+      // Preserve the generated API while adopting quicktype 26.
+      "prefer-unions": false,
+      "prefer-unknown": false,
+    },
   });
 
   return out.lines;

@@ -2,7 +2,14 @@
 // SPDX-FileCopyrightText: 2023-Present The Kubernetes Fluent Client Authors
 
 import { beforeEach, describe, expect, vi, test } from "vitest";
-import { convertCRDtoTS, GenerateOptions, readOrFetchCrd, fixEnumProperties } from "./generate.js";
+import {
+  convertCRDtoTS,
+  GenerateOptions,
+  readOrFetchCrd,
+  fixEnumProperties,
+  prepareInputData,
+  generateTypes,
+} from "./generate.js";
 import * as fs from "fs";
 import path from "path";
 import { quicktype } from "quicktype-core";
@@ -33,10 +40,8 @@ vi.mock("quicktype-core", async () => {
   const actualQuicktypeCore =
     await vi.importActual<typeof import("quicktype-core")>("quicktype-core");
   return {
+    ...actualQuicktypeCore,
     quicktype: vi.fn(),
-    JSONSchemaInput: actualQuicktypeCore.JSONSchemaInput,
-    FetchingJSONSchemaStore: actualQuicktypeCore.FetchingJSONSchemaStore,
-    InputData: actualQuicktypeCore.InputData,
   };
 });
 vi.mock("@kubernetes/client-node", () => {
@@ -114,6 +119,30 @@ describe("CRD Generate", () => {
   beforeEach(() => {
     vi.clearAllMocks(); // Reset all mocks before each test
     logFn = vi.fn() as LogFn; // Mock the log function with correct typing
+  });
+
+  test("preserves runtime enums and any types with quicktype 26", async () => {
+    const actualQuicktypeCore =
+      await vi.importActual<typeof import("quicktype-core")>("quicktype-core");
+    vi.mocked(quicktype).mockImplementationOnce(actualQuicktypeCore.quicktype);
+    const inputData = await prepareInputData(
+      "WebApp",
+      JSON.stringify({
+        type: "object",
+        properties: {
+          language: { type: "string", enum: ["en", "es"] },
+        },
+      }),
+    );
+
+    const output = (
+      await generateTypes(inputData, { source: "test-crd.yaml", language: "ts", logFn })
+    ).join("\n");
+
+    expect(output).toContain("export enum Language {");
+    expect(output).toContain('En = "en"');
+    expect(output).toContain("[property: string]: any;");
+    expect(output).not.toContain("unknown");
   });
 
   test("convertCRDtoTS should generate the expected TypeScript file", async () => {
