@@ -104,15 +104,14 @@ export async function convertCRDtoTS(
     }
 
     // Fix _enum properties to enum for quicktype compatibility
-    const fixedSchema = fixEnumProperties(match.schema.openAPIV3Schema);
-    const schema = JSON.stringify(fixedSchema);
+    const schema = JSON.stringify(fixEnumProperties(match.schema.openAPIV3Schema));
     opts.logFn(`- Generating ${crd.spec.group}/${match.name} types for ${name}`);
 
     const inputData = await prepareInputData(name, schema);
     const generatedTypes = await generateTypes(inputData, opts);
 
     const fileName = `${originalKind.toLowerCase()}-${match.name.toLowerCase()}`;
-    writeGeneratedFile(fileName, opts.directory || "", generatedTypes, opts.language || "ts");
+    writeGeneratedFile(fileName, opts.directory, generatedTypes, opts.language);
 
     results[fileName] = generatedTypes;
     output.push({ results, name, crd, version: match.name });
@@ -184,9 +183,9 @@ export async function generateTypes(
  */
 export function writeGeneratedFile(
   fileName: string,
-  directory: string,
+  directory = "",
   content: string[],
-  language: string | TargetLanguage,
+  language: string | TargetLanguage = "ts",
 ): void {
   language = language || "ts";
   if (!directory) return;
