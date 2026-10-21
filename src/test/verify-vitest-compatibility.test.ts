@@ -21,6 +21,7 @@ describe("published Vitest compatibility", () => {
     execFileSync(command, args, {
       cwd,
       encoding: "utf8",
+      timeout: 60_000,
       env: {
         ...process.env,
         npm_config_cache: process.env.npm_config_cache || join(workspace, "npm-cache"),
