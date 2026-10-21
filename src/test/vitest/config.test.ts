@@ -7,6 +7,7 @@ import { KUBERNETES_TEST_TIMEOUT_MS, defineKubernetesTestConfig } from "./config
 
 describe("defineKubernetesTestConfig", () => {
   it("returns the shared Kubernetes integration-test defaults", () => {
+    expect(KUBERNETES_TEST_TIMEOUT_MS).toBe(120_000);
     expect(defineKubernetesTestConfig()).toEqual({
       test: {
         include: ["./*.test.ts"],
@@ -35,6 +36,14 @@ describe("defineKubernetesTestConfig", () => {
         hookTimeout: 30_000,
         globals: true,
       },
+    });
+  });
+
+  it("preserves the default hook timeout when overriding the test timeout", () => {
+    expect(defineKubernetesTestConfig({ test: { testTimeout: 5_000 } }).test).toEqual({
+      include: ["./*.test.ts"],
+      testTimeout: 5_000,
+      hookTimeout: KUBERNETES_TEST_TIMEOUT_MS,
     });
   });
 

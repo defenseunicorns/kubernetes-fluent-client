@@ -78,6 +78,7 @@
     "build": "tsc && npm pack",
     "set-version": "node ./scripts/set-version.cjs",
     "test": "vitest run src --coverage --coverage.exclude='dist/**'",
+    "test:vitest-compat": "npm run build && vitest run src/test/verify-vitest-compatibility.test.ts",
     "test:e2e": "vitest run e2e/",
     "test:e2e:prep-crds": "kubectl apply -f test/ && npx tsx src/cli.ts crd ./test/datastore.crd.yaml e2e && npx tsx src/cli.ts crd https://raw.githubusercontent.com/defenseunicorns/kubernetes-fluent-client/refs/heads/main/test/webapp.crd.yaml e2e && npx tsx src/cli.ts crd https://raw.githubusercontent.com/defenseunicorns/kubernetes-fluent-client/refs/heads/main/test/webapp.crd.yaml -l json-schema e2e/schemas/webapp",
     "test:e2e:prep-cluster": "k3d cluster create kfc-dev --k3s-arg '--debug@server:0' --wait && kubectl rollout status deployment -n kube-system",
@@ -112,7 +113,7 @@
     "@types/yargs": "17.0.35",
     "@typescript-eslint/eslint-plugin": "8.71.2",
     "@typescript-eslint/parser": "8.71.2",
-    "@vitest/coverage-v8": "4.1.11",
+    "@vitest/coverage-v8": "5.0.4",
     "command-line-args": "6.0.2",
     "eslint": "10.12.0",
     "eslint-plugin-jsdoc": "64.5.2",
@@ -121,10 +122,10 @@
     "lint-staged": "17.6.0",
     "prettier": "3.9.10",
     "typescript": "6.0.3",
-    "vitest": "4.1.11"
+    "vitest": "5.0.4"
   },
   "peerDependencies": {
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10 || ^5.0.4"
   },
   "peerDependenciesMeta": {
     "vitest": {

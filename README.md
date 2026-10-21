@@ -49,8 +49,9 @@ await deleteAllByOwnership(kind.ConfigMap, { ...ownership, namespace: "testing" 
 ```
 
 Vitest projects can also share the integration-test configuration and register preflight as a
-suite hook. Vitest is an optional peer dependency and is only required when this entry point is
-used.
+suite hook. Vitest `^4.1.10` or `^5.0.4` is an optional peer dependency, required only by the
+`/test/vitest` and `/test/vitest/setup` entry points. The main API and runner-neutral `/test`
+helpers do not require Vitest.
 
 ```typescript
 // vitest.config.ts
