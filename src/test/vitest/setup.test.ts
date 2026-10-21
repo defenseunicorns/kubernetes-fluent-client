@@ -3,7 +3,7 @@
 
 import type { KubeConfig } from "@kubernetes/client-node";
 import { setTimeout } from "node:timers/promises";
-import { describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it } from "vitest";
 
 import { setupKubernetesPreflight } from "./setup.js";
 
@@ -24,8 +24,10 @@ describe("setupKubernetesPreflight", () => {
 
   setupKubernetesPreflight({ kubeConfig });
 
-  it("runs the Kubernetes preflight before tests in the suite", () => {
+  it.each(["first", "second"])("runs preflight once before the %s test", () => {
     expect(preflightCompleted).toBe(true);
     expect(preflightCalls).toBe(1);
   });
+
+  afterAll(() => expect(preflightCalls).toBe(1));
 });
