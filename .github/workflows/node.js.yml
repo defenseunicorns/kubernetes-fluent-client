@@ -61,3 +61,29 @@ jobs:
 
       - name: Test Unit
         run: npm test
+  vitest-compatibility:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        vitest-version: ["4.1.10", "4.1.11", "5.0.4"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+
+      # Match the npm version used by unit tests for optional peer resolution.
+      - name: Use npm 11.19.0
+        run: npm install --global npm@11.19.0
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Test published helpers with Vitest ${{ matrix.vitest-version }}
+        run: npm run test:vitest-compat -- ${{ matrix.vitest-version }}

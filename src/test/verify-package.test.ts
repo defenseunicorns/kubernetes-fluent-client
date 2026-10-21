@@ -85,8 +85,8 @@ describe("published package", () => {
     if (packageWorkspace) await rm(packageWorkspace, { recursive: true, force: true });
   });
 
-  it("declares Vitest 4 as an optional peer dependency", () => {
-    expect(packageJson.peerDependencies?.vitest).toBe("^4.1.10");
+  it("declares Vitest 4 and 5 as an optional peer dependency", () => {
+    expect(packageJson.peerDependencies?.vitest).toBe("^4.1.10 || ^5.0.4");
     expect(packageJson.peerDependenciesMeta?.vitest?.optional).toBe(true);
   });
 
