@@ -16,6 +16,7 @@ import { fetch } from "./fetch.js";
 import { K8s } from "./fluent/index.js";
 import { CustomResourceDefinition } from "./upstream.js";
 import { LogFn } from "./types.js";
+import { CompatibleTypeScriptTargetLanguage } from "./quicktype-compatibility.js";
 
 /**
  * Recursively fixes _enum properties to enum for quicktype compatibility.
@@ -103,15 +104,14 @@ export async function convertCRDtoTS(
     }
 
     // Fix _enum properties to enum for quicktype compatibility
-    const fixedSchema = fixEnumProperties(match.schema.openAPIV3Schema);
-    const schema = JSON.stringify(fixedSchema);
+    const schema = JSON.stringify(fixEnumProperties(match.schema.openAPIV3Schema));
     opts.logFn(`- Generating ${crd.spec.group}/${match.name} types for ${name}`);
 
     const inputData = await prepareInputData(name, schema);
     const generatedTypes = await generateTypes(inputData, opts);
 
     const fileName = `${originalKind.toLowerCase()}-${match.name.toLowerCase()}`;
-    writeGeneratedFile(fileName, opts.directory || "", generatedTypes, opts.language || "ts");
+    writeGeneratedFile(fileName, opts.directory, generatedTypes, opts.language);
 
     results[fileName] = generatedTypes;
     output.push({ results, name, crd, version: match.name });
@@ -155,8 +155,19 @@ export async function generateTypes(
   // Generate the types
   const out = await quicktype({
     inputData,
-    lang: opts.language,
-    rendererOptions: { "just-types": "true" },
+    lang:
+      opts.language === undefined ||
+      opts.language === "ts" ||
+      opts.language === "typescript" ||
+      opts.language === "tsx"
+        ? new CompatibleTypeScriptTargetLanguage()
+        : opts.language,
+    rendererOptions: {
+      "just-types": "true",
+      // Preserve the generated API while adopting quicktype 26.
+      "prefer-unions": false,
+      "prefer-unknown": false,
+    },
   });
 
   return out.lines;
@@ -172,9 +183,9 @@ export async function generateTypes(
  */
 export function writeGeneratedFile(
   fileName: string,
-  directory: string,
+  directory = "",
   content: string[],
-  language: string | TargetLanguage,
+  language: string | TargetLanguage = "ts",
 ): void {
   language = language || "ts";
   if (!directory) return;
