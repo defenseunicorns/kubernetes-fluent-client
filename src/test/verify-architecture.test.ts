@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026-Present The Kubernetes Fluent Client Authors
 
 import { ESLint } from "eslint";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
 const eslint = new ESLint();
 
@@ -34,6 +34,15 @@ const cases = [
 ];
 
 describe("test-helper architecture boundaries", () => {
+  beforeAll(
+    async () => {
+      for (const filePath of new Set(cases.map(testCase => testCase.filePath))) {
+        expect(await eslint.calculateConfigForFile(filePath)).toBeDefined();
+      }
+    },
+    process.env.CI ? 60_000 : 30_000,
+  );
+
   it.each(cases)(
     "$name",
     async ({ code, filePath, restricted }) => {
