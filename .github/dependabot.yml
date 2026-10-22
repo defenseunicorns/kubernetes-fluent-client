@@ -10,6 +10,14 @@ updates:
     cooldown:
       default-days: 7
     groups:
+      vitest:
+        patterns:
+          - "vitest"
+          - "@vitest/*"
+        update-types:
+          - "major"
+          - "minor"
+          - "patch"
       production-dependencies:
         dependency-type: production
         update-types:

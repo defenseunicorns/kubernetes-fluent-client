@@ -1,5 +1,21 @@
 # Changelog
 
+## [3.12.5](https://github.com/defenseunicorns/kubernetes-fluent-client/compare/v3.12.4...v3.12.5) (2026-10-20)
+
+
+### Chores
+
+* **deps-dev:** bump brace-expansion from 1.1.18 to 1.1.21 ([#1328](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1328)) ([fd4d056](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/fd4d056cbf51055280ff2f261ef75ca9a6db1a6e))
+* **deps-dev:** bump source-map-js from 1.2.1 to 1.2.2 ([#1327](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1327)) ([522859d](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/522859de5a119eb37161624f9e8bf910d3976bab))
+* **deps-dev:** bump vite from 8.2.2 to 8.3.4 ([#1329](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1329)) ([c5f94f9](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/c5f94f96cf62d1bbe40a01828aa08fd3026c791a))
+* **deps:** bump actions/setup-node from 7.0.0 to 7.1.0 ([#1323](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1323)) ([cc7b718](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/cc7b7184e57bce1d67d772cec60fda7d82b74b5e))
+* **deps:** bump actions/upload-artifact from 7.0.1 to 7.0.2 ([#1322](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1322)) ([3b83de5](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/3b83de53e28f499f39462968fc989d34e6eaf088))
+* **deps:** bump azure/setup-kubectl from 5.1.0 to 5.2.0 ([#1324](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1324)) ([cca1fd8](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/cca1fd80f1337ec44557c052540b74dd93f9ed46))
+* **deps:** bump ip-address from 10.4.0 to 10.7.4 ([#1314](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1314)) ([9097d43](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/9097d43dba6111d37018c72bdc071bc83cbd0f9b))
+* **deps:** bump step-security/harden-runner from 2.21.1 to 2.22.1 ([#1325](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1325)) ([3bce12d](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/3bce12dfb929313980b4db92434fdcf386e3233e))
+* **deps:** bump the codeql-action group across 1 directory with 3 updates ([#1316](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1316)) ([0e5e055](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/0e5e05578a8af163b8dd248a20b507b66323e1e9))
+* **deps:** bump the production-dependencies group with 2 updates ([#1311](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1311)) ([11a2b2b](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/11a2b2bd5caf0dacc18540a8175ee4babd381043))
+
 ## [3.12.4](https://github.com/defenseunicorns/kubernetes-fluent-client/compare/v3.12.3...v3.12.4) (2026-09-25)
 
 

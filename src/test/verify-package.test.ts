@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2026-Present The Kubernetes Fluent Client Authors
 
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFile } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -17,6 +18,13 @@ interface PackResult {
 const packageJson = JSON.parse(
   await readFile(new URL("../../package.json", import.meta.url), "utf8"),
 );
+const run = promisify(execFile);
+const isCI = Boolean(process.env.CI);
+const packTimeoutMs = isCI ? 60_000 : 30_000;
+const installTimeoutMs = isCI ? 180_000 : 60_000;
+const importTimeoutMs = isCI ? 30_000 : 10_000;
+const compileTimeoutMs = isCI ? 60_000 : 30_000;
+const setupTimeoutMs = isCI ? 300_000 : 120_000;
 const packageRoot = fileURLToPath(new URL("../../", import.meta.url));
 const allowedRootFiles = new Set(["LICENSE", "README.md", "package.json"]);
 const implementationTestFile = /\.(?:test|spec)\.(?:d\.)?[cm]?[jt]sx?(?:\.map)?$/;
@@ -34,34 +42,20 @@ const requiredFiles = [
 describe("published package", () => {
   let packageWorkspace: string | undefined;
   let consumerRoot: string;
-  let npmCache: string;
   let tarballPath: string;
   let packResult: PackResult;
 
   beforeAll(async () => {
     packageWorkspace = await mkdtemp(join(tmpdir(), "kfc-package-check-"));
     consumerRoot = join(packageWorkspace, "consumer");
-    npmCache = join(packageWorkspace, "npm-cache");
     const packDestination = join(packageWorkspace, "pack");
     await mkdir(packDestination);
-    [packResult] = JSON.parse(
-      execFileSync(
-        "npm",
-        [
-          "pack",
-          "--ignore-scripts",
-          "--cache",
-          npmCache,
-          "--json",
-          "--pack-destination",
-          packDestination,
-        ],
-        {
-          cwd: packageRoot,
-          encoding: "utf8",
-        },
-      ),
-    ) as PackResult[];
+    const { stdout } = await run(
+      "npm",
+      ["pack", "--ignore-scripts", "--json", "--pack-destination", packDestination],
+      { cwd: packageRoot, encoding: "utf8", timeout: packTimeoutMs },
+    );
+    [packResult] = JSON.parse(stdout) as PackResult[];
     tarballPath = join(packDestination, packResult.filename);
 
     await mkdir(consumerRoot);
@@ -69,34 +63,44 @@ describe("published package", () => {
       join(consumerRoot, "package.json"),
       JSON.stringify({ private: true, type: "module" }),
     );
-    execFileSync(
+    await run(
       "npm",
-      ["install", "--ignore-scripts", "--package-lock=false", "--cache", npmCache, tarballPath],
-      { cwd: consumerRoot, encoding: "utf8" },
+      [
+        "install",
+        "--ignore-scripts",
+        "--package-lock=false",
+        "--prefer-offline",
+        "--no-audit",
+        "--no-fund",
+        tarballPath,
+      ],
+      { cwd: consumerRoot, encoding: "utf8", timeout: installTimeoutMs },
     );
     await symlink(
       join(packageRoot, "node_modules", "vitest"),
       join(consumerRoot, "node_modules", "vitest"),
       "dir",
     );
-  }, 60_000);
+  }, setupTimeoutMs);
 
   afterAll(async () => {
     if (packageWorkspace) await rm(packageWorkspace, { recursive: true, force: true });
   });
 
-  it("declares Vitest 4 as an optional peer dependency", () => {
-    expect(packageJson.peerDependencies?.vitest).toBe("^4.1.10");
+  it("declares Vitest 4 and 5 as an optional peer dependency", () => {
+    expect(packageJson.peerDependencies?.vitest).toBe("^4.1.10 || ^5.0.4");
     expect(packageJson.peerDependenciesMeta?.vitest?.optional).toBe(true);
   });
 
-  it("loads every intentional public entry point and preserves existing deep imports", async () => {
-    const output = execFileSync(
-      "node",
-      [
-        "--input-type=module",
-        "--eval",
-        `
+  it(
+    "loads every intentional public entry point and preserves existing deep imports",
+    async () => {
+      const { stdout } = await run(
+        "node",
+        [
+          "--input-type=module",
+          "--eval",
+          `
           import * as rootEntry from ${JSON.stringify(packageJson.name)};
           import * as legacyDistEntry from ${JSON.stringify(`${packageJson.name}/dist`)};
           import ${JSON.stringify(`${packageJson.name}/test`)};
@@ -113,73 +117,82 @@ describe("published package", () => {
           if ("setupKubernetesPreflight" in vitestConfigEntry) throw new Error("Vitest config entry exports setup helpers");
           if (typeof vitestSetupEntry.setupKubernetesPreflight !== "function") throw new Error("Vitest setup helper is unavailable");
         `,
-      ],
-      { cwd: consumerRoot, encoding: "utf8" },
-    );
+        ],
+        { cwd: consumerRoot, encoding: "utf8", timeout: importTimeoutMs },
+      );
 
-    expect(output).toBe("");
-  });
+      expect(stdout).toBe("");
+    },
+    importTimeoutMs + 5_000,
+  );
 
-  it("warns consumers to replace the legacy dist entry point", () => {
-    const result = spawnSync(
-      "node",
-      ["--input-type=module", "--eval", `import ${JSON.stringify(`${packageJson.name}/dist`)};`],
-      { cwd: consumerRoot, encoding: "utf8" },
-    );
+  it(
+    "warns consumers to replace the legacy dist entry point",
+    async () => {
+      const { stderr } = await run(
+        "node",
+        ["--input-type=module", "--eval", `import ${JSON.stringify(`${packageJson.name}/dist`)};`],
+        { cwd: consumerRoot, encoding: "utf8", timeout: importTimeoutMs },
+      );
 
-    expect(result.status).toBe(0);
-    expect(result.stderr).toContain("[KFC_LEGACY_IMPORT] DeprecationWarning");
-  });
+      expect(stderr).toContain("[KFC_LEGACY_IMPORT] DeprecationWarning");
+    },
+    importTimeoutMs + 5_000,
+  );
 
   it.each(requiredFiles)("includes %s", file => {
     const packedFiles = new Set(packResult.files.map(entry => entry.path));
     expect(packedFiles).toContain(file);
   });
 
-  it("compiles a NodeNext consumer using the public fluent API", async () => {
-    const consumerConfig = join(consumerRoot, "vitest.config.ts");
-    const consumerSource = join(consumerRoot, "consumer.ts");
-    await writeFile(
-      consumerConfig,
-      'import { defineKubernetesTestConfig } from "kubernetes-fluent-client/test/vitest";\n' +
-        "export default defineKubernetesTestConfig();\n",
-    );
-    await writeFile(
-      consumerSource,
-      'import { WatchEvent, WatchPhase, Watcher, type K8sInit, type KubernetesListObject, type WatchCfg, type WatcherType } from "kubernetes-fluent-client";\n' +
-        'import { K8s as LegacyK8s } from "kubernetes-fluent-client/dist";\n' +
-        'import { fetch as LegacyFetch } from "kubernetes-fluent-client/dist/fetch.js";\n' +
-        'import { WatchPhase as LegacyWatchPhase } from "kubernetes-fluent-client/dist/fluent/shared-types";\n' +
-        'import type { WatcherType as LegacyWatcherType } from "kubernetes-fluent-client/dist/fluent/types";\n' +
-        "const phase = WatchPhase.Added;\n" +
-        "const event = WatchEvent.CONNECT;\n" +
-        "void phase;\n" +
-        "void event;\n" +
-        "void Watcher;\n" +
-        "void LegacyK8s;\n" +
-        "void LegacyFetch;\n" +
-        "void LegacyWatchPhase;\n" +
-        "type PublicFluentTypes = [K8sInit<any, any>, KubernetesListObject<any>, WatchCfg, WatcherType<any>, LegacyWatcherType<any>];\n" +
-        "void (null as unknown as PublicFluentTypes);\n",
-    );
-    execFileSync(
-      join(packageRoot, "node_modules", ".bin", "tsc"),
-      [
-        "--noEmit",
-        "--strict",
-        "--skipLibCheck",
-        "--target",
-        "ES2022",
-        "--module",
-        "NodeNext",
-        "--moduleResolution",
-        "NodeNext",
+  it(
+    "compiles a NodeNext consumer using the public fluent API",
+    async () => {
+      const consumerConfig = join(consumerRoot, "vitest.config.ts");
+      const consumerSource = join(consumerRoot, "consumer.ts");
+      await writeFile(
         consumerConfig,
+        'import { defineKubernetesTestConfig } from "kubernetes-fluent-client/test/vitest";\n' +
+          "export default defineKubernetesTestConfig();\n",
+      );
+      await writeFile(
         consumerSource,
-      ],
-      { cwd: consumerRoot, encoding: "utf8" },
-    );
-  });
+        'import { WatchEvent, WatchPhase, Watcher, type K8sInit, type KubernetesListObject, type WatchCfg, type WatcherType } from "kubernetes-fluent-client";\n' +
+          'import { K8s as LegacyK8s } from "kubernetes-fluent-client/dist";\n' +
+          'import { fetch as LegacyFetch } from "kubernetes-fluent-client/dist/fetch.js";\n' +
+          'import { WatchPhase as LegacyWatchPhase } from "kubernetes-fluent-client/dist/fluent/shared-types";\n' +
+          'import type { WatcherType as LegacyWatcherType } from "kubernetes-fluent-client/dist/fluent/types";\n' +
+          "const phase = WatchPhase.Added;\n" +
+          "const event = WatchEvent.CONNECT;\n" +
+          "void phase;\n" +
+          "void event;\n" +
+          "void Watcher;\n" +
+          "void LegacyK8s;\n" +
+          "void LegacyFetch;\n" +
+          "void LegacyWatchPhase;\n" +
+          "type PublicFluentTypes = [K8sInit<any, any>, KubernetesListObject<any>, WatchCfg, WatcherType<any>, LegacyWatcherType<any>];\n" +
+          "void (null as unknown as PublicFluentTypes);\n",
+      );
+      await run(
+        join(packageRoot, "node_modules", ".bin", "tsc"),
+        [
+          "--noEmit",
+          "--strict",
+          "--skipLibCheck",
+          "--target",
+          "ES2022",
+          "--module",
+          "NodeNext",
+          "--moduleResolution",
+          "NodeNext",
+          consumerConfig,
+          consumerSource,
+        ],
+        { cwd: consumerRoot, encoding: "utf8", timeout: compileTimeoutMs },
+      );
+    },
+    compileTimeoutMs + 5_000,
+  );
 
   it("includes files only from intentional package paths", () => {
     const unexpectedFiles = packResult.files
