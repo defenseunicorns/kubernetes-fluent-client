@@ -1,5 +1,24 @@
 # Changelog
 
+## [3.12.6](https://github.com/defenseunicorns/kubernetes-fluent-client/compare/v3.12.5...v3.12.6) (2026-10-22)
+
+
+### Bug Fixes
+
+* **ci:** reuse npm cache and bound package verification ([#1339](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1339)) ([b92c32e](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/b92c32e148785b092dbca0c881027f68e0d89cd7))
+
+
+### Chores
+
+* **deps-dev:** bump the development-dependencies group across 1 directory with 10 updates ([#1320](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1320)) ([cb3144b](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/cb3144bdc2e8d6b8d9f71d45e121c7f23fd1ee4d))
+* **deps:** bump actions/download-artifact from 8.0.1 to 8.0.2 ([#1332](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1332)) ([fd36bab](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/fd36bab81425744ed9e9a93eb0793080e62ca988))
+* **deps:** bump js-yaml from 5.4.2 to 5.4.3 in the production-dependencies group ([#1336](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1336)) ([8159534](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/815953417ccb66517b0ef55c3a77930c0db839f5))
+* **deps:** bump ossf/scorecard-action from 2.4.4 to 2.5.0 ([#1331](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1331)) ([5dc1ba0](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/5dc1ba049827ebabaa1e7752aab430de53c32660))
+* **deps:** bump quicktype-core from 25.0.0 to 26.0.0 ([#1248](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1248)) ([cb71fb5](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/cb71fb5dba3bbc8549a799a7f5cae2dc9ba02bf0))
+* **deps:** bump the codeql-action group with 3 updates ([#1338](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1338)) ([28e6981](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/28e698122468e11000757f17cf74c1c87edfdde7))
+* **deps:** undici to 8.12.3 ([#1330](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1330)) ([034b8bc](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/034b8bc652320fdcbf30e01b331e274b219d5587))
+* **deps:** upgrade vitest to v5 with peer compatibility tests ([#1334](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1334)) ([f827852](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/f827852a469697bd918be21d6f0cfc197aadb04c))
+
 ## [3.12.5](https://github.com/defenseunicorns/kubernetes-fluent-client/compare/v3.12.4...v3.12.5) (2026-10-20)
 
 
