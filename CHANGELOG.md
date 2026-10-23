@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.12.7](https://github.com/defenseunicorns/kubernetes-fluent-client/compare/v3.12.6...v3.12.7) (2026-10-23)
+
+
+### Chores
+
+* **deps:** bump js-yaml from 5.4.3 to 5.5.0 in the production-dependencies ([#1341](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1341)) ([448b6ca](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/448b6caa2d0b415a4d48bab4d4a2711057733dee))
+
 ## [3.12.6](https://github.com/defenseunicorns/kubernetes-fluent-client/compare/v3.12.5...v3.12.6) (2026-10-22)
 
 
