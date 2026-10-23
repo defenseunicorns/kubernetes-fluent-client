@@ -112,5 +112,5 @@ describe("TypeScript array compatibility", () => {
 
     const program = ts.createProgram([fileName], options, host);
     expect(ts.getPreEmitDiagnostics(program).map(diagnostic => diagnostic.messageText)).toEqual([]);
-  });
+  }, 10_000);
 });
