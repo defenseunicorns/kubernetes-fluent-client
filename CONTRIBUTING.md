@@ -37,14 +37,14 @@ Please follow our [Code of Conduct](./CODE_OF_CONDUCT.md) to maintain a respectf
 
 1. **Create an Issue**: For significant changes, please create an issue first, describing the problem or feature proposal. Trivial fixes, such as typo corrections, do not require an issue.
 2. **Commit Your Changes**: Make your changes and commit them. All commits must be signed.
-3. **Run Tests**: Ensure that your changes pass all tests by running unit tests (`npm test`) and integration tests (`test:e2e:run`).
+3. **Run Tests**: Ensure that your changes pass all tests by running unit and conformance tests (`npm test`) and end-to-end tests (`npm run test:e2e:run`).
 4. **Push Your Branch**: Push your branch to your fork on GitHub.
 5. **Create a Pull Request**: Open a pull request against the `main` branch of the Kubernetes Fluent Client repository. Please make sure that your PR passes all CI checks.
 
 ### PR Requirements
 
 - PRs must be against the `main` branch.
-- PRs must pass CI checks.
+- PRs must pass CI checks. Require both `test (22)`, `test (24)`, `test (26)` and `conformance (22)`, `conformance (24)`, `conformance (26)` in branch protection so either suite blocks merging independently.
 - Ensure all commits in your PR are signed.
 - PRs should have a related issue, except for trivial fixes.
 
@@ -59,7 +59,10 @@ Please follow the coding conventions and style used in the project. Use ESLint a
 
 ### Run Tests Locally
 
-- Unit: `npm test`
+- All unit and conformance tests, sequentially: `npm test`
+- Unit tests: `npm run test:unit` (coverage in `coverage/unit`)
+- Package and architecture conformance, generated TypeScript compatibility, and supported Vitest compatibility: `npm run build && npm run test:conformance` (files run sequentially; coverage in `coverage/conformance`)
+- Supported Vitest versions only: `npm run test:vitest-compat`
 - End to end: `npm run test:e2e:run`
 
 ### Running Development Version Locally
