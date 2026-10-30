@@ -1,5 +1,16 @@
 # Changelog
 
+## [3.12.7](https://github.com/defenseunicorns/kubernetes-fluent-client/compare/v3.12.6...v3.12.7) (2026-10-30)
+
+
+### Chores
+
+* **deps-dev:** bump eslint-plugin-jsdoc from 65.3.15 to 65.4.0 in the development-dependencies ([#1348](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1348)) ([91b9cb2](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/91b9cb2dea758d69a6e4affe0178f2549a4fe608))
+* **deps-dev:** bump fast-uri from 3.1.8 to 3.1.9 ([#1346](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1346)) ([d1c79cd](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/d1c79cd13f72bda0e78811793a13a0f793793573))
+* **deps:** bump js-yaml from 5.4.3 to 5.5.0 in the production-dependencies ([#1341](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1341)) ([448b6ca](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/448b6caa2d0b415a4d48bab4d4a2711057733dee))
+* **deps:** bump step-security/harden-runner from 2.22.1 to 2.22.2 ([#1345](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1345)) ([5f95555](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/5f95555347338ae8b13553bdad261681414e9d16))
+* **deps:** bump the codeql-action group with 3 updates ([#1349](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1349)) ([e0d663a](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/e0d663ae0f6903c1cd2a2e7f52664cc70b98f225))
+
 ## [3.12.6](https://github.com/defenseunicorns/kubernetes-fluent-client/compare/v3.12.5...v3.12.6) (2026-10-22)
 
 
