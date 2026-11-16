@@ -1,0 +1,79 @@
+name: Dependabot auto-merge
+
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, reopened, synchronize, ready_for_review]
+
+concurrency:
+  group: dependabot-auto-merge-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  enable-auto-merge:
+    if: >-
+      github.repository == 'defenseunicorns/kubernetes-fluent-client' &&
+      github.event.pull_request.user.login == 'dependabot[bot]' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      # Revoke prior eligibility before reading metadata so later pushes fail closed.
+      - name: Clear auto-merge from the previous revision
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          state=$(gh pr view "$PR_URL" --json headRefOid,autoMergeRequest)
+          if jq -e --arg head "$HEAD_SHA" \
+            '.headRefOid == $head and .autoMergeRequest != null' <<< "$state" > /dev/null; then
+            gh pr merge --disable-auto "$PR_URL"
+          fi
+
+      # This privileged workflow only reads metadata; never check out or run PR code.
+      - name: Fetch verified Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+
+      - name: Check every updated dependency against the patch allowlist
+        id: policy
+        env:
+          COMMIT_COUNT: ${{ github.event.pull_request.commits }}
+          UPDATED_DEPENDENCIES: ${{ steps.metadata.outputs.updated-dependencies-json }}
+        shell: bash
+        run: |
+          # Metadata verification covers the first commit. Reject additional commits.
+          if [[ "$COMMIT_COUNT" != "1" ]]; then
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          eligible=$(jq -r '
+            ["prettier", "@types/command-line-args", "@types/readable-stream",
+             "@types/urijs", "@types/ws", "@types/yargs"] as $allowed
+            | type == "array" and length > 0 and all(.[];
+                .dependencyName as $name
+                | ($allowed | index($name)) != null
+                  and .dependencyType == "direct:development"
+                  and .updateType == "version-update:semver-patch"
+                  and .packageEcosystem == "npm_and_yarn"
+                  and .directory == "/"
+                  and .maintainerChanges == false
+              )
+          ' <<< "$UPDATED_DEPENDENCIES")
+          echo "eligible=$eligible" >> "$GITHUB_OUTPUT"
+
+      # Auto-merge still waits for required checks and human/code-owner approval.
+      - name: Enable squash auto-merge
+        if: steps.policy.outputs.eligible == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: gh pr merge --auto --squash --match-head-commit "$HEAD_SHA" "$PR_URL"
