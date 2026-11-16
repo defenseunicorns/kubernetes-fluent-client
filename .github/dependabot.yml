@@ -6,7 +6,9 @@ updates:
   - package-ecosystem: npm # See documentation for possible values
     directory: "/" # Location of package manifests
     schedule:
-      interval: daily
+      # Version updates only; security updates are event-driven.
+      interval: weekly
+      day: monday
     cooldown:
       default-days: 7
     groups:
@@ -72,7 +74,9 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: daily
+      # Version updates only; security updates are event-driven.
+      interval: weekly
+      day: monday
     cooldown:
       default-days: 7
     groups:
