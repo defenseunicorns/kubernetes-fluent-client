@@ -81,7 +81,7 @@ jobs:
       - name: Install UDS CLI
         uses: defenseunicorns/setup-uds@d6add59d4c2ca789ed7c92741e91bd340b4e950b # v1.0.2
         with:
-          version: v0.36.0
+          version: v0.41.0
 
       - name: Install k3d
         shell: bash
