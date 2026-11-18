@@ -85,7 +85,9 @@ updates:
         applies-to: security-updates
         patterns:
           - "*"
-      codeql-action:
+      actions-minor-patch:
         patterns:
-          - "github/codeql-action"
-          - "github/codeql-action/*"
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
