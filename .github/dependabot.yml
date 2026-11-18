@@ -10,6 +10,11 @@ updates:
     cooldown:
       default-days: 7
     groups:
+      # Security fixes are alert-driven; do not wait for version-update schedules or cooldowns.
+      npm-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
       vitest:
         patterns:
           - "vitest"
@@ -28,6 +33,7 @@ updates:
         update-types:
           - "minor"
           - "patch"
+    # Exclude known-compromised releases, not future safe versions or security fixes.
     ignore:
       - dependency-name: "pino"
         versions: ["9.8.0"]
@@ -67,8 +73,6 @@ updates:
         versions: ["10.2.1"]
       - dependency-name: "debug"
         versions: ["4.4.2"]
-      - dependency-name: "@eslint/js"
-        versions: [">= 10.0.0"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
@@ -76,6 +80,11 @@ updates:
     cooldown:
       default-days: 7
     groups:
+      # Group available security fixes immediately, without a semver filter.
+      actions-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
       codeql-action:
         patterns:
           - "github/codeql-action"
