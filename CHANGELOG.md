@@ -1,5 +1,29 @@
 # Changelog
 
+## [3.12.7](https://github.com/defenseunicorns/kubernetes-fluent-client/compare/v3.12.6...v3.12.7) (2026-11-19)
+
+
+### Bug Fixes
+
+* **ci:** align UDS CLI with UDS Core ([#1359](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1359)) ([1ec4378](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/1ec4378d8c27b4959b462fc7271b6d8181284ca3))
+
+
+### Chores
+
+* **deps-dev:** bump eslint-plugin-jsdoc from 65.3.15 to 65.4.0 in the development-dependencies ([#1348](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1348)) ([91b9cb2](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/91b9cb2dea758d69a6e4affe0178f2549a4fe608))
+* **deps-dev:** bump fast-uri from 3.1.8 to 3.1.9 ([#1346](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1346)) ([d1c79cd](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/d1c79cd13f72bda0e78811793a13a0f793793573))
+* **deps-dev:** bump the development-dependencies group across 1 directory with 3 updates ([#1351](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1351)) ([439d2b0](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/439d2b0a20b476d2cb1005cf81f47b8c885cff9c))
+* **deps-dev:** bump the development-dependencies group across 1 directory with 8 updates ([#1366](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1366)) ([231fa73](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/231fa73c8c1dbcbe1f80382890be88bdbb1043d9))
+* **deps:** batch routine updates on Monday and Wednesday ([#1360](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1360)) ([4fe6ddd](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/4fe6dddf6fc1d5e801651aa2c44d36552d891f52))
+* **deps:** bump js-yaml from 5.4.3 to 5.5.0 in the production-dependencies ([#1341](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1341)) ([448b6ca](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/448b6caa2d0b415a4d48bab4d4a2711057733dee))
+* **deps:** bump step-security/harden-runner from 2.22.1 to 2.22.2 ([#1345](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1345)) ([5f95555](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/5f95555347338ae8b13553bdad261681414e9d16))
+* **deps:** bump step-security/harden-runner from 2.22.2 to 2.22.3 ([#1352](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1352)) ([0ccfe82](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/0ccfe8220d69b87de07541cbc399eede86c80aad))
+* **deps:** bump the actions-minor-patch group across 1 directory with 4 updates ([#1367](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1367)) ([5d11081](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/5d11081b802223dde134bfa3c863f52edd1875b0))
+* **deps:** bump the codeql-action group with 3 updates ([#1349](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1349)) ([e0d663a](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/e0d663ae0f6903c1cd2a2e7f52664cc70b98f225))
+* **deps:** bump undici from 8.12.3 to 8.12.4 in the production-dependencies ([#1358](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1358)) ([d14aa25](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/d14aa25d9df379575cc9980bd4ac53513a728b7e))
+* **deps:** group routine GitHub Actions updates ([#1361](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1361)) ([15d4f41](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/15d4f4137c0d12d50aa0639d106b903c9b48d0f5))
+* **deps:** group security fixes without scheduled delays ([#1363](https://github.com/defenseunicorns/kubernetes-fluent-client/issues/1363)) ([1dcdc51](https://github.com/defenseunicorns/kubernetes-fluent-client/commit/1dcdc5173c56666afd94fa1d89fc34eb9256fb9b))
+
 ## [3.12.6](https://github.com/defenseunicorns/kubernetes-fluent-client/compare/v3.12.5...v3.12.6) (2026-10-22)
 
 
